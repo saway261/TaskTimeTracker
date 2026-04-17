@@ -19,13 +19,24 @@ repositories {
 }
 
 dependencies {
+	// Webアプリケーション基盤
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+
+	// Lombok (メインコード用)
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+
+	// APサーバー(Tomcat)
 	providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat-runtime'
+
+	// SpringBoot Test 本体
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testCompileOnly 'org.projectlombok:lombok'
+
+	// テスト実行基盤
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// テストコードでのLombok利用設定
+	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
