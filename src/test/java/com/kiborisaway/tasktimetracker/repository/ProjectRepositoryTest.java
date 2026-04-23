@@ -7,6 +7,8 @@ import static org.assertj.core.api.Assertions.tuple;
 import com.kiborisaway.tasktimetracker.data.Project;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -33,7 +35,7 @@ class ProjectRepositoryTest {
   }
 
   @Test
-  void ID検索成功_IDが一致するプロジェクトを取得できること(){
+  void ID検索成功_IDが一致するプロジェクトを取得できること() {
     // Arrange
     int id = 1;
 
@@ -50,7 +52,7 @@ class ProjectRepositoryTest {
   }
 
   @Test
-  void ID検索失敗_存在しないIDを指定するとnullを返すこと(){
+  void ID検索失敗_存在しないIDを指定するとnullを返すこと() {
     // Arrange
     int id = 999;
 
@@ -87,6 +89,17 @@ class ProjectRepositoryTest {
   void 登録失敗_titleがnullの場合は例外が発生すること() {
     Project project = new Project();
     project.setTitle(null);
+    project.setDescription("説明");
+
+    assertThatThrownBy(() -> sut.registerProject(project))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @ParameterizedTest(name = "[{index}]登録失敗_titleが{0}の場合は例外が発生すること")
+  @ValueSource(strings = {"", " "})
+  void 登録失敗_titleが有効な文字を含まない場合は例外が発生すること(String invalidTitle) {
+    Project project = new Project();
+    project.setTitle(invalidTitle);
     project.setDescription("説明");
 
     assertThatThrownBy(() -> sut.registerProject(project))
@@ -159,6 +172,17 @@ class ProjectRepositoryTest {
     project.setDescription("説明更新");
 
     assertThatThrownBy(() -> sut.updateProject(project))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @ParameterizedTest(name = "[{index}]登録失敗_titleが{0}の場合は例外が発生すること")
+  @ValueSource(strings = {"", " "})
+  void 更新失敗_titleが有効な文字を含まない場合は例外が発生すること(String invalidTitle) {
+    Project project = new Project();
+    project.setTitle(invalidTitle);
+    project.setDescription("説明");
+
+    assertThatThrownBy(() -> sut.registerProject(project))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
