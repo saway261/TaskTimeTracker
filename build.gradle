@@ -1,45 +1,45 @@
 plugins {
-	id 'java'
-	id 'war'
-	id 'org.springframework.boot' version '4.0.5'
-	id 'io.spring.dependency-management' version '1.1.7'
+    id 'java'
+    id 'war'
+    id 'org.springframework.boot' version '4.0.5'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.kiborisaway'
 version = '0.0.1-SNAPSHOT'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(25)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
-	// Webアプリケーション基盤
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    // Webアプリケーション基盤
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 
-	// Lombok (メインコード用)
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
+    // Lombok (メインコード用)
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 
-	// APサーバー(Tomcat)
-	providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat-runtime'
+    // APサーバー(Tomcat)
+    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat-runtime'
 
-	// SpringBoot Test 本体
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // SpringBoot Test 本体
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
-	// テスト実行基盤
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // テスト実行基盤
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-	// テストコードでのLombok利用設定
-	testCompileOnly 'org.projectlombok:lombok'
-	testAnnotationProcessor 'org.projectlombok:lombok'
+    // テストコードでのLombok利用設定
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }
