@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS projects (
 id INT AUTO_INCREMENT PRIMARY KEY,
 title VARCHAR(20) NOT NULL,
 description VARCHAR(200),
+is_finished BOOLEAN NOT NULL DEFAULT false,
 CONSTRAINT chk_projects_title_not_blank
  CHECK (TRIM(title) <> '')
 );
