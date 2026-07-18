@@ -22,8 +22,8 @@ public class ProjectService {
    *
    * @return プロジェクトの一覧
    */
-  public List<Project> searchProjectList() {
-    return repository.searchProjectList();
+  public List<Project> findAll() {
+    return repository.findAll();
   }
 
   /**
@@ -32,8 +32,8 @@ public class ProjectService {
    * @param id プロジェクトのID
    * @return プロジェクト
    */
-  public Project searchProjectById(int id) {
-    Project project = repository.searchProjectById(id);
+  public Project findById(int id) {
+    Project project = repository.findById(id);
     if (project == null) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
@@ -46,8 +46,8 @@ public class ProjectService {
    *
    * @param project 新規登録するプロジェクト
    */
-  public Project registerProject(Project project) {
-    repository.registerProject(project);
+  public Project register(Project project) {
+    repository.insert(project);
     return project;
   }
 
@@ -56,8 +56,8 @@ public class ProjectService {
    *
    * @param project 更新するプロジェクト
    */
-  public void updateProject(Project project) {
-    int updated = repository.updateProject(project);
+  public void update(Project project) {
+    int updated = repository.update(project);
     if (updated == 0) {
       throw new TargetNotFoundException("project", "更新対象のプロジェクトが見つかりませんでした");
     }

@@ -38,7 +38,7 @@ class ProjectControllerTest {
     mockMvc.perform(MockMvcRequestBuilders.get("/projects"))
         .andExpect(status().isOk());
 
-    verify(service).searchProjectList();
+    verify(service).findAll();
   }
 
   @Test
@@ -47,13 +47,13 @@ class ProjectControllerTest {
     int id = 1;
     Project project = new Project();
     project.setId(id);
-    when(service.searchProjectById(id)).thenReturn(project);
+    when(service.findById(id)).thenReturn(project);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{id}", id))
         .andExpect(status().isOk());
 
-    verify(service).searchProjectById(id);
+    verify(service).findById(id);
   }
 
   @Test
@@ -66,14 +66,14 @@ class ProjectControllerTest {
   @Test
   void プロジェクト単体取得失敗_対象が存在しないなら404を返すこと() throws Exception {
     // Arrange
-    when(service.searchProjectById(999)).thenThrow(
+    when(service.findById(999)).thenThrow(
         new TargetNotFoundException("id", "project not found"));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/999"))
         .andExpect(status().isNotFound());
 
-    verify(service).searchProjectById(999);
+    verify(service).findById(999);
   }
 
   @Test
@@ -90,7 +90,7 @@ class ProjectControllerTest {
     response.setId(10);
     response.setTitle("Spring学習");
     response.setDescription("REST APIを作る");
-    when(service.registerProject(any(Project.class))).thenReturn(response);
+    when(service.register(any(Project.class))).thenReturn(response);
     String validRequest = """
         {
             "title" : "Spring学習",
@@ -104,7 +104,7 @@ class ProjectControllerTest {
             .content(validRequest))
         .andExpect(status().isCreated());
 
-    verify(service).registerProject(any(Project.class));
+    verify(service).register(any(Project.class));
   }
 
   @Test
@@ -135,7 +135,7 @@ class ProjectControllerTest {
         }
         """;
 
-    doNothing().when(service).updateProject(any(Project.class));
+    doNothing().when(service).update(any(Project.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/projects")
@@ -144,7 +144,7 @@ class ProjectControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().string("更新成功"));
 
-    verify(service).updateProject(any(Project.class));
+    verify(service).update(any(Project.class));
   }
 
   @Test
@@ -177,7 +177,7 @@ class ProjectControllerTest {
         """;
 
     doThrow(new TargetNotFoundException("id", "project not found"))
-        .when(service).updateProject(any(Project.class));
+        .when(service).update(any(Project.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/projects")
@@ -185,6 +185,6 @@ class ProjectControllerTest {
             .content(invalidRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).updateProject(any(Project.class));
+    verify(service).update(any(Project.class));
   }
 }

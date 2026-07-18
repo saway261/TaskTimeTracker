@@ -31,26 +31,26 @@ public class ProjectController {
   }
 
   @GetMapping
-  public List<Project> searchProjectList() {
-    return service.searchProjectList();
+  public List<Project> getAll() {
+    return service.findAll();
   }
 
   @GetMapping("/{id}")
-  public Project getProject(@PathVariable @Positive int id) {
-    return service.searchProjectById(id);
+  public Project getById(@PathVariable @Positive int id) {
+    return service.findById(id);
   }
 
   @PostMapping
-  public ResponseEntity<Project> registerProject(
+  public ResponseEntity<Project> create(
       @RequestBody @Validated(CreateGroup.class) Project request) {
-    Project response = service.registerProject(request);
+    Project response = service.register(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
   @PutMapping
-  public ResponseEntity<String> updateProject(
+  public ResponseEntity<String> update(
       @RequestBody @Validated(UpdateGroup.class) Project request) {
-    service.updateProject(request);
+    service.update(request);
     return ResponseEntity.ok("更新成功");
   }
 }
