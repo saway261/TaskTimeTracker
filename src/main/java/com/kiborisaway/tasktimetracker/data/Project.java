@@ -28,4 +28,9 @@ public class Project {
   @Size(max = 200, groups = {CreateGroup.class, UpdateGroup.class})
   private String description;
 
+  private Boolean isFinished;
+
+
 }
+
+
