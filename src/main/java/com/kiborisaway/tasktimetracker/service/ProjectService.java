@@ -27,6 +27,15 @@ public class ProjectService {
   }
 
   /**
+   * 取り組み中のプロジェクトの一覧検索を行います。
+   *
+   * @return 取り組み中のプロジェクトの一覧
+   */
+  public List<Project> findAllInProgress() {
+    return repository.findAllInProgress();
+  }
+
+  /**
    * IDによるプロジェクトの
    *
    * @param id プロジェクトのID

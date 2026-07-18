@@ -31,15 +31,8 @@ class ProjectServiceTest {
   @Test
   void 全件検索_プロジェクト一覧を取得できること() {
     // Arrange
-    Project project1 = new Project();
-    project1.setId(1);
-    project1.setTitle("タスク管理アプリ開発");
-    project1.setDescription("A社から受託した開発");
-
-    Project project2 = new Project();
-    project2.setId(2);
-    project2.setTitle("Java Silver勉強");
-    project2.setDescription(null);
+    Project project1 = new Project(1, "タスク管理アプリ開発", "A社から受託した開発", false);
+    Project project2 = new Project(2, "Java Silver勉強", null, true);
 
     List<Project> expected = List.of(project1, project2);
 
@@ -54,13 +47,28 @@ class ProjectServiceTest {
   }
 
   @Test
+  void 取り組み中プロジェクト検索_取り組み中プロジェクト一覧を取得できること() {
+    // Arrange
+    Project project1 = new Project(1, "タスク管理アプリ開発", "A社から受託した開発", false);
+    Project project2 = new Project(2, "Java Silver勉強", null, false);
+
+    List<Project> expected = List.of(project1, project2);
+
+    when(repository.findAllInProgress()).thenReturn(expected);
+
+    // Act
+    List<Project> actual = sut.findAllInProgress();
+
+    // Assert
+    assertThat(actual).isEqualTo(expected);
+    verify(repository, times(1)).findAllInProgress();
+  }
+
+  @Test
   void ID検索成功_プロジェクトを取得できること() {
     // Arrange
     int id = 1;
-    Project expected = new Project();
-    expected.setId(id);
-    expected.setTitle("タスク管理アプリ開発");
-    expected.setDescription("A社から受託した開発");
+    Project expected = new Project(id, "タスク管理アプリ開発", "A社から受託した開発", false);
 
     when(repository.findById(id)).thenReturn(expected);
 
@@ -89,10 +97,7 @@ class ProjectServiceTest {
     // Arrange
     // ※サービスではINSERT時にidが自動採番されて引数インスタンスに自動でバインドされる挙動を再現できない
     //   かつ、その挙動はリポジトリのテストで検証するので、サービス層のテストでは初めからidを持っておく
-    Project project = new Project();
-    project.setId(3);
-    project.setTitle("Spring Boot学習");
-    project.setDescription("REST APIを作る");
+    Project project = new Project(3, "Spring Boot学習", "REST APIを作る", null);
 
     // Act
     Project actual = sut.register(project);
@@ -122,10 +127,7 @@ class ProjectServiceTest {
   @Test
   void 更新成功_既存プロジェクトを更新できること() {
     // Arrange
-    Project project = new Project();
-    project.setId(1);
-    project.setTitle("タスク管理アプリ開発");
-    project.setDescription("A社から受託した開発");
+    Project project = new Project(1, "タスク管理アプリ開発", "A社から受託した開発", true);
 
     when(repository.update(project)).thenReturn(1);
 
@@ -139,10 +141,7 @@ class ProjectServiceTest {
   @Test
   void 更新失敗_DB制約違反の例外をそのまま送出すること() {
     // Arrange
-    Project project = new Project();
-    project.setId(1);
-    project.setTitle(null);
-    project.setDescription("説明更新");
+    Project project = new Project(1, null, "説明更新", true);
 
     when(repository.update(project))
         .thenThrow(new DataIntegrityViolationException("db constraint violation"));
@@ -157,10 +156,7 @@ class ProjectServiceTest {
   @Test
   void 更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
-    Project project = new Project();
-    project.setId(999);
-    project.setTitle("更新されないタイトル");
-    project.setDescription("更新されない説明");
+    Project project = new Project(999, "更新されないタイトル", "更新されない説明", true);
 
     when(repository.update(project)).thenReturn(0);
 
