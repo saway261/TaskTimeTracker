@@ -3,7 +3,6 @@ package com.kiborisaway.tasktimetracker.data;
 import com.kiborisaway.tasktimetracker.validation.CreateGroup;
 import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -18,7 +17,6 @@ import lombok.Setter;
 @NoArgsConstructor
 public class Project {
 
-  @NotNull(groups = UpdateGroup.class)
   private Integer id;
 
   @NotBlank(groups = {CreateGroup.class, UpdateGroup.class})

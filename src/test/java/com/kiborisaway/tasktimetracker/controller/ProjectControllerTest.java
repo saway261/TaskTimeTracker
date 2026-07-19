@@ -127,9 +127,9 @@ class ProjectControllerTest {
   @Test
   void プロジェクト更新成功_200とメッセージを返すこと() throws Exception {
     // Arrange
+    int id = 1;
     String validRequest = """
         {
-            "id" : 1,
             "title" : "タスク管理アプリ開発",
             "description" : "説明を更新"
         }
@@ -138,7 +138,7 @@ class ProjectControllerTest {
     doNothing().when(service).update(any(Project.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/projects")
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
@@ -148,43 +148,62 @@ class ProjectControllerTest {
   }
 
   @Test
-  void プロジェクト更新失敗_不正なリクエストボディなら400を返すこと() throws Exception {
-    // Arrange
-    String invalidRequest = """
-        {
-          "id": null,
-          "title": "更新タイトル",
-          "description": "更新説明"
-        }
-        """;
-
+  void プロジェクト更新失敗_パスパラメータを渡さないと405を返すこと() throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/projects")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(invalidRequest))
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects"))
+        .andExpect(status().isMethodNotAllowed());
+  }
+
+  @Test
+  void プロジェクト更新失敗_パス変数が0以下なら400を返すこと() throws Exception {
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects/0"))
         .andExpect(status().isBadRequest());
   }
 
   @Test
-  void プロジェクト更新失敗_更新対象が存在しないなら404を返すこと() throws Exception {
+  void プロジェクト更新失敗_対象が存在しないなら404を返すこと() throws Exception {
     // Arrange
-    String invalidRequest = """
+    int id = 999;
+    String validRequest = """
         {
-          "id": 999,
           "title": "更新タイトル",
           "description": "更新説明"
         }
         """;
-
     doThrow(new TargetNotFoundException("id", "project not found"))
         .when(service).update(any(Project.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/projects")
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
             .contentType(MediaType.APPLICATION_JSON)
-            .content(invalidRequest))
+            .content(validRequest))
         .andExpect(status().isNotFound());
 
     verify(service).update(any(Project.class));
+  }
+
+  @Test
+  void プロジェクト更新失敗_パス変数の型が不正なら400を返すこと() throws Exception {
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects/abc"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void プロジェクト更新失敗_不正なリクエストボディなら400を返すこと() throws Exception {
+    // Arrange
+    int id = 1;
+    String invalidRequest = """
+        {
+          "description": "更新説明"
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
   }
 }

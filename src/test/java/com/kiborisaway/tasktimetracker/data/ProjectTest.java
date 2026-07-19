@@ -89,23 +89,6 @@ class ProjectTest {
   }
 
   @Test
-  void 更新時_idにnullが渡されたときバリデーション違反になること() {
-    // Arrange
-    Project project = new Project();
-    project.setId(null);
-    project.setTitle("プロジェクトA");
-    project.setDescription("A社から受託したプロジェクト");
-
-    // Act
-    Set<ConstraintViolation<Project>> violations = validator.validate(project, UpdateGroup.class);
-
-    // Assert
-    assertThat(violations.stream()
-        .anyMatch(v -> v.getPropertyPath().toString().equals("id")))
-        .isTrue();
-  }
-
-  @Test
   void 更新時_titleにnullが渡されたときバリデーション違反になること() {
     // Arrange
     Project project = new Project();

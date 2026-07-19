@@ -47,9 +47,11 @@ public class ProjectController {
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
-  @PutMapping
+  @PutMapping("/{id}")
   public ResponseEntity<String> update(
+      @PathVariable @Positive int id,
       @RequestBody @Validated(UpdateGroup.class) Project request) {
+    request.setId(id);
     service.update(request);
     return ResponseEntity.ok("更新成功");
   }
