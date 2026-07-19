@@ -37,9 +37,22 @@ class ProjectRepositoryTest {
   }
 
   @Test
-  void 取り組み中プロジェクト検索_初期データに含まれるisFinishedがfalseのプロジェクトのみをを取得できること() {
+  void 完了フラグ指定検索_初期データに含まれるisFinishedがtrueのプロジェクトのみをを取得できること() {
     // Act
-    List<Project> actual = sut.findAllInProgress();
+    List<Project> actual = sut.findAllByIsFinished(true);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Project::getTitle, Project::getDescription, Project::getIsFinished)
+        .containsExactlyInAnyOrder(
+            tuple("プロジェクトX", "社外秘", true)
+        );
+  }
+
+  @Test
+  void 完了フラグ指定検索_初期データに含まれるisFinishedがfalseのプロジェクトのみをを取得できること() {
+    // Act
+    List<Project> actual = sut.findAllByIsFinished(false);
 
     // Assert
     assertThat(actual)

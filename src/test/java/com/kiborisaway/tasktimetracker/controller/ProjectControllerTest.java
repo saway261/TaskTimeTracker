@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,12 +34,41 @@ class ProjectControllerTest {
   private ErrorDetailsBuilder errorDetailsBuilder;
 
   @Test
-  void 全件検索_200と一覧を返すこと() throws Exception {
+  void プロジェクト一覧検索_条件未指定でサービスを呼び出し200を返すこと() throws Exception {
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/projects"))
         .andExpect(status().isOk());
 
-    verify(service).findAll();
+    verify(service).findAllByCondition(null);
+  }
+
+  @Test
+  void プロジェクト一覧検索_isFinishedがfalseでサービスを呼び出し200を返すこと() throws Exception {
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects")
+            .param("isFinished", "false"))
+        .andExpect(status().isOk());
+
+    verify(service).findAllByCondition(false);
+  }
+
+  @Test
+  void プロジェクト一覧検索_isFinishedがtrueでサービスを呼び出し200を返すこと() throws Exception {
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects")
+            .param("isFinished", "true"))
+        .andExpect(status().isOk());
+
+    verify(service).findAllByCondition(true);
+  }
+
+  @Test
+  void プロジェクト一覧検索_isFinishedが真偽値でなければ400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects")
+            .param("isFinished", "invalid"))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
   }
 
   @Test

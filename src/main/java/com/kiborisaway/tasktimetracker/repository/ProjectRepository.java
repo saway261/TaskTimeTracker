@@ -20,12 +20,13 @@ public interface ProjectRepository {
   List<Project> findAll();
 
   /**
-   * 取り組み中のプロジェクトのみを検索します。
+   * 完了フラグを指定してプロジェクトを検索します。
    *
-   * @return 取り組み中のプロジェクト一覧
+   * @param isFinished 完了フラグ
+   * @return 指定した完了状態のプロジェクト一覧
    */
-  @Select("SELECT * FROM projects WHERE is_finished=false")
-  List<Project> findAllInProgress();
+  @Select("SELECT * FROM projects WHERE is_finished=#{isFinished}")
+  List<Project> findAllByIsFinished(boolean isFinished);
 
   /**
    * IDによるプロジェクトの単一検索を行います

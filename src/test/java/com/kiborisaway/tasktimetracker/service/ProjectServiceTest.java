@@ -29,7 +29,7 @@ class ProjectServiceTest {
   private ProjectService sut;
 
   @Test
-  void 全件検索_プロジェクト一覧を取得できること() {
+  void プロジェクト一覧検索_引数にnullを指定すると全件検索用のリポジトリのメソッドを呼び出すこと() {
     // Arrange
     Project project1 = new Project(1, "タスク管理アプリ開発", "A社から受託した開発", false);
     Project project2 = new Project(2, "Java Silver勉強", null, true);
@@ -39,7 +39,7 @@ class ProjectServiceTest {
     when(repository.findAll()).thenReturn(expected);
 
     // Act
-    List<Project> actual = sut.findAll();
+    List<Project> actual = sut.findAllByCondition(null);
 
     // Assert
     assertThat(actual).isEqualTo(expected);
@@ -47,21 +47,37 @@ class ProjectServiceTest {
   }
 
   @Test
-  void 取り組み中プロジェクト検索_取り組み中プロジェクト一覧を取得できること() {
+  void プロジェクト一覧検索_引数にtrueを指定すると完了フラグ指定検索用のリポジトリのメソッドにtrueを指定して呼び出すこと() {
     // Arrange
-    Project project1 = new Project(1, "タスク管理アプリ開発", "A社から受託した開発", false);
-    Project project2 = new Project(2, "Java Silver勉強", null, false);
+    Project project = new Project(2, "Java Silver勉強", null, true);
 
-    List<Project> expected = List.of(project1, project2);
+    List<Project> expected = List.of(project);
 
-    when(repository.findAllInProgress()).thenReturn(expected);
+    when(repository.findAllByIsFinished(true)).thenReturn(expected);
 
     // Act
-    List<Project> actual = sut.findAllInProgress();
+    List<Project> actual = sut.findAllByCondition(true);
 
     // Assert
     assertThat(actual).isEqualTo(expected);
-    verify(repository, times(1)).findAllInProgress();
+    verify(repository, times(1)).findAllByIsFinished(true);
+  }
+
+  @Test
+  void プロジェクト一覧検索_引数にfalseを指定すると完了フラグ指定検索用のリポジトリのメソッドにfalseを指定して呼び出すこと() {
+    // Arrange
+    Project project = new Project(1, "タスク管理アプリ開発", "A社から受託した開発", false);
+
+    List<Project> expected = List.of(project);
+
+    when(repository.findAllByIsFinished(false)).thenReturn(expected);
+
+    // Act
+    List<Project> actual = sut.findAllByCondition(false);
+
+    // Assert
+    assertThat(actual).isEqualTo(expected);
+    verify(repository, times(1)).findAllByIsFinished(false);
   }
 
   @Test

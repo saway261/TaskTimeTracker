@@ -18,21 +18,16 @@ public class ProjectService {
   }
 
   /**
-   * プロジェクトの一覧検索を行います。
+   * プロジェクトの一覧検索を行います。完了フラグを指定した場合、指定した完了状態のプロジェクトのみを取得します。
    *
-   * @return プロジェクトの一覧
+   * @param isFinished 完了フラグ
+   * @return 全件または指定した完了状態のプロジェクトの一覧
    */
-  public List<Project> findAll() {
-    return repository.findAll();
-  }
-
-  /**
-   * 取り組み中のプロジェクトの一覧検索を行います。
-   *
-   * @return 取り組み中のプロジェクトの一覧
-   */
-  public List<Project> findAllInProgress() {
-    return repository.findAllInProgress();
+  public List<Project> findAllByCondition(Boolean isFinished) {
+    if (isFinished == null) {
+      return repository.findAll();
+    }
+    return repository.findAllByIsFinished(isFinished);
   }
 
   /**

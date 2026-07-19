@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Validated
@@ -31,8 +32,8 @@ public class ProjectController {
   }
 
   @GetMapping
-  public List<Project> getAll() {
-    return service.findAll();
+  public List<Project> getAll(@RequestParam(required = false) Boolean isFinished) {
+    return service.findAllByCondition(isFinished);
   }
 
   @GetMapping("/{id}")
