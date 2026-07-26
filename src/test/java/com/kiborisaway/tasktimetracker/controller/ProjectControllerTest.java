@@ -161,7 +161,8 @@ class ProjectControllerTest {
     String validRequest = """
         {
             "title" : "タスク管理アプリ開発",
-            "description" : "説明を更新"
+            "description" : "説明を更新",
+            "isFinished" : false
         }
         """;
 
@@ -198,7 +199,8 @@ class ProjectControllerTest {
     String validRequest = """
         {
           "title": "更新タイトル",
-          "description": "更新説明"
+          "description": "更新説明",
+          "isFinished" : false
         }
         """;
     doThrow(new TargetNotFoundException("id", "project not found"))
