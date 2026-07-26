@@ -38,6 +38,21 @@ public interface ProjectRepository {
   Project findById(int id);
 
   /**
+   * IDによるプロジェクトの存在チェックを行います
+   *
+   * @param id プロジェクトのID
+   * @return 存在すればtrue, 存在しなければfalse
+   */
+  @Select("""
+      SELECT EXISTS(
+        SELECT 1
+        FROM projects
+        WHERE id = #{projectId}
+      )
+      """)
+  boolean existsById(int id);
+
+  /**
    * プロジェクトの新規追加を行います。 完了フラグは新規追加時にはfalseとなります。
    *
    * @param project プロジェクト

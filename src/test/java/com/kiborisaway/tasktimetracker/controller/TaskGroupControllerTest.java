@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -34,7 +35,7 @@ class TaskGroupControllerTest {
   private ErrorDetailsBuilder errorDetailsBuilder;
 
   @Test
-  void タスクグループ一覧検索_条件未指定でサービスを呼び出し200を返すこと() throws Exception {
+  void タスクグループ一覧検索成功_条件未指定でサービスを呼び出し200を返すこと() throws Exception {
     // Act & Assert
     int pId = 1;
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId))
@@ -44,7 +45,7 @@ class TaskGroupControllerTest {
   }
 
   @Test
-  void タスクグループ一覧検索_isFinishedがfalseでサービスを呼び出し200を返すこと()
+  void タスクグループ一覧検索成功_isFinishedがfalseでサービスを呼び出し200を返すこと()
       throws Exception {
     // Act & Assert
     int pId = 1;
@@ -56,7 +57,8 @@ class TaskGroupControllerTest {
   }
 
   @Test
-  void タスクグループ一覧検索_isFinishedがtrueでサービスを呼び出し200を返すこと() throws Exception {
+  void タスクグループ一覧検索成功_isFinishedがtrueでサービスを呼び出し200を返すこと()
+      throws Exception {
     // Act & Assert
     int pId = 1;
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId)
@@ -67,7 +69,7 @@ class TaskGroupControllerTest {
   }
 
   @Test
-  void タスクグループ一覧検索_isFinishedが真偽値でなければ400を返すこと() throws Exception {
+  void タスクグループ一覧検索失敗_isFinishedが真偽値でなければ400を返すこと() throws Exception {
     // Act & Assert
     int pId = 1;
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId)
@@ -75,6 +77,21 @@ class TaskGroupControllerTest {
         .andExpect(status().isBadRequest());
 
     verifyNoInteractions(service);
+  }
+
+  @Test
+  void タスクグループ一覧検索失敗_存在しないプロジェクトIDを指定した場合は404を返すこと()
+      throws Exception {
+    // Arrange
+    int pId = 999;
+    when(service.findAllByCondition(eq(pId), any())).thenThrow(
+        new TargetNotFoundException("project.id",
+            "指定したIDのプロジェクトは見つかりませんでした"));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId))
+        .andExpect(status().isNotFound());
+
   }
 
   @Test
@@ -128,7 +145,7 @@ class TaskGroupControllerTest {
     response.setProjectId(pId);
     response.setTitle("タスクグループ1");
     response.setDescription("説明");
-    when(service.register(any(TaskGroup.class))).thenReturn(response);
+    when(service.register(eq(pId), any(TaskGroup.class))).thenReturn(response);
     String validRequest = """
         {
             "title" : "タスクグループ1",
@@ -142,7 +159,30 @@ class TaskGroupControllerTest {
             .content(validRequest))
         .andExpect(status().isCreated());
 
-    verify(service).register(any(TaskGroup.class));
+    verify(service).register(eq(pId), any(TaskGroup.class));
+  }
+
+  @Test
+  void タスクグループ登録失敗_存在しないプロジェクトを指定した場合404を返すこと() throws Exception {
+    // Arrange
+    int pId = 999;
+    String validRequest = """
+        {
+          "title": "タイトル",
+          "description": "説明"
+        }
+        """;
+    when(service.register(eq(pId), any(TaskGroup.class))).thenThrow(
+        new TargetNotFoundException("project.id",
+            "指定したIDのプロジェクトは見つかりませんでした"));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/task-groups", pId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isNotFound());
+
+    verify(service).register(eq(pId), any(TaskGroup.class));
   }
 
   @Test

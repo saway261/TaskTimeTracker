@@ -47,7 +47,7 @@ public class TaskGroupController {
       @PathVariable @Positive int pId,
       @RequestBody @Validated(CreateGroup.class) TaskGroup request
   ) {
-    TaskGroup response = service.register(request);
+    TaskGroup response = service.register(pId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
