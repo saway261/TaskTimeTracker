@@ -12,7 +12,7 @@ id INT AUTO_INCREMENT PRIMARY KEY,
 project_id INT NOT NULL,
 title VARCHAR(20) NOT NULL,
 description VARCHAR(200),
-display_order INT NOT NULL,
+is_finished BOOLEAN NOT NULL DEFAULT false,
 FOREIGN KEY (project_id) REFERENCES projects(id)
 );
 

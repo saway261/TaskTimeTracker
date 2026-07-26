@@ -14,7 +14,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class ProjectTest {
+class TaskGroupTest {
 
   private static Validator validator;
 
@@ -26,12 +26,12 @@ class ProjectTest {
   @Test
   void 登録時_titleにnullが渡されたときバリデーション違反になること() {
     // Arrange
-    Project project = new Project();
-    project.setTitle(null);
-    project.setDescription("不正なプロジェクト");
+    TaskGroup tg = new TaskGroup();
+    tg.setTitle(null);
+    tg.setDescription("不正なタスクグループ");
 
     // Act
-    Set<ConstraintViolation<Project>> violations = validator.validate(project, CreateGroup.class);
+    Set<ConstraintViolation<TaskGroup>> violations = validator.validate(tg, CreateGroup.class);
 
     // Assert
     assertThat(violations.stream()
@@ -44,12 +44,12 @@ class ProjectTest {
 // 空文字、半角スペース、全角スペース
   void 登録時_titleに有効な文字が渡されないときバリデーション違反になること(String invalidTitle) {
     // Arrange
-    Project project = new Project();
-    project.setTitle(invalidTitle);
-    project.setDescription("不正なプロジェクト");
+    TaskGroup tg = new TaskGroup();
+    tg.setTitle(invalidTitle);
+    tg.setDescription("不正なタスクグループ");
 
     // Act
-    Set<ConstraintViolation<Project>> violations = validator.validate(project, CreateGroup.class);
+    Set<ConstraintViolation<TaskGroup>> violations = validator.validate(tg, CreateGroup.class);
 
     // Assert
     assertThat(violations.stream()
@@ -70,13 +70,13 @@ class ProjectTest {
       boolean expectViolation) {
     // Arrange
     String testValue = "あ".repeat(length);
-    Project project = new Project();
-    project.setTitle(fieldName.equals("title") ? testValue : "プロジェクトA");
-    project.setDescription(
-        fieldName.equals("description") ? testValue : "A社から受託したプロジェクト");
+    TaskGroup tg = new TaskGroup();
+    tg.setTitle(fieldName.equals("title") ? testValue : "タスクグループA");
+    tg.setDescription(
+        fieldName.equals("description") ? testValue : "タスクグループの説明");
 
     // Act
-    Set<ConstraintViolation<Project>> violations = validator.validate(project, CreateGroup.class);
+    Set<ConstraintViolation<TaskGroup>> violations = validator.validate(tg, CreateGroup.class);
 
     // Assert
     if (expectViolation) {
@@ -91,14 +91,14 @@ class ProjectTest {
   @Test
   void 更新時_titleにnullが渡されたときバリデーション違反になること() {
     // Arrange
-    Project project = new Project();
-    project.setId(1);
-    project.setTitle(null);
-    project.setDescription("不正なプロジェクト");
-    project.setIsFinished(false);
+    TaskGroup tg = new TaskGroup();
+    tg.setId(1);
+    tg.setTitle(null);
+    tg.setDescription("不正なタスクグループ");
+    tg.setIsFinished(false);
 
     // Act
-    Set<ConstraintViolation<Project>> violations = validator.validate(project, UpdateGroup.class);
+    Set<ConstraintViolation<TaskGroup>> violations = validator.validate(tg, UpdateGroup.class);
 
     // Assert
     assertThat(violations.stream()
@@ -109,14 +109,14 @@ class ProjectTest {
   @Test
   void 更新時_isFinishedにnullが渡されたときバリデーション違反になること() {
     // Arrange
-    Project project = new Project();
-    project.setId(1);
-    project.setTitle("タイトル");
-    project.setDescription("不正なプロジェクト");
-    project.setIsFinished(null);
+    TaskGroup tg = new TaskGroup();
+    tg.setId(1);
+    tg.setTitle("タイトル");
+    tg.setDescription("不正なタスクグループ");
+    tg.setIsFinished(null);
 
     // Act
-    Set<ConstraintViolation<Project>> violations = validator.validate(project, UpdateGroup.class);
+    Set<ConstraintViolation<TaskGroup>> violations = validator.validate(tg, UpdateGroup.class);
 
     // Assert
     assertThat(violations.stream()
@@ -126,17 +126,17 @@ class ProjectTest {
 
   @ParameterizedTest(name = "[{index}]更新時_titleに{0}が渡されたときバリデーション違反になること")
   @ValueSource(strings = {"", " ", "　"})
-// 空文字、半角スペース、全角スペース
+    // 空文字、半角スペース、全角スペース
   void 更新時_titleに有効な文字が渡されないときバリデーション違反になること(String invalidTitle) {
     // Arrange
-    Project project = new Project();
-    project.setId(1);
-    project.setTitle(invalidTitle);
-    project.setDescription("不正なプロジェクト");
-    project.setIsFinished(false);
+    TaskGroup tg = new TaskGroup();
+    tg.setId(1);
+    tg.setTitle(invalidTitle);
+    tg.setDescription("不正なタスクグループ");
+    tg.setIsFinished(false);
 
     // Act
-    Set<ConstraintViolation<Project>> violations = validator.validate(project, UpdateGroup.class);
+    Set<ConstraintViolation<TaskGroup>> violations = validator.validate(tg, UpdateGroup.class);
 
     // Assert
     assertThat(violations.stream()
@@ -157,15 +157,15 @@ class ProjectTest {
       boolean expectViolation) {
     // Arrange
     String testValue = "あ".repeat(length);
-    Project project = new Project();
-    project.setId(1);
-    project.setTitle(fieldName.equals("title") ? testValue : "プロジェクトA");
-    project.setDescription(
-        fieldName.equals("description") ? testValue : "A社から受託したプロジェクト");
-    project.setIsFinished(false);
+    TaskGroup tg = new TaskGroup();
+    tg.setId(1);
+    tg.setTitle(fieldName.equals("title") ? testValue : "タスクグループA");
+    tg.setDescription(
+        fieldName.equals("description") ? testValue : "A社から受託したタスクグループ");
+    tg.setIsFinished(false);
 
     // Act
-    Set<ConstraintViolation<Project>> violations = validator.validate(project, UpdateGroup.class);
+    Set<ConstraintViolation<TaskGroup>> violations = validator.validate(tg, UpdateGroup.class);
 
     // Assert
     if (expectViolation) {
