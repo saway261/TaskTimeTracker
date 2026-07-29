@@ -37,3 +37,15 @@ CONSTRAINT chk_tasks_parent_xor
       (project_id IS NULL AND task_group_id IS NOT NULL)
     )
 );
+
+CREATE TABLE IF NOT EXISTS work_sessions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  task_id INT NOT NULL,
+  minutes INT,
+  started_at TIMESTAMP,
+  ended_at TIMESTAMP,
+  type ENUM('TIMER', 'MANUAL') NOT NULL DEFAULT 'TIMER',
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL,
+  FOREIGN KEY (task_id) REFERENCES tasks(id)
+);
