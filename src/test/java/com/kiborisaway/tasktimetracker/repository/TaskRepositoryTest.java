@@ -43,6 +43,47 @@ class TaskRepositoryTest {
   }
 
   @Test
+  void 完了フラグ指定検索_指定のタスクグループ配下のタスクのうち完了済みのタスクのみを取得できること() {
+    // Act
+    List<Task> actual = sut.findAllInTaskGroupByCondition(2, true);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Task::getTaskGroupId, Task::getTitle, Task::getDescription,
+            Task::getEstimatedMinutes)
+        .containsExactlyInAnyOrder(
+            tuple(2, "コンポーネント作成", "共通UIコンポーネントを作成する", 90)
+        );
+    assertThat(actual).allSatisfy(task -> assertThat(task.getFinishedAt()).isNotNull());
+  }
+
+  @Test
+  void 完了フラグ指定検索_指定のタスクグループ配下のタスクのうち未完了のタスクのみを取得できること() {
+    // Act
+    List<Task> actual = sut.findAllInTaskGroupByCondition(1, false);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Task::getTaskGroupId, Task::getTitle, Task::getDescription,
+            Task::getEstimatedMinutes)
+        .containsExactlyInAnyOrder(
+            tuple(1, "カスタム例外作成", "カスタム例外クラスの作成とハンドリングを行う", 60),
+            tuple(1, "バリデーション実装",
+                "バリデーションの実装とバリデーション違反のハンドリングを行う", 120)
+        );
+    assertThat(actual).allSatisfy(task -> assertThat(task.getFinishedAt()).isNull());
+  }
+
+  @Test
+  void 完了フラグ指定検索_存在しないタスクグループIDを指定すると空のリストを返すこと() {
+    // Act
+    List<Task> actual = sut.findAllInTaskGroupByCondition(999, true);
+
+    // Assert
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
   void 全件検索_指定のプロジェクト配下のタスクの初期データを取得できること() {
     // Act
     List<Task> actual = sut.findAllInProject(1);
@@ -70,7 +111,7 @@ class TaskRepositoryTest {
   @Test
   void 完了フラグ指定検索_指定のプロジェクト配下のタスクのうち完了済みのタスクのみを取得できること() {
     // Act
-    List<Task> actual = sut.findAllByIsFinished(1, true);
+    List<Task> actual = sut.findAllInProjectByCondition(1, true);
 
     // Assert
     assertThat(actual)
@@ -84,7 +125,7 @@ class TaskRepositoryTest {
   @Test
   void 完了フラグ指定検索_指定のプロジェクト配下のタスクのうち未完了のタスクのみを取得できること() {
     // Act
-    List<Task> actual = sut.findAllByIsFinished(1, false);
+    List<Task> actual = sut.findAllInProjectByCondition(1, false);
 
     // Assert
     assertThat(actual)
@@ -100,7 +141,7 @@ class TaskRepositoryTest {
   @Test
   void 完了フラグ指定検索_存在しないプロジェクトIDを指定すると空のリストを返すこと() {
     // Act
-    List<Task> actual = sut.findAllByIsFinished(999, true);
+    List<Task> actual = sut.findAllInProjectByCondition(999, true);
 
     // Assert
     assertThat(actual).isEmpty();

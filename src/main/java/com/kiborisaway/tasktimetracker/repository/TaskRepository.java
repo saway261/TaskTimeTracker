@@ -5,7 +5,6 @@ import java.util.List;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
-import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -19,6 +18,18 @@ public interface TaskRepository {
    */
   @Select("SELECT * FROM tasks WHERE task_group_id=#{taskGroupId}")
   List<Task> findAllInTaskGroup(int taskGroupId);
+
+  /**
+   * 完了フラグを指定してタスクグループ内のタスクの全件検索を行います。
+   *
+   * @return タスク一覧
+   */
+  @Select("""
+        SELECT * FROM tasks
+        WHERE task_group_id=#{taskGroupId}
+        AND (finished_at IS NOT NULL) = #{isFinished}
+      """)
+  List<Task> findAllInTaskGroupByCondition(int taskGroupId, boolean isFinished);
 
   /**
    * プロジェクト内のタスクの全件検索を行います。
@@ -52,8 +63,7 @@ public interface TaskRepository {
         )
         AND (finished_at IS NOT NULL) = #{isFinished}
       """)
-  List<Task> findAllByIsFinished(@Param("projectId") int projectId,
-      @Param("isFinished") boolean isFinished);
+  List<Task> findAllInProjectByCondition(int projectId, boolean isFinished);
 
   /**
    * IDによるタスクの単一検索を行います
@@ -63,7 +73,6 @@ public interface TaskRepository {
    */
   @Select("SELECT * FROM tasks WHERE id=#{id}")
   Task findById(int id);
-
 
   /**
    * タスクの新規追加を行います。 完了フラグは新規追加時にはfalseとなります。
@@ -87,7 +96,7 @@ public interface TaskRepository {
       SET title=#{title}, description=#{description}
       WHERE id=#{id}
       """)
-  int updateProperty(Task project);
+  int updateProperty(Task task);
 
   /**
    * タスクの見積もり作業時間を変更します。 紐づくWorkSessionが存在する場合は更新できないようにサービス層で制御する想定です。
