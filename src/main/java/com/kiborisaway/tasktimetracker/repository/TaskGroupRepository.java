@@ -38,6 +38,21 @@ public interface TaskGroupRepository {
   TaskGroup findById(int id);
 
   /**
+   * IDによるタスクグループの存在チェックを行います
+   *
+   * @param id タスクグループのID
+   * @return 存在すればtrue, 存在しなければfalse
+   */
+  @Select("""
+      SELECT EXISTS(
+        SELECT 1
+        FROM task_groups
+        WHERE id = #{id}
+      )
+      """)
+  boolean existsById(int id);
+
+  /**
    * タスクグループの新規追加を行います。 完了フラグは新規追加時にはfalseとなります。
    *
    * @param taskGroup タスクグループ
