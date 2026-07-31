@@ -10,6 +10,7 @@ import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TaskService {
@@ -90,6 +91,7 @@ public class TaskService {
    *
    * @param task 新規登録するタスク
    */
+  @Transactional
   public Task register(Task task) {
     String parentField = "";
     boolean existsParent = false;
@@ -117,6 +119,7 @@ public class TaskService {
    *
    * @param task 更新するタスク
    */
+  @Transactional
   public void updateProperty(Task task) {
     int updated = tsRepository.updateProperty(task);
     if (updated == 0) {
@@ -131,6 +134,7 @@ public class TaskService {
    * @param id               タスクID
    * @param estimatedMinutes 更新する見積作業時間
    */
+  @Transactional
   public void updateEstimateMinutes(int id, int estimatedMinutes) {
     if (wsRepository.existsByTaskId(id)) {
       throw new EstimateMinutesUpdateNotAllowedException("task.id",
@@ -148,6 +152,7 @@ public class TaskService {
    *
    * @param id
    */
+  @Transactional
   public void setFinished(int id) {
     int updated = tsRepository.setFinished(id);
     if (updated == 0) {
@@ -161,6 +166,7 @@ public class TaskService {
    *
    * @param id タスクのID
    */
+  @Transactional
   public void deleteById(int id) {
     int deleted = tsRepository.deleteById(id);
     if (deleted == 0) {
