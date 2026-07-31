@@ -377,4 +377,34 @@ class TaskRepositoryTest {
         .isEqualTo(before);
   }
 
+  @Test
+  void 削除成功_既存タスクをID指定で削除できること() {
+    // Arrange
+    int id = 2;
+    List<Task> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.deleteById(id);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+    assertThat(sut.findById(id)).isNull();
+    assertThat(sut.findAllInProject(1)).hasSize(before.size() - 1);
+  }
+
+  @Test
+  void 削除失敗_存在しないIDの場合は削除されず0件となること() {
+    // Arrange
+    List<Task> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.deleteById(999);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+
 }

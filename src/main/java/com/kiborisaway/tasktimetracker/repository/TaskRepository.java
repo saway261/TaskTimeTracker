@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.repository;
 
 import com.kiborisaway.tasktimetracker.data.Task;
 import java.util.List;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
@@ -136,5 +137,14 @@ public interface TaskRepository {
       WHERE id = #{id}
       """)
   int setFinished(int id);
+
+  /**
+   * IDを指定してタスクを削除します。
+   *
+   * @param id タスクのID
+   * @return 削除を実行した件数
+   */
+  @Delete("DELETE FROM tasks WHERE id = #{id}")
+  int deleteById(int id);
 
 }

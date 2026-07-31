@@ -427,4 +427,32 @@ class TaskServiceTest {
     verify(tsRepository, times(1)).setFinished(id);
   }
 
+  @Test
+  void 削除成功_リポジトリのメソッドに引数のIDを渡して呼び出すこと() {
+    // Arrange
+    int id = 1;
+
+    when(tsRepository.deleteById(id)).thenReturn(1);
+
+    // Act
+    sut.deleteById(id);
+
+    // Assert
+    verify(tsRepository, times(1)).deleteById(id);
+  }
+
+  @Test
+  void 削除失敗_削除件数が0件のときTargetNotFoundExceptionを投げること() {
+    // Arrange
+    int id = 999;
+
+    when(tsRepository.deleteById(id)).thenReturn(0);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.deleteById(id))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(tsRepository, times(1)).deleteById(id);
+  }
+
 }

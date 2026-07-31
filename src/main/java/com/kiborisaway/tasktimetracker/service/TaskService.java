@@ -155,4 +155,17 @@ public class TaskService {
     }
   }
 
+  /**
+   * タスクIDを指定してタスクを削除します。
+   *
+   * @param id タスクのID
+   */
+  public void deleteById(int id) {
+    int deleted = tsRepository.deleteById(id);
+    if (deleted == 0) {
+      throw new TargetNotFoundException("task.id",
+          "削除対象のタスクが見つかりませんでした");
+    }
+  }
+
 }
