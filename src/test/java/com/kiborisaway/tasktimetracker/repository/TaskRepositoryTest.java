@@ -312,7 +312,7 @@ class TaskRepositoryTest {
     task.setId(id);
 
     // Act
-    int actual = sut.updateEstimateMinutes(task);
+    int actual = sut.updateEstimateMinutes(task.getId(), task.getEstimatedMinutes());
 
     // Assert
     assertThat(actual).isEqualTo(1);
@@ -338,7 +338,7 @@ class TaskRepositoryTest {
     task.setId(999);
 
     // Act
-    int actual = sut.updateEstimateMinutes(task);
+    int actual = sut.updateEstimateMinutes(task.getId(), task.getEstimatedMinutes());
 
     // Assert
     assertThat(actual).isEqualTo(0);

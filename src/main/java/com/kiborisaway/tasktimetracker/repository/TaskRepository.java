@@ -109,7 +109,7 @@ public interface TaskRepository {
       SET estimated_minutes = #{estimatedMinutes}
       WHERE id = #{id}
       """)
-  int updateEstimateMinutes(Task task);
+  int updateEstimateMinutes(int id, int estimatedMinutes);
 
   @Update("""
       UPDATE tasks

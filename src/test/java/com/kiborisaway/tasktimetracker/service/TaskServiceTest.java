@@ -330,73 +330,51 @@ class TaskServiceTest {
   @Test
   void 見積もり作業時間更新成功_WorkSessionが存在しない場合はtsRepositoryのメソッドを呼び出すこと() {
     // Arrange
-    Task task = new Task();
-    task.setId(1);
-    task.setEstimatedMinutes(120);
+    int taskId = 1;
+    int estimatedMinutes = 120;
 
-    when(wsRepository.existsByTaskId(task.getId())).thenReturn(false);
-    when(tsRepository.updateEstimateMinutes(task)).thenReturn(1);
+    when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
+    when(tsRepository.updateEstimateMinutes(taskId, estimatedMinutes)).thenReturn(1);
 
     // Act
-    sut.updateEstimateMinutes(task);
+    sut.updateEstimateMinutes(taskId, estimatedMinutes);
 
     // Assert
-    verify(wsRepository, times(1)).existsByTaskId(task.getId());
-    verify(tsRepository, times(1)).updateEstimateMinutes(same(task));
+    verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, times(1)).updateEstimateMinutes(taskId, estimatedMinutes);
   }
 
   @Test
   void 見積もり作業時間更新失敗_WorkSessionが存在する場合は例外を投げて更新処理を呼び出さないこと() {
     // Arrange
-    Task task = new Task();
-    task.setId(1);
-    task.setEstimatedMinutes(120);
+    int taskId = 1;
+    int estimatedMinutes = 120;
 
-    when(wsRepository.existsByTaskId(task.getId())).thenReturn(true);
+    when(wsRepository.existsByTaskId(taskId)).thenReturn(true);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.updateEstimateMinutes(task))
+    assertThatThrownBy(() -> sut.updateEstimateMinutes(taskId, estimatedMinutes))
         .isInstanceOf(EstimateMinutesUpdateNotAllowedException.class);
 
-    verify(wsRepository, times(1)).existsByTaskId(task.getId());
-    verify(tsRepository, never()).updateEstimateMinutes(same(task));
-  }
-
-  @Test
-  void 見積もり作業時間更新失敗_DB制約違反の例外をそのまま送出すること() {
-    // Arrange
-    Task task = new Task();
-    task.setId(1);
-    task.setEstimatedMinutes(null);
-
-    when(wsRepository.existsByTaskId(task.getId())).thenReturn(false);
-    when(tsRepository.updateEstimateMinutes(task))
-        .thenThrow(new DataIntegrityViolationException("db constraint violation"));
-
-    // Act & Assert
-    assertThatThrownBy(() -> sut.updateEstimateMinutes(task))
-        .isInstanceOf(DataIntegrityViolationException.class);
-
-    verify(wsRepository, times(1)).existsByTaskId(task.getId());
-    verify(tsRepository, times(1)).updateEstimateMinutes(same(task));
+    verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, never()).updateEstimateMinutes(anyInt(), anyInt());
   }
 
   @Test
   void 見積もり作業時間更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
-    Task task = new Task();
-    task.setId(999);
-    task.setEstimatedMinutes(120);
+    int taskId = 999;
+    int estimatedMinutes = 120;
 
-    when(wsRepository.existsByTaskId(task.getId())).thenReturn(false);
-    when(tsRepository.updateEstimateMinutes(task)).thenReturn(0);
+    when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
+    when(tsRepository.updateEstimateMinutes(taskId, estimatedMinutes)).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.updateEstimateMinutes(task))
+    assertThatThrownBy(() -> sut.updateEstimateMinutes(taskId, estimatedMinutes))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(wsRepository, times(1)).existsByTaskId(task.getId());
-    verify(tsRepository, times(1)).updateEstimateMinutes(same(task));
+    verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, times(1)).updateEstimateMinutes(taskId, estimatedMinutes);
   }
 
   @Test

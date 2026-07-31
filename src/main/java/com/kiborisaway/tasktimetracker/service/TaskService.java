@@ -128,14 +128,15 @@ public class TaskService {
   /**
    * タスクIDを指定して見積もり作業時間を更新します。 紐づく作業セッションが存在する場合は更新できません。
    *
-   * @param task 更新するタスク
+   * @param id               タスクID
+   * @param estimatedMinutes 更新する見積作業時間
    */
-  public void updateEstimateMinutes(Task task) {
-    if (wsRepository.existsByTaskId(task.getId())) {
+  public void updateEstimateMinutes(int id, int estimatedMinutes) {
+    if (wsRepository.existsByTaskId(id)) {
       throw new EstimateMinutesUpdateNotAllowedException("task.id",
           "作業セッションが存在するタスクの見積もり作業時間は変更できません");
     }
-    int updated = tsRepository.updateEstimateMinutes(task);
+    int updated = tsRepository.updateEstimateMinutes(id, estimatedMinutes);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
           "更新対象のタスクが見つかりませんでした");
