@@ -1,5 +1,11 @@
 package com.kiborisaway.tasktimetracker.data;
 
+import com.kiborisaway.tasktimetracker.validation.CreateGroup;
+import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -17,8 +23,16 @@ public class Task {
   private Integer id;
   private Integer projectId;//taskGroupIdを持つならここは持たない
   private Integer taskGroupId;
+
+  @NotBlank(groups = {CreateGroup.class, UpdateGroup.class})
+  @Size(max = 20, groups = {CreateGroup.class, UpdateGroup.class})
   private String title;
+
+  @Size(max = 20, groups = {CreateGroup.class, UpdateGroup.class})
   private String description;
+
+  @NotNull(groups = CreateGroup.class)
+  @Positive(groups = {CreateGroup.class, UpdateGroup.class})
   private Integer estimatedMinutes;
   private LocalDateTime createdAt;
   private LocalDateTime finishedAt;
