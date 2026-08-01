@@ -100,6 +100,37 @@ public interface TaskRepository {
   int updateProperty(Task task);
 
   /**
+   * タスクの所属を指定したタスクグループ配下へ変更します。
+   *
+   * @param id          タスクのID
+   * @param taskGroupId 移動先タスクグループのID
+   * @return 更新を実行した件数
+   */
+  @Update("""
+      UPDATE tasks
+      SET project_id = NULL,
+          task_group_id = #{taskGroupId}
+      WHERE id = #{id}
+      """)
+  int updateTaskGroup(int id, int taskGroupId);
+
+  /**
+   * タスクの所属を指定したプロジェクト直下へ変更します。 ただし同一プロジェクト配下のタスクグループからプロジェクト直下に映すことを想定します。
+   * プロジェクト間の移動はできないようサービス層で制御します。
+   *
+   * @param id        タスクのID
+   * @param projectId 移動先プロジェクトのID
+   * @return 更新を実行した件数
+   */
+  @Update("""
+      UPDATE tasks
+      SET project_id = #{projectId},
+          task_group_id = NULL
+      WHERE id = #{id}
+      """)
+  int updateProject(int id, int projectId);
+
+  /**
    * タスクの見積もり作業時間を変更します。 紐づくWorkSessionが存在する場合は更新できないようにサービス層で制御する想定です。
    *
    * @return 更新を実行した件数

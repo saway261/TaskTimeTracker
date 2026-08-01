@@ -29,6 +29,12 @@ public class ErrorDetailsBuilder {
       error.put("message", fieldError.getDefaultMessage());
       errors.add(error);
     });
+    ex.getBindingResult().getGlobalErrors().forEach(globalError -> {
+      Map<String, String> error = new HashMap<>();
+      error.put("field", globalError.getObjectName());
+      error.put("message", globalError.getDefaultMessage());
+      errors.add(error);
+    });
     return errors;
   }
 

@@ -4,6 +4,7 @@ import com.kiborisaway.tasktimetracker.data.Task;
 import com.kiborisaway.tasktimetracker.service.TaskService;
 import com.kiborisaway.tasktimetracker.validation.CreateGroup;
 import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
+import com.kiborisaway.tasktimetracker.validation.ValidUpdateParentRequest;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
@@ -89,6 +90,14 @@ public class TaskController {
     return ResponseEntity.ok("見積作業時間を更新しました");
   }
 
+  @PatchMapping("/tasks/{taskId}/parent")
+  public ResponseEntity<String> updateParent(
+      @PathVariable @Positive int taskId,
+      @RequestBody @Validated UpdateParentRequest request) {
+    service.updateParent(taskId, request.projectId(), request.taskGroupId());
+    return ResponseEntity.ok("タスクの所属を更新しました");
+  }
+
   @PatchMapping("/tasks/{taskId}/finished")
   public ResponseEntity<String> updateFinished(
       @PathVariable @Positive int taskId,
@@ -109,6 +118,19 @@ public class TaskController {
    * @param isFinished trueの場合完了状態にする / falseの場合は作業中状態にする
    */
   public record TaskFinishedUpdateRequest(@NotNull Boolean isFinished) {
+
+  }
+
+  /**
+   * updateParent に移動先の親IDをリクエストボディとして渡すためのrecord
+   *
+   * @param projectId   移動先プロジェクトID
+   * @param taskGroupId 移動先タスクグループID
+   */
+  @ValidUpdateParentRequest
+  public record UpdateParentRequest(
+      @Positive Integer projectId,
+      @Positive Integer taskGroupId) {
 
   }
 }
