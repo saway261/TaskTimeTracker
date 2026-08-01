@@ -7,6 +7,7 @@ import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TaskGroupService {
@@ -59,6 +60,7 @@ public class TaskGroupService {
    *
    * @param tg 新規登録するタスクグループ
    */
+  @Transactional
   public TaskGroup register(int pId, TaskGroup tg) {
     if (!prRepository.existsById(pId)) {
       throw new TargetNotFoundException("project.id",
@@ -74,6 +76,7 @@ public class TaskGroupService {
    *
    * @param tg 更新するタスクグループ
    */
+  @Transactional
   public void update(TaskGroup tg) {
     int updated = tgRepository.update(tg);
     if (updated == 0) {

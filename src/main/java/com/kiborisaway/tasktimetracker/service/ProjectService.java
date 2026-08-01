@@ -6,6 +6,7 @@ import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProjectService {
@@ -50,6 +51,7 @@ public class ProjectService {
    *
    * @param project 新規登録するプロジェクト
    */
+  @Transactional
   public Project register(Project project) {
     repository.insert(project);
     return project;
@@ -60,6 +62,7 @@ public class ProjectService {
    *
    * @param project 更新するプロジェクト
    */
+  @Transactional
   public void update(Project project) {
     int updated = repository.update(project);
     if (updated == 0) {

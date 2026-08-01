@@ -1,0 +1,425 @@
+package com.kiborisaway.tasktimetracker.repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+
+import com.kiborisaway.tasktimetracker.data.Task;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+
+@MybatisTest
+class TaskRepositoryTest {
+
+  @Autowired
+  private TaskRepository sut;
+
+  @Test
+  void 全件検索_指定のタスクグループ配下のタスクの初期データを取得できること() {
+    // Act
+    List<Task> actual = sut.findAllInTaskGroup(1);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Task::getTaskGroupId, Task::getTitle, Task::getDescription,
+            Task::getEstimatedMinutes)
+        .containsExactlyInAnyOrder(
+            tuple(1, "カスタム例外作成", "カスタム例外クラスの作成とハンドリングを行う", 60),
+            tuple(1, "バリデーション実装",
+                "バリデーションの実装とバリデーション違反のハンドリングを行う", 120)
+        );
+  }
+
+  @Test
+  void 全件検索_存在しないタスクグループIDを指定すると空のリストを返すこと() {
+    // Act
+    List<Task> actual = sut.findAllInTaskGroup(999);
+
+    // Assert
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
+  void 完了フラグ指定検索_指定のタスクグループ配下のタスクのうち完了済みのタスクのみを取得できること() {
+    // Act
+    List<Task> actual = sut.findAllInTaskGroupByCondition(2, true);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Task::getTaskGroupId, Task::getTitle, Task::getDescription,
+            Task::getEstimatedMinutes)
+        .containsExactlyInAnyOrder(
+            tuple(2, "コンポーネント作成", "共通UIコンポーネントを作成する", 90)
+        );
+    assertThat(actual).allSatisfy(task -> assertThat(task.getFinishedAt()).isNotNull());
+  }
+
+  @Test
+  void 完了フラグ指定検索_指定のタスクグループ配下のタスクのうち未完了のタスクのみを取得できること() {
+    // Act
+    List<Task> actual = sut.findAllInTaskGroupByCondition(1, false);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Task::getTaskGroupId, Task::getTitle, Task::getDescription,
+            Task::getEstimatedMinutes)
+        .containsExactlyInAnyOrder(
+            tuple(1, "カスタム例外作成", "カスタム例外クラスの作成とハンドリングを行う", 60),
+            tuple(1, "バリデーション実装",
+                "バリデーションの実装とバリデーション違反のハンドリングを行う", 120)
+        );
+    assertThat(actual).allSatisfy(task -> assertThat(task.getFinishedAt()).isNull());
+  }
+
+  @Test
+  void 完了フラグ指定検索_存在しないタスクグループIDを指定すると空のリストを返すこと() {
+    // Act
+    List<Task> actual = sut.findAllInTaskGroupByCondition(999, true);
+
+    // Assert
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
+  void 全件検索_指定のプロジェクト配下のタスクの初期データを取得できること() {
+    // Act
+    List<Task> actual = sut.findAllInProject(1);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Task::getProjectId, Task::getTaskGroupId, Task::getTitle)
+        .containsExactlyInAnyOrder(
+            tuple(null, 1, "カスタム例外作成"),
+            tuple(null, 1, "バリデーション実装"),
+            tuple(null, 2, "コンポーネント作成"),
+            tuple(1, null, "画面設計")
+        );
+  }
+
+  @Test
+  void 全件検索_存在しないプロジェクトIDを指定すると空のリストを返すこと() {
+    // Act
+    List<Task> actual = sut.findAllInProject(999);
+
+    // Assert
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
+  void 完了フラグ指定検索_指定のプロジェクト配下のタスクのうち完了済みのタスクのみを取得できること() {
+    // Act
+    List<Task> actual = sut.findAllInProjectByCondition(1, true);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Task::getProjectId, Task::getTaskGroupId, Task::getTitle)
+        .containsExactlyInAnyOrder(
+            tuple(null, 2, "コンポーネント作成")
+        );
+    assertThat(actual).allSatisfy(task -> assertThat(task.getFinishedAt()).isNotNull());
+  }
+
+  @Test
+  void 完了フラグ指定検索_指定のプロジェクト配下のタスクのうち未完了のタスクのみを取得できること() {
+    // Act
+    List<Task> actual = sut.findAllInProjectByCondition(1, false);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Task::getProjectId, Task::getTaskGroupId, Task::getTitle)
+        .containsExactlyInAnyOrder(
+            tuple(null, 1, "カスタム例外作成"),
+            tuple(null, 1, "バリデーション実装"),
+            tuple(1, null, "画面設計")
+        );
+    assertThat(actual).allSatisfy(task -> assertThat(task.getFinishedAt()).isNull());
+  }
+
+  @Test
+  void 完了フラグ指定検索_存在しないプロジェクトIDを指定すると空のリストを返すこと() {
+    // Act
+    List<Task> actual = sut.findAllInProjectByCondition(999, true);
+
+    // Assert
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
+  void ID検索成功_IDが一致するタスクを取得できること() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    Task actual = sut.findById(id);
+
+    // Assert
+    assertThat(actual.getId()).isEqualTo(id);
+    assertThat(actual.getTaskGroupId()).isEqualTo(1);
+    assertThat(actual.getTitle()).isEqualTo("カスタム例外作成");
+    assertThat(actual.getDescription()).isEqualTo("カスタム例外クラスの作成とハンドリングを行う");
+    assertThat(actual.getEstimatedMinutes()).isEqualTo(60);
+  }
+
+  @Test
+  void ID検索失敗_存在しないIDを指定するとnullを返すこと() {
+    // Act
+    Task actual = sut.findById(999);
+
+    // Assert
+    assertThat(actual).isNull();
+  }
+
+  @Test
+  void 登録成功_タスクグループIDのみを指定したタスクを登録でき採番されたidが設定されること() {
+    // Arrange
+    List<Task> before = sut.findAllInProject(1);
+    Task task = new Task(null, 1, "API実装", "タスクAPIを実装する", 100);
+
+    // Act
+    sut.insert(task);
+
+    List<Task> after = sut.findAllInProject(1);
+    Task registered = sut.findById(task.getId());
+
+    // Assert
+    assertThat(task.getId()).isNotNull();
+    assertThat(after).hasSize(before.size() + 1);
+    assertThat(registered.getProjectId()).isNull();
+    assertThat(registered.getTaskGroupId()).isEqualTo(1);
+    assertThat(registered.getTitle()).isEqualTo("API実装");
+    assertThat(registered.getDescription()).isEqualTo("タスクAPIを実装する");
+    assertThat(registered.getEstimatedMinutes()).isEqualTo(100);
+    assertThat(registered.getCreatedAt()).isNotNull();
+    assertThat(registered.getFinishedAt()).isNull();
+  }
+
+  @Test
+  void 登録成功_プロジェクトIDのみを指定したタスクを登録できること() {
+    // Arrange
+    List<Task> before = sut.findAllInProject(1);
+    Task task = new Task(1, null, "要件整理", "プロジェクト直下のタスクを登録する", 80);
+
+    // Act
+    sut.insert(task);
+
+    List<Task> after = sut.findAllInProject(1);
+    Task registered = sut.findById(task.getId());
+
+    // Assert
+    assertThat(task.getId()).isNotNull();
+    assertThat(after).hasSize(before.size() + 1);
+    assertThat(registered.getProjectId()).isEqualTo(1);
+    assertThat(registered.getTaskGroupId()).isNull();
+    assertThat(registered.getTitle()).isEqualTo("要件整理");
+    assertThat(registered.getDescription()).isEqualTo("プロジェクト直下のタスクを登録する");
+    assertThat(registered.getEstimatedMinutes()).isEqualTo(80);
+  }
+
+  @Test
+  void 登録失敗_titleがnullの場合は例外が発生すること() {
+    // Arrange
+    Task task = new Task(null, 1, null, "説明", 60);
+
+    // Assert
+    assertThatThrownBy(() -> sut.insert(task))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void 登録失敗_プロジェクトIDとタスクグループIDがどちらもnullの場合は例外が発生すること() {
+    // Arrange
+    Task task = new Task(null, null, "親なしタスク", "親を指定しない", 60);
+
+    // Assert
+    assertThatThrownBy(() -> sut.insert(task))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void 登録失敗_プロジェクトIDとタスクグループIDがどちらも指定された場合は例外が発生すること() {
+    // Arrange
+    Task task = new Task(1, 1, "親重複タスク", "親を重複指定する", 60);
+
+    // Assert
+    assertThatThrownBy(() -> sut.insert(task))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void 更新成功_既存タスクのタイトルと説明だけを更新できること() {
+    // Arrange
+    int id = 1;
+    Task before = sut.findById(id);
+    Task task = new Task(2, null, "例外設計", "例外設計を見直す", 999);
+    task.setId(id);
+
+    // Act
+    int actual = sut.updateProperty(task);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    Task updated = sut.findById(id);
+    assertThat(updated.getTitle()).isEqualTo("例外設計");
+    assertThat(updated.getDescription()).isEqualTo("例外設計を見直す");
+    assertThat(updated.getProjectId()).isEqualTo(before.getProjectId());
+    assertThat(updated.getTaskGroupId()).isEqualTo(before.getTaskGroupId());
+    assertThat(updated.getEstimatedMinutes()).isEqualTo(before.getEstimatedMinutes());
+    assertThat(updated.getCreatedAt()).isEqualTo(before.getCreatedAt());
+    assertThat(updated.getFinishedAt()).isEqualTo(before.getFinishedAt());
+    assertThat(updated.getActualMinutesCached()).isEqualTo(before.getActualMinutesCached());
+    assertThat(updated.getGapMinutesCached()).isEqualTo(before.getGapMinutesCached());
+    assertThat(updated.getGapRateCached()).isEqualTo(before.getGapRateCached());
+  }
+
+  @Test
+  void 更新失敗_タイトルと説明の更新で存在しないIDの場合は更新されず0件となること() {
+    // Arrange
+    List<Task> before = sut.findAllInProject(1);
+    Task task = new Task(null, 1, "更新されないタイトル", "更新されない説明", 60);
+    task.setId(999);
+
+    // Act
+    int actual = sut.updateProperty(task);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+
+  @Test
+  void 更新失敗_titleがnullの場合は例外が発生すること() {
+    // Arrange
+    Task task = new Task(null, 1, null, "説明", 60);
+    task.setId(1);
+
+    // Assert
+    assertThatThrownBy(() -> sut.updateProperty(task))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void 更新成功_既存タスクの見積もり作業時間だけを更新できること() {
+    // Arrange
+    int id = 1;
+    Task before = sut.findById(id);
+    Task task = new Task(2, null, "更新されないタイトル", "更新されない説明", 45);
+    task.setId(id);
+
+    // Act
+    int actual = sut.updateEstimateMinutes(task.getId(), task.getEstimatedMinutes());
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    Task updated = sut.findById(id);
+    assertThat(updated.getEstimatedMinutes()).isEqualTo(45);
+    assertThat(updated.getProjectId()).isEqualTo(before.getProjectId());
+    assertThat(updated.getTaskGroupId()).isEqualTo(before.getTaskGroupId());
+    assertThat(updated.getTitle()).isEqualTo(before.getTitle());
+    assertThat(updated.getDescription()).isEqualTo(before.getDescription());
+    assertThat(updated.getCreatedAt()).isEqualTo(before.getCreatedAt());
+    assertThat(updated.getFinishedAt()).isEqualTo(before.getFinishedAt());
+    assertThat(updated.getActualMinutesCached()).isEqualTo(before.getActualMinutesCached());
+    assertThat(updated.getGapMinutesCached()).isEqualTo(before.getGapMinutesCached());
+    assertThat(updated.getGapRateCached()).isEqualTo(before.getGapRateCached());
+  }
+
+  @Test
+  void 更新失敗_見積もり作業時間の更新で存在しないIDの場合は更新されず0件となること() {
+    // Arrange
+    List<Task> before = sut.findAllInProject(1);
+    Task task = new Task(null, 1, "更新されないタイトル", "更新されない説明", 45);
+    task.setId(999);
+
+    // Act
+    int actual = sut.updateEstimateMinutes(task.getId(), task.getEstimatedMinutes());
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+
+  @Test
+  void 完了更新成功_既存タスクを完了にして実績時間と差分をキャッシュできること() {
+    // Act
+    int actual = sut.updateFinished(4, true);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    Task updated = sut.findById(4);
+    assertThat(updated.getFinishedAt()).isNotNull();
+    assertThat(updated.getActualMinutesCached()).isEqualTo(75);
+    assertThat(updated.getGapMinutesCached()).isEqualTo(-105);
+    assertThat(updated.getGapRateCached()).isEqualTo(-58.333333333333336);
+  }
+
+  @Test
+  void 完了更新成功_完了済みタスクを未完了に戻して完了日時とキャッシュをnullにできること() {
+    // Act
+    int actual = sut.updateFinished(3, false);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    Task updated = sut.findById(3);
+    assertThat(updated.getFinishedAt()).isNull();
+    assertThat(updated.getActualMinutesCached()).isNull();
+    assertThat(updated.getGapMinutesCached()).isNull();
+    assertThat(updated.getGapRateCached()).isNull();
+  }
+
+  @Test
+  void 完了更新失敗_存在しないIDの場合は更新されず0件となること() {
+    // Arrange
+    List<Task> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.updateFinished(999, true);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+
+  @Test
+  void 削除成功_既存タスクをID指定で削除できること() {
+    // Arrange
+    int id = 2;
+    List<Task> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.deleteById(id);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+    assertThat(sut.findById(id)).isNull();
+    assertThat(sut.findAllInProject(1)).hasSize(before.size() - 1);
+  }
+
+  @Test
+  void 削除失敗_存在しないIDの場合は削除されず0件となること() {
+    // Arrange
+    List<Task> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.deleteById(999);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+
+}

@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
+import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.ArrayList;
@@ -77,6 +78,23 @@ public class ErrorDetailsBuilder {
    * @return エラー発生個所とエラーメッセージ
    */
   public List<Map<String, String>> buildErrorDetails(TargetNotFoundException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * EstimateMinutesUpdateNotAllowedExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex EstimateMinutesUpdateNotAllowedException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(EstimateMinutesUpdateNotAllowedException ex) {
     List<Map<String, String>> errors = new ArrayList<>();
 
     Map<String, String> error = new HashMap<>();

@@ -47,7 +47,7 @@ public interface ProjectRepository {
       SELECT EXISTS(
         SELECT 1
         FROM projects
-        WHERE id = #{projectId}
+        WHERE id = #{id}
       )
       """)
   boolean existsById(int id);

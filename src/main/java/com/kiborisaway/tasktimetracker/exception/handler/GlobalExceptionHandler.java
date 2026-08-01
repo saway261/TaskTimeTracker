@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
+import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,6 +81,23 @@ public class GlobalExceptionHandler {
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.NOT_FOUND,
         "target not found", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+
+  }
+
+  /**
+   * 作業セッションが存在するタスクの見積もり作業時間を変更できないことをクライアントに返します。
+   *
+   * @param ex EstimateMinutesUpdateNotAllowedException
+   * @return HTTPステータス(BAD REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(
+      EstimateMinutesUpdateNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleEstimateMinutesUpdateNotAllowedException(
+      EstimateMinutesUpdateNotAllowedException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "estimate minutes update not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
 
   }
 
