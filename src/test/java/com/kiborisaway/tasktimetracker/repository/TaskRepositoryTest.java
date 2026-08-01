@@ -350,7 +350,7 @@ class TaskRepositoryTest {
   @Test
   void 完了更新成功_既存タスクを完了にして実績時間と差分をキャッシュできること() {
     // Act
-    int actual = sut.setFinished(4);
+    int actual = sut.updateFinished(4, true);
 
     // Assert
     assertThat(actual).isEqualTo(1);
@@ -363,12 +363,27 @@ class TaskRepositoryTest {
   }
 
   @Test
+  void 完了更新成功_完了済みタスクを未完了に戻して完了日時とキャッシュをnullにできること() {
+    // Act
+    int actual = sut.updateFinished(3, false);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    Task updated = sut.findById(3);
+    assertThat(updated.getFinishedAt()).isNull();
+    assertThat(updated.getActualMinutesCached()).isNull();
+    assertThat(updated.getGapMinutesCached()).isNull();
+    assertThat(updated.getGapRateCached()).isNull();
+  }
+
+  @Test
   void 完了更新失敗_存在しないIDの場合は更新されず0件となること() {
     // Arrange
     List<Task> before = sut.findAllInProject(1);
 
     // Act
-    int actual = sut.setFinished(999);
+    int actual = sut.updateFinished(999, true);
 
     // Assert
     assertThat(actual).isEqualTo(0);

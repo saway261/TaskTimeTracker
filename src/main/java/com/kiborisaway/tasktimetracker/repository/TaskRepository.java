@@ -111,20 +111,39 @@ public interface TaskRepository {
       """)
   int updateEstimateMinutes(int id, int estimatedMinutes);
 
+  /**
+   * タスクの完了状態を更新します。完了にする場合は実績時間と差分をキャッシュし、未完了に戻す場合は完了日時とキャッシュを削除します。
+   *
+   * @param id         タスクのID
+   * @param isFinished 完了状態
+   * @return 更新を実行した件数
+   */
   @Update("""
       UPDATE tasks
-      SET finished_at = NOW(),
-          actual_minutes_cached = (
-              SELECT COALESCE(SUM(minutes), 0)
-              FROM work_sessions
-              WHERE task_id = #{id}
-          ),
-          gap_minutes_cached = (
-              SELECT COALESCE(SUM(minutes), 0)
-              FROM work_sessions
-              WHERE task_id = #{id}
-          ) - estimated_minutes,
+      SET finished_at = CASE
+              WHEN #{isFinished} THEN NOW()
+              ELSE NULL
+          END,
+          actual_minutes_cached = CASE
+              WHEN #{isFinished} THEN (
+                  SELECT COALESCE(SUM(minutes), 0)
+                  FROM work_sessions
+                  WHERE task_id = #{id}
+              )
+              ELSE NULL
+          END,
+          gap_minutes_cached = CASE
+              WHEN #{isFinished} THEN (
+                  (
+                      SELECT COALESCE(SUM(minutes), 0)
+                      FROM work_sessions
+                      WHERE task_id = #{id}
+                  ) - estimated_minutes
+              )
+              ELSE NULL
+          END,
           gap_rate_cached = CASE
+              WHEN NOT #{isFinished} THEN NULL
               WHEN estimated_minutes IS NULL OR estimated_minutes = 0 THEN NULL
               ELSE (
                   (
@@ -136,7 +155,7 @@ public interface TaskRepository {
           END
       WHERE id = #{id}
       """)
-  int setFinished(int id);
+  int updateFinished(int id, boolean isFinished);
 
   /**
    * IDを指定してタスクを削除します。

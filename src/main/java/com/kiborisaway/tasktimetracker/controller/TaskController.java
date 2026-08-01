@@ -4,6 +4,7 @@ import com.kiborisaway.tasktimetracker.data.Task;
 import com.kiborisaway.tasktimetracker.service.TaskService;
 import com.kiborisaway.tasktimetracker.validation.CreateGroup;
 import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,15 +89,26 @@ public class TaskController {
     return ResponseEntity.ok("見積作業時間を更新しました");
   }
 
-  @PostMapping("/tasks/{taskId}/finished")
-  public ResponseEntity<String> setFinished(@PathVariable @Positive int taskId) {
-    service.setFinished(taskId);
-    return ResponseEntity.ok("タスクを完了状態にしました");
+  @PatchMapping("/tasks/{taskId}/finished")
+  public ResponseEntity<String> updateFinished(
+      @PathVariable @Positive int taskId,
+      @RequestBody @Validated TaskFinishedUpdateRequest request) {
+    service.updateFinished(taskId, request.isFinished());
+    return ResponseEntity.ok("タスクの完了状態を更新しました");
   }
 
   @DeleteMapping("/tasks/{taskId}")
   public ResponseEntity<String> delete(@PathVariable @Positive int taskId) {
     service.deleteById(taskId);
     return ResponseEntity.ok("タスクを削除しました");
+  }
+
+  /**
+   * updateFinished に isFinished だけをリクエストボディとして渡すためのrecord
+   *
+   * @param isFinished trueの場合完了状態にする / falseの場合は作業中状態にする
+   */
+  public record TaskFinishedUpdateRequest(@NotNull Boolean isFinished) {
+
   }
 }

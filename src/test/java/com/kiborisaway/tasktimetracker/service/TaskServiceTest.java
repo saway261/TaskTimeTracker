@@ -378,31 +378,48 @@ class TaskServiceTest {
   }
 
   @Test
-  void 完了状態更新成功_リポジトリのメソッドに引数のIDを渡して呼び出すこと() {
+  void 完了状態更新成功_リポジトリのメソッドに引数のIDと完了状態を渡して呼び出すこと() {
     // Arrange
     int id = 1;
+    boolean isFinished = true;
 
-    when(tsRepository.setFinished(id)).thenReturn(1);
+    when(tsRepository.updateFinished(id, isFinished)).thenReturn(1);
 
     // Act
-    sut.setFinished(id);
+    sut.updateFinished(id, isFinished);
 
     // Assert
-    verify(tsRepository, times(1)).setFinished(id);
+    verify(tsRepository, times(1)).updateFinished(id, isFinished);
+  }
+
+  @Test
+  void 完了状態更新成功_未完了に戻す場合もリポジトリのメソッドにfalseを渡して呼び出すこと() {
+    // Arrange
+    int id = 1;
+    boolean isFinished = false;
+
+    when(tsRepository.updateFinished(id, isFinished)).thenReturn(1);
+
+    // Act
+    sut.updateFinished(id, isFinished);
+
+    // Assert
+    verify(tsRepository, times(1)).updateFinished(id, isFinished);
   }
 
   @Test
   void 完了状態更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
     int id = 999;
+    boolean isFinished = true;
 
-    when(tsRepository.setFinished(id)).thenReturn(0);
+    when(tsRepository.updateFinished(id, isFinished)).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.setFinished(id))
+    assertThatThrownBy(() -> sut.updateFinished(id, isFinished))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(tsRepository, times(1)).setFinished(id);
+    verify(tsRepository, times(1)).updateFinished(id, isFinished);
   }
 
   @Test

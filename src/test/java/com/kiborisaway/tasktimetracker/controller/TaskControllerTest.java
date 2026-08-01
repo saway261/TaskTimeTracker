@@ -366,30 +366,101 @@ class TaskControllerTest {
   }
 
   @Test
-  void 完了状態更新成功_200とメッセージを返すこと() throws Exception {
+  void 完了状態更新成功_isFinishedにtrueを指定すると200とメッセージを返すこと() throws Exception {
     // Arrange
     int taskId = 1;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/finished", taskId))
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("タスクを完了状態にしました"));
+        .andExpect(content().string("タスクの完了状態を更新しました"));
 
-    verify(service).setFinished(taskId);
+    verify(service).updateFinished(taskId, true);
+  }
+
+  @Test
+  void 完了状態更新成功_isFinishedにfalseを指定すると200とメッセージを返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String validRequest = """
+        {
+          "isFinished": false
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk())
+        .andExpect(content().string("タスクの完了状態を更新しました"));
+
+    verify(service).updateFinished(taskId, false);
   }
 
   @Test
   void 完了状態更新失敗_対象が存在しないなら404を返すこと() throws Exception {
     // Arrange
     int taskId = 999;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
     doThrow(new TargetNotFoundException("task.id", "task not found"))
-        .when(service).setFinished(taskId);
+        .when(service).updateFinished(taskId, true);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/finished", taskId))
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).setFinished(taskId);
+    verify(service).updateFinished(taskId, true);
+  }
+
+  @Test
+  void 完了状態更新失敗_isFinishedがnullなら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String invalidRequest = """
+        {
+          "isFinished": null
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void 完了状態更新失敗_パス変数が0以下なら400を返すこと() throws Exception {
+    // Arrange
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/0/finished")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
   }
 
   @Test

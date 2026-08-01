@@ -148,16 +148,17 @@ public class TaskService {
   }
 
   /**
-   * タスクIDを指定してタスクを完了状態にします。 作業セッションの時間を合計して実作業時間と見積もりと実績の差と比率などをキャッシュして保存します。
+   * タスクIDを指定してタスクの完了状態を更新します。完了にする場合は作業セッションの時間を集計してキャッシュし、未完了に戻す場合は完了日時とキャッシュを削除します。
    *
-   * @param id
+   * @param id         タスクID
+   * @param isFinished 完了状態
    */
   @Transactional
-  public void setFinished(int id) {
-    int updated = tsRepository.setFinished(id);
+  public void updateFinished(int id, boolean isFinished) {
+    int updated = tsRepository.updateFinished(id, isFinished);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
-          "完了対象のタスクが見つかりませんでした");
+          "完了状態更新対象のタスクが見つかりませんでした");
     }
   }
 
