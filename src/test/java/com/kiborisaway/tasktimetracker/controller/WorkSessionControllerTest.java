@@ -11,8 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kiborisaway.tasktimetracker.data.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
-import com.kiborisaway.tasktimetracker.exception.WorkSessionCreateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
 import java.util.List;
@@ -198,7 +198,7 @@ class WorkSessionControllerTest {
         }
         """;
     when(service.create(eq(taskId), any(WorkSession.class))).thenThrow(
-        new WorkSessionCreateNotAllowedException("task.id", "cannot create"));
+        new WorkSessionOperationNotAllowedException("task.id", "cannot create"));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/work-sessions", taskId)
@@ -299,6 +299,28 @@ class WorkSessionControllerTest {
   }
 
   @Test
+  void 作業セッション更新失敗_完了済みタスク配下なら400を返すこと() throws Exception {
+    // Arrange
+    int wsId = 1;
+    String validRequest = """
+        {
+          "type": "MANUAL",
+          "minutes": 45
+        }
+        """;
+    doThrow(new WorkSessionOperationNotAllowedException("workSession.id", "cannot change"))
+        .when(service).update(eq(wsId), any(WorkSession.class));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
+
+    verify(service).update(eq(wsId), any(WorkSession.class));
+  }
+
+  @Test
   void 作業セッション更新失敗_不正なリクエストボディなら400を返すこと() throws Exception {
     // Arrange
     int wsId = 1;
@@ -341,6 +363,20 @@ class WorkSessionControllerTest {
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.delete("/work-sessions/{wsId}", wsId))
         .andExpect(status().isNotFound());
+
+    verify(service).delete(wsId);
+  }
+
+  @Test
+  void 作業セッション削除失敗_完了済みタスク配下なら400を返すこと() throws Exception {
+    // Arrange
+    int wsId = 1;
+    doThrow(new WorkSessionOperationNotAllowedException("workSession.id", "cannot change"))
+        .when(service).delete(wsId);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.delete("/work-sessions/{wsId}", wsId))
+        .andExpect(status().isBadRequest());
 
     verify(service).delete(wsId);
   }

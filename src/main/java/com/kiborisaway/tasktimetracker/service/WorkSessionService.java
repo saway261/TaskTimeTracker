@@ -2,8 +2,8 @@ package com.kiborisaway.tasktimetracker.service;
 
 import com.kiborisaway.tasktimetracker.data.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
-import com.kiborisaway.tasktimetracker.exception.WorkSessionCreateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
 import java.util.List;
@@ -91,10 +91,7 @@ public class WorkSessionService {
       throw new TargetNotFoundException("task.id",
           "指定したIDのタスクは見つかりませんでした");
     }
-    if (tsRepository.isFinished(taskId)) {
-      throw new WorkSessionCreateNotAllowedException("task.id",
-          "完了済みのタスクには作業セッションを追加できません");
-    }
+    validateTaskIsNotFinished(taskId);
 
     workSession.setTaskId(taskId);
     wsRepository.insert(workSession);
@@ -128,6 +125,9 @@ public class WorkSessionService {
    */
   @Transactional
   public void update(int wsId, WorkSession workSession) {
+    int taskId = findTaskIdByWorkSessionId(wsId);
+    validateTaskIsNotFinished(taskId);
+
     workSession.setId(wsId);
     int updated = wsRepository.update(workSession);
     if (updated == 0) {
@@ -143,10 +143,29 @@ public class WorkSessionService {
    */
   @Transactional
   public void delete(int wsId) {
+    int taskId = findTaskIdByWorkSessionId(wsId);
+    validateTaskIsNotFinished(taskId);
+
     int deleted = wsRepository.deleteById(wsId);
     if (deleted == 0) {
       throw new TargetNotFoundException("workSession.id",
           "削除対象の作業セッションが見つかりませんでした");
+    }
+  }
+
+  private int findTaskIdByWorkSessionId(int wsId) {
+    Integer taskId = wsRepository.findTaskIdById(wsId);
+    if (taskId == null) {
+      throw new TargetNotFoundException("workSession.id",
+          "指定したIDの作業セッションは見つかりませんでした");
+    }
+    return taskId;
+  }
+
+  private void validateTaskIsNotFinished(int taskId) {
+    if (tsRepository.isFinished(taskId)) {
+      throw new WorkSessionOperationNotAllowedException("task.id",
+          "完了済みタスクの作業セッションは追加・更新・削除できません");
     }
   }
 

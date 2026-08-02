@@ -84,6 +84,15 @@ public interface WorkSessionRepository {
   WorkSession findById(int id);
 
   /**
+   * 作業セッションIDを指定して紐づくタスクIDを取得します。
+   *
+   * @param id 作業セッションのID
+   * @return タスクのID。存在しなければnull
+   */
+  @Select("SELECT task_id FROM work_sessions WHERE id = #{id}")
+  Integer findTaskIdById(int id);
+
+  /**
    * タスクIDに紐づく作業セッションの存在チェックを行います
    *
    * @param taskId タスクのID

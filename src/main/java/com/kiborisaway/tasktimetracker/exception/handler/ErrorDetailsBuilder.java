@@ -3,8 +3,8 @@ package com.kiborisaway.tasktimetracker.exception.handler;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
-import com.kiborisaway.tasktimetracker.exception.WorkSessionCreateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -132,12 +132,12 @@ public class ErrorDetailsBuilder {
   }
 
   /**
-   * WorkSessionCreateNotAllowedExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   * WorkSessionOperationNotAllowedExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
    *
-   * @param ex WorkSessionCreateNotAllowedException
+   * @param ex WorkSessionOperationNotAllowedException
    * @return エラー発生個所とエラーメッセージ
    */
-  public List<Map<String, String>> buildErrorDetails(WorkSessionCreateNotAllowedException ex) {
+  public List<Map<String, String>> buildErrorDetails(WorkSessionOperationNotAllowedException ex) {
     List<Map<String, String>> errors = new ArrayList<>();
 
     Map<String, String> error = new HashMap<>();

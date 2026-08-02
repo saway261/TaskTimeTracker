@@ -115,6 +115,24 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
+  void タスクID取得成功_作業セッションIDに紐づくタスクIDを取得できること() {
+    // Act
+    Integer actual = sut.findTaskIdById(2);
+
+    // Assert
+    assertThat(actual).isEqualTo(4);
+  }
+
+  @Test
+  void タスクID取得失敗_存在しない作業セッションIDならnullを返すこと() {
+    // Act
+    Integer actual = sut.findTaskIdById(999);
+
+    // Assert
+    assertThat(actual).isNull();
+  }
+
+  @Test
   void タスクの作業セッション存在チェック_指定したタスクIDに対して作業セッションが存在するならtrueを返すこと() {
     // Arrange
     int taskId = 1;

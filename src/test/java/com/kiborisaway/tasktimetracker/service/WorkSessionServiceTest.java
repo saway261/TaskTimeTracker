@@ -12,8 +12,8 @@ import static org.mockito.Mockito.when;
 import com.kiborisaway.tasktimetracker.data.WorkSession;
 import com.kiborisaway.tasktimetracker.data.WorkSessionType;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
-import com.kiborisaway.tasktimetracker.exception.WorkSessionCreateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
 import java.time.LocalDateTime;
@@ -181,7 +181,7 @@ class WorkSessionServiceTest {
 
     // Act & Assert
     assertThatThrownBy(() -> sut.create(taskId, workSession))
-        .isInstanceOf(WorkSessionCreateNotAllowedException.class);
+        .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
     assertThat(workSession.getTaskId()).isNull();
     verify(taskRepository, times(1)).existsById(taskId);
@@ -237,11 +237,14 @@ class WorkSessionServiceTest {
   void 更新成功_受け取ったIDをWorkSessionにセットしてリポジトリの更新処理を呼び出すこと() {
     // Arrange
     int wsId = 1;
+    int taskId = 1;
     WorkSession workSession = new WorkSession();
     workSession.setMinutes(30);
     workSession.setStartedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
     workSession.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 30));
 
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(false);
     when(repository.update(workSession)).thenReturn(1);
 
     // Act
@@ -249,6 +252,8 @@ class WorkSessionServiceTest {
 
     // Assert
     assertThat(workSession.getId()).isEqualTo(wsId);
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, times(1)).update(same(workSession));
   }
 
@@ -256,9 +261,12 @@ class WorkSessionServiceTest {
   void 更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
     int wsId = 999;
+    int taskId = 1;
     WorkSession workSession = new WorkSession();
     workSession.setMinutes(30);
 
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(false);
     when(repository.update(workSession)).thenReturn(0);
 
     // Act & Assert
@@ -266,19 +274,67 @@ class WorkSessionServiceTest {
         .isInstanceOf(TargetNotFoundException.class);
 
     assertThat(workSession.getId()).isEqualTo(wsId);
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, times(1)).update(same(workSession));
+  }
+
+  @Test
+  void 更新失敗_作業セッションが存在しない場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int wsId = 999;
+    WorkSession workSession = new WorkSession();
+    workSession.setMinutes(30);
+
+    when(repository.findTaskIdById(wsId)).thenReturn(null);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.update(wsId, workSession))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    assertThat(workSession.getId()).isNull();
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, never()).isFinished(anyInt());
+    verify(repository, never()).update(same(workSession));
+  }
+
+  @Test
+  void 更新失敗_完了済みタスクの作業セッションなら例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int wsId = 1;
+    int taskId = 3;
+    WorkSession workSession = new WorkSession();
+    workSession.setMinutes(30);
+
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.update(wsId, workSession))
+        .isInstanceOf(WorkSessionOperationNotAllowedException.class);
+
+    assertThat(workSession.getId()).isNull();
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
+    verify(repository, never()).update(same(workSession));
   }
 
   @Test
   void 削除成功_リポジトリのID指定削除を呼び出すこと() {
     // Arrange
     int wsId = 1;
+    int taskId = 1;
+
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(false);
     when(repository.deleteById(wsId)).thenReturn(1);
 
     // Act
     sut.delete(wsId);
 
     // Assert
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, times(1)).deleteById(wsId);
   }
 
@@ -286,13 +342,53 @@ class WorkSessionServiceTest {
   void 削除失敗_削除件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
     int wsId = 999;
+    int taskId = 1;
+
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(false);
     when(repository.deleteById(wsId)).thenReturn(0);
 
     // Act & Assert
     assertThatThrownBy(() -> sut.delete(wsId))
         .isInstanceOf(TargetNotFoundException.class);
 
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, times(1)).deleteById(wsId);
+  }
+
+  @Test
+  void 削除失敗_作業セッションが存在しない場合は例外を投げて削除処理を呼び出さないこと() {
+    // Arrange
+    int wsId = 999;
+
+    when(repository.findTaskIdById(wsId)).thenReturn(null);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.delete(wsId))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, never()).isFinished(anyInt());
+    verify(repository, never()).deleteById(anyInt());
+  }
+
+  @Test
+  void 削除失敗_完了済みタスクの作業セッションなら例外を投げて削除処理を呼び出さないこと() {
+    // Arrange
+    int wsId = 1;
+    int taskId = 3;
+
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.delete(wsId))
+        .isInstanceOf(WorkSessionOperationNotAllowedException.class);
+
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
+    verify(repository, never()).deleteById(anyInt());
   }
 
 }

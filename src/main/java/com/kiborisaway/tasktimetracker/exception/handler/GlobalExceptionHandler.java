@@ -3,8 +3,8 @@ package com.kiborisaway.tasktimetracker.exception.handler;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
-import com.kiborisaway.tasktimetracker.exception.WorkSessionCreateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -121,18 +121,18 @@ public class GlobalExceptionHandler {
   }
 
   /**
-   * 完了済みタスクへの作業セッション登録不可をクライアントに返します。
+   * 作業セッション操作不可をクライアントに返します。
    *
-   * @param ex WorkSessionCreateNotAllowedException
+   * @param ex WorkSessionOperationNotAllowedException
    * @return HTTPステータス(BAD_REQUEST), エラー詳細
    */
   @org.springframework.web.bind.annotation.ExceptionHandler(
-      WorkSessionCreateNotAllowedException.class)
-  public ResponseEntity<ErrorResponse> handleWorkSessionCreateNotAllowedException(
-      WorkSessionCreateNotAllowedException ex) {
+      WorkSessionOperationNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleWorkSessionOperationNotAllowedException(
+      WorkSessionOperationNotAllowedException ex) {
 
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
-        "work session create not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+        "work session operation not allowed", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
 
   }
