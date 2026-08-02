@@ -1,10 +1,10 @@
 package com.kiborisaway.tasktimetracker.service;
 
-import com.kiborisaway.tasktimetracker.data.Task;
-import com.kiborisaway.tasktimetracker.data.TaskGroup;
+import com.kiborisaway.tasktimetracker.data.entity.Task;
+import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
-import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;

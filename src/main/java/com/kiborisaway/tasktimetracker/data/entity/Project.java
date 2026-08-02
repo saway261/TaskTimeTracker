@@ -1,4 +1,4 @@
-package com.kiborisaway.tasktimetracker.data;
+package com.kiborisaway.tasktimetracker.data.entity;
 
 import com.kiborisaway.tasktimetracker.validation.CreateGroup;
 import com.kiborisaway.tasktimetracker.validation.UpdateGroup;

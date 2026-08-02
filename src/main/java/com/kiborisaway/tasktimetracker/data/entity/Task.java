@@ -1,4 +1,4 @@
-package com.kiborisaway.tasktimetracker.data;
+package com.kiborisaway.tasktimetracker.data.entity;
 
 import com.kiborisaway.tasktimetracker.validation.CreateGroup;
 import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
@@ -73,7 +73,7 @@ public class Task {
 
   @Schema(description = "(実績-見積)作業時間(分)　estimatedMinutes と actualMinutesCached から計算してキャッシュする", example = "10")
   private Integer gapMinutesCached;
-  
+
   @Schema(description = "(実績-見積)作業時間比率　estimatedMinutes と actualMinutesCached から計算してキャッシュする", example = "16.666")
   private Double gapRateCached;
 

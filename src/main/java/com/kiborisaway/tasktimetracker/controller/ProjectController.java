@@ -1,6 +1,6 @@
 package com.kiborisaway.tasktimetracker.controller;
 
-import com.kiborisaway.tasktimetracker.data.Project;
+import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.ProjectService;
 import com.kiborisaway.tasktimetracker.validation.CreateGroup;

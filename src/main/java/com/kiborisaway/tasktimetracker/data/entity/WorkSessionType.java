@@ -1,4 +1,4 @@
-package com.kiborisaway.tasktimetracker.data;
+package com.kiborisaway.tasktimetracker.data.entity;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

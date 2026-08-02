@@ -1,6 +1,6 @@
 package com.kiborisaway.tasktimetracker.service;
 
-import com.kiborisaway.tasktimetracker.data.TaskGroup;
+import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;

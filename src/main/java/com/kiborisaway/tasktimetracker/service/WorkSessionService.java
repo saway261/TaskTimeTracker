@@ -1,6 +1,6 @@
 package com.kiborisaway.tasktimetracker.service;
 
-import com.kiborisaway.tasktimetracker.data.WorkSession;
+import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;

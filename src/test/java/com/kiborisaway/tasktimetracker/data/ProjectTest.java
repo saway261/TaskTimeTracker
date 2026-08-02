@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.data;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.validation.CreateGroup;
 import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
 import jakarta.validation.ConstraintViolation;

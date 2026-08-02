@@ -3,8 +3,8 @@ package com.kiborisaway.tasktimetracker.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-import com.kiborisaway.tasktimetracker.data.WorkSession;
-import com.kiborisaway.tasktimetracker.data.WorkSessionType;
+import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
+import com.kiborisaway.tasktimetracker.data.entity.WorkSessionType;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -256,7 +256,8 @@ class WorkSessionRepositoryTest {
     WorkSession updated = sut.findById(1);
     assertThat(updated.getEndedAt()).isNotNull();
     assertThat(updated.getMinutes())
-        .isEqualTo((int) Duration.between(updated.getStartedAt(), updated.getEndedAt()).toMinutes());
+        .isEqualTo(
+            (int) Duration.between(updated.getStartedAt(), updated.getEndedAt()).toMinutes());
     assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(before.getUpdatedAt());
     assertThat(updated.getTaskId()).isEqualTo(before.getTaskId());
     assertThat(updated.getType()).isEqualTo(before.getType());

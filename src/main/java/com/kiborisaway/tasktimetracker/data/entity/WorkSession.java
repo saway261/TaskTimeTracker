@@ -1,4 +1,4 @@
-package com.kiborisaway.tasktimetracker.data;
+package com.kiborisaway.tasktimetracker.data.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kiborisaway.tasktimetracker.validation.CreateGroup;

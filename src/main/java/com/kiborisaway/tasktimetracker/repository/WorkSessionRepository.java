@@ -1,6 +1,6 @@
 package com.kiborisaway.tasktimetracker.repository;
 
-import com.kiborisaway.tasktimetracker.data.WorkSession;
+import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import java.util.List;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;

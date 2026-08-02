@@ -1,6 +1,6 @@
 package com.kiborisaway.tasktimetracker.service;
 
-import com.kiborisaway.tasktimetracker.data.Project;
+import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import java.util.List;

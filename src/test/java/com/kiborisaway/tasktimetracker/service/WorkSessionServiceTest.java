@@ -9,8 +9,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.kiborisaway.tasktimetracker.data.WorkSession;
-import com.kiborisaway.tasktimetracker.data.WorkSessionType;
+import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
+import com.kiborisaway.tasktimetracker.data.entity.WorkSessionType;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;

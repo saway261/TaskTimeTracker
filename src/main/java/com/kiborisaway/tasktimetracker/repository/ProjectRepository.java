@@ -1,6 +1,6 @@
 package com.kiborisaway.tasktimetracker.repository;
 
-import com.kiborisaway.tasktimetracker.data.Project;
+import com.kiborisaway.tasktimetracker.data.entity.Project;
 import java.util.List;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
