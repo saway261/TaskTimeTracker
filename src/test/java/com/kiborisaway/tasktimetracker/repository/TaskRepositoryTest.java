@@ -173,6 +173,30 @@ class TaskRepositoryTest {
   }
 
   @Test
+  void ID存在チェック_存在するIDを指定するとtrueを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    boolean actual = sut.existsById(id);
+
+    // Assert
+    assertThat(actual).isTrue();
+  }
+
+  @Test
+  void ID存在チェック_存在しないIDを指定するとfalseを返すこと() {
+    // Arrange
+    int id = 999;
+
+    // Act
+    boolean actual = sut.existsById(id);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
   void 登録成功_タスクグループIDのみを指定したタスクを登録でき採番されたidが設定されること() {
     // Arrange
     List<Task> before = sut.findAllInProject(1);

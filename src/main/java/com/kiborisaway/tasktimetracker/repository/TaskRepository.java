@@ -76,6 +76,21 @@ public interface TaskRepository {
   Task findById(int id);
 
   /**
+   * IDによるタスクの存在チェックを行います。
+   *
+   * @param id タスクのID
+   * @return 存在すればtrue, 存在しなければfalse
+   */
+  @Select("""
+      SELECT EXISTS(
+        SELECT 1
+        FROM tasks
+        WHERE id = #{id}
+      )
+      """)
+  boolean existsById(int id);
+
+  /**
    * タスクの新規追加を行います。 完了フラグは新規追加時にはfalseとなります。
    *
    * @param task タスク
