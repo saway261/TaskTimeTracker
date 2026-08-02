@@ -139,6 +139,30 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
+  void 未終了作業セッション存在チェック_minutesがnullの作業セッションがあるならtrueを返すこと() {
+    // Arrange
+    int taskId = 1;
+
+    // Act
+    boolean actual = sut.existsUnfinishedByTaskId(taskId);
+
+    // Assert
+    assertThat(actual).isTrue();
+  }
+
+  @Test
+  void 未終了作業セッション存在チェック_minutesがnullの作業セッションがないならfalseを返すこと() {
+    // Arrange
+    int taskId = 4;
+
+    // Act
+    boolean actual = sut.existsUnfinishedByTaskId(taskId);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
   void 登録成功_TIMERの作業セッションを登録でき自動採番と日時が設定されること() {
     // Arrange
     WorkSession workSession = new WorkSession();

@@ -99,6 +99,22 @@ public interface WorkSessionRepository {
   boolean existsByTaskId(int taskId);
 
   /**
+   * 指定したタスクに紐づく未終了の作業セッションが存在するかチェックします。
+   *
+   * @param taskId タスクのID
+   * @return 未終了の作業セッションが存在すればtrue, 存在しなければfalse
+   */
+  @Select("""
+      SELECT EXISTS(
+        SELECT 1
+        FROM work_sessions
+        WHERE task_id = #{taskId}
+          AND minutes IS NULL
+      )
+      """)
+  boolean existsUnfinishedByTaskId(int taskId);
+
+  /**
    * 指定したタスクに紐づく作業セッションを新規登録します。
    *
    * @param workSession 作業セッション

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kiborisaway.tasktimetracker.data.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionCreateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
@@ -182,6 +183,28 @@ class WorkSessionControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
+
+    verify(service).create(eq(taskId), any(WorkSession.class));
+  }
+
+  @Test
+  void 作業セッション登録失敗_指定したタスクが完了済みなら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 3;
+    String validRequest = """
+        {
+          "type": "MANUAL",
+          "minutes": 30
+        }
+        """;
+    when(service.create(eq(taskId), any(WorkSession.class))).thenThrow(
+        new WorkSessionCreateNotAllowedException("task.id", "cannot create"));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/work-sessions", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
 
     verify(service).create(eq(taskId), any(WorkSession.class));
   }

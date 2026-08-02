@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.service;
 
 import com.kiborisaway.tasktimetracker.data.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionCreateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
@@ -89,6 +90,10 @@ public class WorkSessionService {
     if (!tsRepository.existsById(taskId)) {
       throw new TargetNotFoundException("task.id",
           "指定したIDのタスクは見つかりませんでした");
+    }
+    if (tsRepository.isFinished(taskId)) {
+      throw new WorkSessionCreateNotAllowedException("task.id",
+          "完了済みのタスクには作業セッションを追加できません");
     }
 
     workSession.setTaskId(taskId);

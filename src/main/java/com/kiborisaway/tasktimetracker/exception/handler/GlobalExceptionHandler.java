@@ -1,7 +1,9 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionCreateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -114,6 +116,39 @@ public class GlobalExceptionHandler {
 
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
         "work session end not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+
+  }
+
+  /**
+   * 完了済みタスクへの作業セッション登録不可をクライアントに返します。
+   *
+   * @param ex WorkSessionCreateNotAllowedException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(
+      WorkSessionCreateNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleWorkSessionCreateNotAllowedException(
+      WorkSessionCreateNotAllowedException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "work session create not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+
+  }
+
+  /**
+   * 未終了の作業セッションがあるタスクの完了不可をクライアントに返します。
+   *
+   * @param ex TaskFinishNotAllowedException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(TaskFinishNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleTaskFinishNotAllowedException(
+      TaskFinishNotAllowedException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "task finish not allowed", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
 
   }

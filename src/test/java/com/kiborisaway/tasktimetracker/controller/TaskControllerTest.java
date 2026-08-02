@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kiborisaway.tasktimetracker.data.Task;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.TaskService;
@@ -623,6 +624,27 @@ class TaskControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
+
+    verify(service).updateFinished(taskId, true);
+  }
+
+  @Test
+  void 完了状態更新失敗_未終了WorkSessionが存在するなら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
+    doThrow(new TaskFinishNotAllowedException("task.id", "cannot finish"))
+        .when(service).updateFinished(taskId, true);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
 
     verify(service).updateFinished(taskId, true);
   }

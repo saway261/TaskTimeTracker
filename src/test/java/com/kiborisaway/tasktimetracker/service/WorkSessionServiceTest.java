@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.kiborisaway.tasktimetracker.data.WorkSession;
 import com.kiborisaway.tasktimetracker.data.WorkSessionType;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionCreateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
@@ -143,6 +144,7 @@ class WorkSessionServiceTest {
     assertThat(actual).isSameAs(workSession);
     assertThat(workSession.getTaskId()).isEqualTo(taskId);
     verify(taskRepository, times(1)).existsById(taskId);
+    verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, times(1)).insert(same(workSession));
   }
 
@@ -162,6 +164,28 @@ class WorkSessionServiceTest {
 
     assertThat(workSession.getTaskId()).isNull();
     verify(taskRepository, times(1)).existsById(taskId);
+    verify(taskRepository, never()).isFinished(anyInt());
+    verify(repository, never()).insert(same(workSession));
+  }
+
+  @Test
+  void 登録失敗_指定したタスクが完了済みの場合は例外を投げて登録処理を呼び出さないこと() {
+    // Arrange
+    int taskId = 3;
+    WorkSession workSession = new WorkSession();
+    workSession.setType(WorkSessionType.MANUAL);
+    workSession.setMinutes(30);
+
+    when(taskRepository.existsById(taskId)).thenReturn(true);
+    when(taskRepository.isFinished(taskId)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.create(taskId, workSession))
+        .isInstanceOf(WorkSessionCreateNotAllowedException.class);
+
+    assertThat(workSession.getTaskId()).isNull();
+    verify(taskRepository, times(1)).existsById(taskId);
+    verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, never()).insert(same(workSession));
   }
 

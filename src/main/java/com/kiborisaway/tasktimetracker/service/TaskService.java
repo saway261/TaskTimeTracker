@@ -3,6 +3,7 @@ package com.kiborisaway.tasktimetracker.service;
 import com.kiborisaway.tasktimetracker.data.Task;
 import com.kiborisaway.tasktimetracker.data.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
@@ -212,6 +213,11 @@ public class TaskService {
    */
   @Transactional
   public void updateFinished(int id, boolean isFinished) {
+    if (isFinished && wsRepository.existsUnfinishedByTaskId(id)) {
+      throw new TaskFinishNotAllowedException("task.id",
+          "未終了の作業セッションがあるタスクは完了状態にできません");
+    }
+
     int updated = tsRepository.updateFinished(id, isFinished);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",

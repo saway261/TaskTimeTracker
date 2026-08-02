@@ -197,6 +197,42 @@ class TaskRepositoryTest {
   }
 
   @Test
+  void 完了状態チェック_完了済みタスクIDを指定するとtrueを返すこと() {
+    // Arrange
+    int id = 3;
+
+    // Act
+    boolean actual = sut.isFinished(id);
+
+    // Assert
+    assertThat(actual).isTrue();
+  }
+
+  @Test
+  void 完了状態チェック_未完了タスクIDを指定するとfalseを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    boolean actual = sut.isFinished(id);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void 完了状態チェック_存在しないタスクIDを指定するとfalseを返すこと() {
+    // Arrange
+    int id = 999;
+
+    // Act
+    boolean actual = sut.isFinished(id);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
   void 登録成功_タスクグループIDのみを指定したタスクを登録でき採番されたidが設定されること() {
     // Arrange
     List<Task> before = sut.findAllInProject(1);

@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.kiborisaway.tasktimetracker.data.Task;
 import com.kiborisaway.tasktimetracker.data.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
@@ -573,6 +574,7 @@ class TaskServiceTest {
     sut.updateFinished(id, isFinished);
 
     // Assert
+    verify(wsRepository, times(1)).existsUnfinishedByTaskId(id);
     verify(tsRepository, times(1)).updateFinished(id, isFinished);
   }
 
@@ -588,7 +590,24 @@ class TaskServiceTest {
     sut.updateFinished(id, isFinished);
 
     // Assert
+    verify(wsRepository, never()).existsUnfinishedByTaskId(anyInt());
     verify(tsRepository, times(1)).updateFinished(id, isFinished);
+  }
+
+  @Test
+  void 完了状態更新失敗_完了にする際に未終了WorkSessionが存在する場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int id = 1;
+    boolean isFinished = true;
+
+    when(wsRepository.existsUnfinishedByTaskId(id)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateFinished(id, isFinished))
+        .isInstanceOf(TaskFinishNotAllowedException.class);
+
+    verify(wsRepository, times(1)).existsUnfinishedByTaskId(id);
+    verify(tsRepository, never()).updateFinished(anyInt(), anyBoolean());
   }
 
   @Test
@@ -603,6 +622,7 @@ class TaskServiceTest {
     assertThatThrownBy(() -> sut.updateFinished(id, isFinished))
         .isInstanceOf(TargetNotFoundException.class);
 
+    verify(wsRepository, times(1)).existsUnfinishedByTaskId(id);
     verify(tsRepository, times(1)).updateFinished(id, isFinished);
   }
 

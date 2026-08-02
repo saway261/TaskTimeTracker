@@ -91,6 +91,22 @@ public interface TaskRepository {
   boolean existsById(int id);
 
   /**
+   * 指定したタスクが完了状態かチェックします。
+   *
+   * @param id タスクのID
+   * @return 完了状態ならtrue, 未完了または存在しなければfalse
+   */
+  @Select("""
+      SELECT EXISTS(
+        SELECT 1
+        FROM tasks
+        WHERE id = #{id}
+          AND finished_at IS NOT NULL
+      )
+      """)
+  boolean isFinished(int id);
+
+  /**
    * タスクの新規追加を行います。 完了フラグは新規追加時にはfalseとなります。
    *
    * @param task タスク
