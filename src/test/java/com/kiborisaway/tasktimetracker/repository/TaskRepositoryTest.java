@@ -173,6 +173,66 @@ class TaskRepositoryTest {
   }
 
   @Test
+  void ID存在チェック_存在するIDを指定するとtrueを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    boolean actual = sut.existsById(id);
+
+    // Assert
+    assertThat(actual).isTrue();
+  }
+
+  @Test
+  void ID存在チェック_存在しないIDを指定するとfalseを返すこと() {
+    // Arrange
+    int id = 999;
+
+    // Act
+    boolean actual = sut.existsById(id);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void 完了状態チェック_完了済みタスクIDを指定するとtrueを返すこと() {
+    // Arrange
+    int id = 3;
+
+    // Act
+    boolean actual = sut.isFinished(id);
+
+    // Assert
+    assertThat(actual).isTrue();
+  }
+
+  @Test
+  void 完了状態チェック_未完了タスクIDを指定するとfalseを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    boolean actual = sut.isFinished(id);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void 完了状態チェック_存在しないタスクIDを指定するとfalseを返すこと() {
+    // Arrange
+    int id = 999;
+
+    // Act
+    boolean actual = sut.isFinished(id);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
   void 登録成功_タスクグループIDのみを指定したタスクを登録でき採番されたidが設定されること() {
     // Arrange
     List<Task> before = sut.findAllInProject(1);
@@ -301,6 +361,84 @@ class TaskRepositoryTest {
     // Assert
     assertThatThrownBy(() -> sut.updateProperty(task))
         .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void 所属変更成功_プロジェクト直下のタスクをタスクグループ配下に変更できること() {
+    // Arrange
+    int id = 4;
+
+    // Act
+    int actual = sut.updateTaskGroup(id, 2);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    Task updated = sut.findById(id);
+    assertThat(updated.getProjectId()).isNull();
+    assertThat(updated.getTaskGroupId()).isEqualTo(2);
+  }
+
+  @Test
+  void 所属変更成功_タスクグループ配下のタスクを別のタスクグループ配下に変更できること() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    int actual = sut.updateTaskGroup(id, 2);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    Task updated = sut.findById(id);
+    assertThat(updated.getProjectId()).isNull();
+    assertThat(updated.getTaskGroupId()).isEqualTo(2);
+  }
+
+  @Test
+  void 所属変更失敗_存在しないタスクIDの場合は更新されず0件となること() {
+    // Arrange
+    List<Task> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.updateTaskGroup(999, 2);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+
+  @Test
+  void 所属変更成功_タスクグループ配下のタスクをプロジェクト直下に変更できること() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    int actual = sut.updateProject(id, 1);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    Task updated = sut.findById(id);
+    assertThat(updated.getProjectId()).isEqualTo(1);
+    assertThat(updated.getTaskGroupId()).isNull();
+  }
+
+  @Test
+  void 所属変更失敗_プロジェクト直下への変更で存在しないタスクIDの場合は更新されず0件となること() {
+    // Arrange
+    List<Task> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.updateProject(999, 1);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
   }
 
   @Test

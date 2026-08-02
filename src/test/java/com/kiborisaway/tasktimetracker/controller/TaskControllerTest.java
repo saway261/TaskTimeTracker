@@ -2,8 +2,6 @@ package com.kiborisaway.tasktimetracker.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -14,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kiborisaway.tasktimetracker.data.Task;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.TaskService;
@@ -39,7 +38,8 @@ class TaskControllerTest {
   private ErrorDetailsBuilder errorDetailsBuilder;
 
   @Test
-  void プロジェクト内タスク一覧検索成功_条件未指定でサービスを呼び出し200を返すこと() throws Exception {
+  void プロジェクト内タスク一覧検索成功_条件未指定でサービスを呼び出し200を返すこと()
+      throws Exception {
     // Act & Assert
     int pId = 1;
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/tasks", pId))
@@ -86,7 +86,8 @@ class TaskControllerTest {
   }
 
   @Test
-  void タスクグループ内タスク一覧検索成功_条件未指定でサービスを呼び出し200を返すこと() throws Exception {
+  void タスクグループ内タスク一覧検索成功_条件未指定でサービスを呼び出し200を返すこと()
+      throws Exception {
     // Act & Assert
     int tgId = 1;
     mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/tasks", tgId))
@@ -259,7 +260,8 @@ class TaskControllerTest {
   }
 
   @Test
-  void タスク名説明更新成功_200とメッセージを返しIDを設定してサービスを呼び出すこと() throws Exception {
+  void タスク名説明更新成功_200とメッセージを返しIDを設定してサービスを呼び出すこと()
+      throws Exception {
     // Arrange
     int taskId = 1;
     String validRequest = """
@@ -366,6 +368,206 @@ class TaskControllerTest {
   }
 
   @Test
+  void 所属変更成功_200とメッセージを返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    int taskGroupId = 2;
+    String validRequest = """
+        {
+          "taskGroupId": 2
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk())
+        .andExpect(content().string("タスクの所属を更新しました"));
+
+    verify(service).updateParent(taskId, null, taskGroupId);
+  }
+
+  @Test
+  void 所属変更失敗_対象が存在しないなら404を返すこと() throws Exception {
+    // Arrange
+    int taskId = 999;
+    int taskGroupId = 2;
+    String validRequest = """
+        {
+          "taskGroupId": 2
+        }
+        """;
+    doThrow(new TargetNotFoundException("task.id", "task not found"))
+        .when(service).updateParent(taskId, null, taskGroupId);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isNotFound());
+
+    verify(service).updateParent(taskId, null, taskGroupId);
+  }
+
+  @Test
+  void 所属変更失敗_taskGroupIdがnullなら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String invalidRequest = """
+        {
+          "taskGroupId": null
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void 所属変更失敗_taskGroupIdが0以下なら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String invalidRequest = """
+        {
+          "taskGroupId": 0
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void 所属変更失敗_パス変数が0以下なら400を返すこと() throws Exception {
+    // Arrange
+    String validRequest = """
+        {
+          "taskGroupId": 2
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/0/parent")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void プロジェクト直下への所属変更成功_200とメッセージを返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    int projectId = 1;
+    String validRequest = """
+        {
+          "projectId": 1
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk())
+        .andExpect(content().string("タスクの所属を更新しました"));
+
+    verify(service).updateParent(taskId, projectId, null);
+  }
+
+  @Test
+  void プロジェクト直下への所属変更失敗_対象が存在しないなら404を返すこと() throws Exception {
+    // Arrange
+    int taskId = 999;
+    int projectId = 1;
+    String validRequest = """
+        {
+          "projectId": 1
+        }
+        """;
+    doThrow(new TargetNotFoundException("task.id", "task not found"))
+        .when(service).updateParent(taskId, projectId, null);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isNotFound());
+
+    verify(service).updateParent(taskId, projectId, null);
+  }
+
+  @Test
+  void プロジェクト直下への所属変更失敗_projectIdがnullなら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String invalidRequest = """
+        {
+          "projectId": null
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void プロジェクト直下への所属変更失敗_projectIdが0以下なら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String invalidRequest = """
+        {
+          "projectId": 0
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void 所属変更失敗_projectIdとtaskGroupIdを両方指定したら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String invalidRequest = """
+        {
+          "projectId": 1,
+          "taskGroupId": 2
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
   void 完了状態更新成功_isFinishedにtrueを指定すると200とメッセージを返すこと() throws Exception {
     // Arrange
     int taskId = 1;
@@ -422,6 +624,27 @@ class TaskControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
+
+    verify(service).updateFinished(taskId, true);
+  }
+
+  @Test
+  void 完了状態更新失敗_未終了WorkSessionが存在するなら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
+    doThrow(new TaskFinishNotAllowedException("task.id", "cannot finish"))
+        .when(service).updateFinished(taskId, true);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
 
     verify(service).updateFinished(taskId, true);
   }

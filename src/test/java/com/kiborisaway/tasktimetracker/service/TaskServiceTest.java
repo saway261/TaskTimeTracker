@@ -13,7 +13,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.kiborisaway.tasktimetracker.data.Task;
+import com.kiborisaway.tasktimetracker.data.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
@@ -328,6 +330,189 @@ class TaskServiceTest {
   }
 
   @Test
+  void 所属変更成功_プロジェクト直下タスクを同一プロジェクトのタスクグループ配下に変更できること() {
+    // Arrange
+    int taskId = 4;
+    int taskGroupId = 2;
+    Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
+    TaskGroup targetTaskGroup = new TaskGroup();
+    targetTaskGroup.setId(taskGroupId);
+    targetTaskGroup.setProjectId(1);
+
+    when(tsRepository.findById(taskId)).thenReturn(task);
+    when(tgRepository.findById(taskGroupId)).thenReturn(targetTaskGroup);
+    when(tsRepository.updateTaskGroup(taskId, taskGroupId)).thenReturn(1);
+
+    // Act
+    sut.updateParent(taskId, null, taskGroupId);
+
+    // Assert
+    verify(tsRepository, times(1)).findById(taskId);
+    verify(tgRepository, times(1)).findById(taskGroupId);
+    verify(tsRepository, times(1)).updateTaskGroup(taskId, taskGroupId);
+  }
+
+  @Test
+  void 所属変更成功_タスクグループ配下タスクを同一プロジェクトの別タスクグループ配下に変更できること() {
+    // Arrange
+    int taskId = 1;
+    int currentTaskGroupId = 1;
+    int targetTaskGroupId = 2;
+    Task task = new Task(taskId, null, currentTaskGroupId, "タスク１", "説明", 60, null, null,
+        null, null, null);
+    TaskGroup currentTaskGroup = new TaskGroup();
+    currentTaskGroup.setId(currentTaskGroupId);
+    currentTaskGroup.setProjectId(1);
+    TaskGroup targetTaskGroup = new TaskGroup();
+    targetTaskGroup.setId(targetTaskGroupId);
+    targetTaskGroup.setProjectId(1);
+
+    when(tsRepository.findById(taskId)).thenReturn(task);
+    when(tgRepository.findById(targetTaskGroupId)).thenReturn(targetTaskGroup);
+    when(tgRepository.findById(currentTaskGroupId)).thenReturn(currentTaskGroup);
+    when(tsRepository.updateTaskGroup(taskId, targetTaskGroupId)).thenReturn(1);
+
+    // Act
+    sut.updateParent(taskId, null, targetTaskGroupId);
+
+    // Assert
+    verify(tsRepository, times(1)).findById(taskId);
+    verify(tgRepository, times(1)).findById(targetTaskGroupId);
+    verify(tgRepository, times(1)).findById(currentTaskGroupId);
+    verify(tsRepository, times(1)).updateTaskGroup(taskId, targetTaskGroupId);
+  }
+
+  @Test
+  void 所属変更失敗_タスクが存在しない場合は例外を投げて以降の処理を呼び出さないこと() {
+    // Arrange
+    int taskId = 999;
+    int taskGroupId = 2;
+
+    when(tsRepository.findById(taskId)).thenReturn(null);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateParent(taskId, null, taskGroupId))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(tsRepository, times(1)).findById(taskId);
+    verify(tgRepository, never()).findById(anyInt());
+    verify(tsRepository, never()).updateTaskGroup(anyInt(), anyInt());
+  }
+
+  @Test
+  void 所属変更失敗_移動先タスクグループが存在しない場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int taskId = 4;
+    int taskGroupId = 999;
+    Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
+
+    when(tsRepository.findById(taskId)).thenReturn(task);
+    when(tgRepository.findById(taskGroupId)).thenReturn(null);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateParent(taskId, null, taskGroupId))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(tsRepository, times(1)).findById(taskId);
+    verify(tgRepository, times(1)).findById(taskGroupId);
+    verify(tsRepository, never()).updateTaskGroup(anyInt(), anyInt());
+  }
+
+  @Test
+  void 所属変更失敗_移動先タスクグループが別プロジェクト配下の場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int taskId = 4;
+    int taskGroupId = 3;
+    Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
+    TaskGroup targetTaskGroup = new TaskGroup();
+    targetTaskGroup.setId(taskGroupId);
+    targetTaskGroup.setProjectId(2);
+
+    when(tsRepository.findById(taskId)).thenReturn(task);
+    when(tgRepository.findById(taskGroupId)).thenReturn(targetTaskGroup);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateParent(taskId, null, taskGroupId))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(tsRepository, times(1)).findById(taskId);
+    verify(tgRepository, times(1)).findById(taskGroupId);
+    verify(tsRepository, never()).updateTaskGroup(anyInt(), anyInt());
+  }
+
+  @Test
+  void 所属変更成功_タスクグループ配下タスクを同根プロジェクト直下に変更できること() {
+    // Arrange
+    int taskId = 1;
+    int currentTaskGroupId = 1;
+    int projectId = 1;
+    Task task = new Task(taskId, null, currentTaskGroupId, "タスク１", "説明", 60, null, null,
+        null, null, null);
+    TaskGroup currentTaskGroup = new TaskGroup();
+    currentTaskGroup.setId(currentTaskGroupId);
+    currentTaskGroup.setProjectId(projectId);
+
+    when(tsRepository.findById(taskId)).thenReturn(task);
+    when(pjRepository.existsById(projectId)).thenReturn(true);
+    when(tgRepository.findById(currentTaskGroupId)).thenReturn(currentTaskGroup);
+    when(tsRepository.updateProject(taskId, projectId)).thenReturn(1);
+
+    // Act
+    sut.updateParent(taskId, projectId, null);
+
+    // Assert
+    verify(tsRepository, times(1)).findById(taskId);
+    verify(pjRepository, times(1)).existsById(projectId);
+    verify(tgRepository, times(1)).findById(currentTaskGroupId);
+    verify(tsRepository, times(1)).updateProject(taskId, projectId);
+  }
+
+  @Test
+  void 所属変更失敗_移動先プロジェクトが存在しない場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int taskId = 1;
+    int projectId = 999;
+    Task task = new Task(taskId, null, 1, "タスク１", "説明", 60, null, null, null, null, null);
+
+    when(tsRepository.findById(taskId)).thenReturn(task);
+    when(pjRepository.existsById(projectId)).thenReturn(false);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateParent(taskId, projectId, null))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(tsRepository, times(1)).findById(taskId);
+    verify(pjRepository, times(1)).existsById(projectId);
+    verify(tsRepository, never()).updateProject(anyInt(), anyInt());
+  }
+
+  @Test
+  void 所属変更失敗_移動先プロジェクトが同根でない場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int taskId = 1;
+    int currentTaskGroupId = 1;
+    int projectId = 2;
+    Task task = new Task(taskId, null, currentTaskGroupId, "タスク１", "説明", 60, null, null,
+        null, null, null);
+    TaskGroup currentTaskGroup = new TaskGroup();
+    currentTaskGroup.setId(currentTaskGroupId);
+    currentTaskGroup.setProjectId(1);
+
+    when(tsRepository.findById(taskId)).thenReturn(task);
+    when(pjRepository.existsById(projectId)).thenReturn(true);
+    when(tgRepository.findById(currentTaskGroupId)).thenReturn(currentTaskGroup);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateParent(taskId, projectId, null))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(tsRepository, times(1)).findById(taskId);
+    verify(pjRepository, times(1)).existsById(projectId);
+    verify(tgRepository, times(1)).findById(currentTaskGroupId);
+    verify(tsRepository, never()).updateProject(anyInt(), anyInt());
+  }
+
+  @Test
   void 見積もり作業時間更新成功_WorkSessionが存在しない場合はtsRepositoryのメソッドを呼び出すこと() {
     // Arrange
     int taskId = 1;
@@ -389,6 +574,7 @@ class TaskServiceTest {
     sut.updateFinished(id, isFinished);
 
     // Assert
+    verify(wsRepository, times(1)).existsUnfinishedByTaskId(id);
     verify(tsRepository, times(1)).updateFinished(id, isFinished);
   }
 
@@ -404,7 +590,24 @@ class TaskServiceTest {
     sut.updateFinished(id, isFinished);
 
     // Assert
+    verify(wsRepository, never()).existsUnfinishedByTaskId(anyInt());
     verify(tsRepository, times(1)).updateFinished(id, isFinished);
+  }
+
+  @Test
+  void 完了状態更新失敗_完了にする際に未終了WorkSessionが存在する場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int id = 1;
+    boolean isFinished = true;
+
+    when(wsRepository.existsUnfinishedByTaskId(id)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateFinished(id, isFinished))
+        .isInstanceOf(TaskFinishNotAllowedException.class);
+
+    verify(wsRepository, times(1)).existsUnfinishedByTaskId(id);
+    verify(tsRepository, never()).updateFinished(anyInt(), anyBoolean());
   }
 
   @Test
@@ -419,6 +622,7 @@ class TaskServiceTest {
     assertThatThrownBy(() -> sut.updateFinished(id, isFinished))
         .isInstanceOf(TargetNotFoundException.class);
 
+    verify(wsRepository, times(1)).existsUnfinishedByTaskId(id);
     verify(tsRepository, times(1)).updateFinished(id, isFinished);
   }
 

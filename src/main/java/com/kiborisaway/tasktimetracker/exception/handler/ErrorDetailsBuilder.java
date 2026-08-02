@@ -1,7 +1,10 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +30,12 @@ public class ErrorDetailsBuilder {
       Map<String, String> error = new HashMap<>();
       error.put("field", fieldError.getField());
       error.put("message", fieldError.getDefaultMessage());
+      errors.add(error);
+    });
+    ex.getBindingResult().getGlobalErrors().forEach(globalError -> {
+      Map<String, String> error = new HashMap<>();
+      error.put("field", globalError.getObjectName());
+      error.put("message", globalError.getDefaultMessage());
       errors.add(error);
     });
     return errors;
@@ -95,6 +104,57 @@ public class ErrorDetailsBuilder {
    * @return エラー発生個所とエラーメッセージ
    */
   public List<Map<String, String>> buildErrorDetails(EstimateMinutesUpdateNotAllowedException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * WorkSessionEndNotAllowedExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex WorkSessionEndNotAllowedException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(WorkSessionEndNotAllowedException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * WorkSessionOperationNotAllowedExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex WorkSessionOperationNotAllowedException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(WorkSessionOperationNotAllowedException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * TaskFinishNotAllowedExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex TaskFinishNotAllowedException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(TaskFinishNotAllowedException ex) {
     List<Map<String, String>> errors = new ArrayList<>();
 
     Map<String, String> error = new HashMap<>();

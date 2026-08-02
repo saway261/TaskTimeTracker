@@ -1,7 +1,9 @@
 package com.kiborisaway.tasktimetracker.service;
 
 import com.kiborisaway.tasktimetracker.data.Task;
+import com.kiborisaway.tasktimetracker.data.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
@@ -129,6 +131,62 @@ public class TaskService {
   }
 
   /**
+   * タスクの所属を同根プロジェクト直下または同一プロジェクト内のタスクグループ配下へ変更します。
+   *
+   * @param id          タスクID
+   * @param projectId   移動先プロジェクトID
+   * @param taskGroupId 移動先タスクグループID
+   */
+  @Transactional
+  public void updateParent(int id, Integer projectId, Integer taskGroupId) {
+    Task task = tsRepository.findById(id);
+    if (task == null) {
+      throw new TargetNotFoundException("task.id",
+          "所属変更対象のタスクが見つかりませんでした");
+    }
+
+    if (projectId != null && !pjRepository.existsById(projectId)) {
+      throw new TargetNotFoundException("project.id",
+          "移動先のプロジェクトが見つかりませんでした");
+    }
+
+    Integer currentProjectId = task.getProjectId();
+    if (currentProjectId == null) {
+      TaskGroup currentTaskGroup = tgRepository.findById(task.getTaskGroupId());
+      if (currentTaskGroup == null) {
+        throw new TargetNotFoundException("task.taskGroupId",
+            "タスクの所属元タスクグループが見つかりませんでした");
+      }
+      currentProjectId = currentTaskGroup.getProjectId();
+    }
+
+    int updated;
+    if (taskGroupId != null) {
+      TaskGroup targetTaskGroup = tgRepository.findById(taskGroupId);
+      if (targetTaskGroup == null) {
+        throw new TargetNotFoundException("taskGroup.id",
+            "移動先のタスクグループが見つかりませんでした");
+      }
+      if (!currentProjectId.equals(targetTaskGroup.getProjectId())) {
+        throw new TargetNotFoundException("taskGroup.id",
+            "移動先のタスクグループはタスクの所属プロジェクト内に見つかりませんでした");
+      }
+      updated = tsRepository.updateTaskGroup(id, taskGroupId);
+    } else {
+      if (!currentProjectId.equals(projectId)) {
+        throw new TargetNotFoundException("project.id",
+            "移動先のプロジェクトはタスクの所属元プロジェクトと一致しませんでした");
+      }
+      updated = tsRepository.updateProject(id, projectId);
+    }
+
+    if (updated == 0) {
+      throw new TargetNotFoundException("task.id",
+          "所属変更対象のタスクが見つかりませんでした");
+    }
+  }
+
+  /**
    * タスクIDを指定して見積もり作業時間を更新します。 紐づく作業セッションが存在する場合は更新できません。
    *
    * @param id               タスクID
@@ -155,6 +213,11 @@ public class TaskService {
    */
   @Transactional
   public void updateFinished(int id, boolean isFinished) {
+    if (isFinished && wsRepository.existsUnfinishedByTaskId(id)) {
+      throw new TaskFinishNotAllowedException("task.id",
+          "未終了の作業セッションがあるタスクは完了状態にできません");
+    }
+
     int updated = tsRepository.updateFinished(id, isFinished);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
