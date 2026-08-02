@@ -20,21 +20,37 @@ import lombok.Setter;
 @NoArgsConstructor
 public class WorkSession {
 
+  @Schema(
+      description = """
+          タスクID
+          登録時は自動採番を行うため不要、更新時にはパスパラメータで指定するため不要なので、リクエストボディとしては常に不要
+          """,
+      example = "1")
   private Integer id;
+
+  @Schema(
+      description = """
+          作業セッションが紐づくタスクID
+          登録時はパスパラメータで指定し、更新不可なので、リクエストボディとしては常に不要
+          """,
+      example = "1")
   private Integer taskId;
+
+  @Schema(description = """
+      作業セッションの実績作業時間 終了状態のセッションにおいてはtypeがTIMERでもMANUALでも値を持つ
+      """, example = "15")
   private Integer minutes;
 
-  /**
-   * 手動登録の場合はnull。
-   */
+  @Schema(description = "作業セッション開始日時 typeがTIMERなら必ず値を持つ", example = "2026-01-01 09:00:00")
   private LocalDateTime startedAt;
 
-  /**
-   * 手動登録またはタイマー実行中の場合はnull。
-   */
+  @Schema(description = "作業セッション終了日時 typeがTIMERで、作業中ならnullとなる", example = "2026-01-01 09:15:00")
   private LocalDateTime endedAt;
 
+  @Schema(description = "作業セッション登録日時 DBにINSERTされる際に現在時刻がセットされる", example = "2026-01-01 09:00:00")
   private LocalDateTime createdAt;
+
+  @Schema(description = "作業セッション更新日時 DBがUPDATEされる度に現在時刻がセットされる", example = "2026-01-01 09:00:00")
   private LocalDateTime updatedAt;
 
   @Schema(description = "作業セッションの記録タイプ", example = "TIMER")
