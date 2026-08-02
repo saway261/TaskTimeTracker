@@ -47,5 +47,11 @@ CREATE TABLE IF NOT EXISTS work_sessions (
   type ENUM('TIMER', 'MANUAL') NOT NULL DEFAULT 'TIMER',
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP NOT NULL,
-  FOREIGN KEY (task_id) REFERENCES tasks(id)
+  FOREIGN KEY (task_id) REFERENCES tasks(id),
+  CONSTRAINT chk_work_sessions_time_order
+    CHECK (
+      ended_at IS NULL
+      OR
+      (started_at IS NOT NULL AND ended_at >= started_at)
+    )
 );
