@@ -1,9 +1,17 @@
 package com.kiborisaway.tasktimetracker.controller;
 
 import com.kiborisaway.tasktimetracker.data.TaskGroup;
+import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.TaskGroupService;
 import com.kiborisaway.tasktimetracker.validation.CreateGroup;
 import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +37,39 @@ public class TaskGroupController {
     this.service = service;
   }
 
+  @Operation(
+      summary = "プロジェクト内タスクグループ全件取得（完了フラグ指定可）",
+      description = """
+          完了フラグを指定して、指定プロジェクト内の完了済み・未完了のタスクグループをリストで取得します。
+          例: /api/projects/1/task-groups?isFinished=false
+          クエリパラメータを省略した場合は、プロジェクト内のタスクグループを全件取得します。
+          """,
+      parameters = {
+          @Parameter(in = ParameterIn.PATH,
+              name = "pId", required = true,
+              description = "プロジェクトID",
+              schema = @Schema(type = "integer", format = "int32")
+          )
+      },
+      responses = {
+          @ApiResponse(
+              responseCode = "200",
+              description = "検索成功",
+              content = @Content(
+                  mediaType = "application/json",
+                  array = @ArraySchema(schema = @Schema(implementation = TaskGroup.class))
+              )
+          ),
+          @ApiResponse(
+              responseCode = "400",
+              description = "パスパラメータまたはクエリパラメータの形式が不正であったときのエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          )
+      }
+  )
   @GetMapping("/projects/{pId}/task-groups")
   public List<TaskGroup> getAll(
       @PathVariable @Positive int pId,
@@ -37,11 +78,77 @@ public class TaskGroupController {
     return service.findAllByCondition(pId, isFinished);
   }
 
+  @Operation(
+      summary = "タスクグループID検索",
+      description = "タスクグループの全件からIDが一致するタスクグループを取得します。",
+      parameters = {
+          @Parameter(in = ParameterIn.PATH,
+              name = "tgId", required = true,
+              description = "タスクグループID",
+              schema = @Schema(type = "integer", format = "int32")
+          )
+      },
+      responses = {
+          @ApiResponse(
+              responseCode = "200", description = "ok",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = TaskGroup.class)
+              )
+          ),
+          @ApiResponse(
+              responseCode = "404", description = "指定されたタスクグループIDが存在しなかったときのエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          ),
+          @ApiResponse(
+              responseCode = "400", description = "タスクグループIDの形式が不正であったときのエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          )
+      }
+  )
   @GetMapping("/task-groups/{tgId}")
   public TaskGroup getById(@PathVariable @Positive int tgId) {
     return service.findById(tgId);
   }
 
+  @Operation(
+      summary = "タスクグループ新規登録",
+      description = "指定したプロジェクトにタスクグループを登録します。",
+      parameters = {
+          @Parameter(in = ParameterIn.PATH,
+              name = "pId", required = true,
+              description = "親となるプロジェクトID",
+              schema = @Schema(type = "integer", format = "int32")
+          )
+      },
+      requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          description = "新規に登録したいタスクグループの詳細",
+          required = true,
+          content = @Content(schema = @Schema(implementation = TaskGroup.class))
+      ),
+      responses = {
+          @ApiResponse(
+              responseCode = "201", description = "登録成功",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = TaskGroup.class)
+              )
+          ),
+          @ApiResponse(
+              responseCode = "400", description = "入力値のバリデーションエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          )
+      }
+  )
   @PostMapping("/projects/{pId}/task-groups")
   public ResponseEntity<TaskGroup> create(
       @PathVariable @Positive int pId,
@@ -51,6 +158,45 @@ public class TaskGroupController {
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
+  @Operation(
+      summary = "タスクグループ更新",
+      description = "タスクグループの更新を行います。タスクグループ名・説明・完了フラグの変更を行います。タスクグループIDが存在しない場合はエラーを返します。",
+      parameters = {
+          @Parameter(in = ParameterIn.PATH,
+              name = "tgId", required = true,
+              description = "タスクグループID",
+              schema = @Schema(type = "integer", format = "int32")
+          )
+      },
+      requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          description = "更新したいタスクグループ",
+          required = true,
+          content = @Content(schema = @Schema(implementation = TaskGroup.class))
+      ),
+      responses = {
+          @ApiResponse(
+              responseCode = "200", description = "更新成功",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(type = "string", example = "更新成功")
+              )
+          ),
+          @ApiResponse(
+              responseCode = "400", description = "入力値のバリデーションエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          ),
+          @ApiResponse(
+              responseCode = "404", description = "指定されたタスクグループIDが存在しないときのエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          )
+      }
+  )
   @PutMapping("/task-groups/{tgId}")
   public ResponseEntity<String> update(
       @PathVariable @Positive int tgId,
