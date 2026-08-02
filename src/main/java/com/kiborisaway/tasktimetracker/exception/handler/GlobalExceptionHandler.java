@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.exception.handler;
 
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -97,6 +98,22 @@ public class GlobalExceptionHandler {
 
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
         "estimate minutes update not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+
+  }
+
+  /**
+   * 終了できない作業セッションへの終了操作をクライアントに返します。
+   *
+   * @param ex WorkSessionEndNotAllowedException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(WorkSessionEndNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleWorkSessionEndNotAllowedException(
+      WorkSessionEndNotAllowedException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "work session end not allowed", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
 
   }
