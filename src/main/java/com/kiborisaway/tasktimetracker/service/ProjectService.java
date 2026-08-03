@@ -1,7 +1,10 @@
 package com.kiborisaway.tasktimetracker.service;
 
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.mapper.ProjectMapper;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,10 +52,11 @@ public class ProjectService {
   /**
    * プロジェクトの新規登録を行います。
    *
-   * @param project 新規登録するプロジェクト
+   * @param request 新規登録するプロジェクトのリクエスト
    */
   @Transactional
-  public Project register(Project project) {
+  public Project register(ProjectCreateRequest request) {
+    Project project = ProjectMapper.toEntity(request);
     repository.insert(project);
     return project;
   }
@@ -60,10 +64,12 @@ public class ProjectService {
   /**
    * プロジェクトのIDを指定してプロジェクト名と説明を更新します
    *
-   * @param project 更新するプロジェクト
+   * @param id      更新するプロジェクトのID
+   * @param request 更新するプロジェクトのリクエスト
    */
   @Transactional
-  public void update(Project project) {
+  public void update(int id, ProjectUpdateRequest request) {
+    Project project = ProjectMapper.toEntity(id, request);
     int updated = repository.update(project);
     if (updated == 0) {
       throw new TargetNotFoundException("project", "更新対象のプロジェクトが見つかりませんでした");

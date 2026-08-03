@@ -1,12 +1,8 @@
 package com.kiborisaway.tasktimetracker.data.entity;
 
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -49,17 +45,12 @@ public class Task {
   private Integer taskGroupId;
 
   @Schema(description = "タスク名", example = "docker-compose.yml作成")
-  @NotBlank(groups = {CreateGroup.class, UpdateGroup.class})
-  @Size(max = 20, groups = {CreateGroup.class, UpdateGroup.class})
   private String title;
 
   @Schema(description = "タスクの説明　省略可", example = "")
-  @Size(max = 20, groups = {CreateGroup.class, UpdateGroup.class})
   private String description;
 
   @Schema(description = "見積作業時間(分)", example = "60")
-  @NotNull(groups = CreateGroup.class)
-  @Positive(groups = {CreateGroup.class, UpdateGroup.class})
   private Integer estimatedMinutes;
 
   @Schema(description = "タスク作成日時", example = "2026-01-01 09:00:00")
@@ -78,20 +69,29 @@ public class Task {
   private Double gapRateCached;
 
   /**
-   * タスク新規作成時にDBにINSERTするために満たされているべきフィールドのみでTaskインスタンスを生成するコンストラクタです。
+   * タスク新規登録用。projectId・taskGroupIdはパスパラメータ由来のためDTOに含まれません。
    *
-   * @param projectId        プロジェクトID
-   * @param taskGroupId      タスクグループID
-   * @param title            タイトル
-   * @param description      説明
-   * @param estimatedMinutes 見積もり作業時間
+   * @param projectId   プロジェクトID
+   * @param taskGroupId タスクグループID
+   * @param request     タスク新規登録リクエスト
    */
-  public Task(Integer projectId, Integer taskGroupId, String title, String description,
-      Integer estimatedMinutes) {
+  public Task(Integer projectId, Integer taskGroupId, TaskCreateRequest request) {
     this.projectId = projectId;
     this.taskGroupId = taskGroupId;
-    this.title = title;
-    this.description = description;
-    this.estimatedMinutes = estimatedMinutes;
+    this.title = request.getTitle();
+    this.description = request.getDescription();
+    this.estimatedMinutes = request.getEstimatedMinutes();
+  }
+
+  /**
+   * タスク名・説明更新用。
+   *
+   * @param id      タスクID
+   * @param request タスク名・説明更新リクエスト
+   */
+  public Task(int id, TaskUpdatePropertyRequest request) {
+    this.id = id;
+    this.title = request.getTitle();
+    this.description = request.getDescription();
   }
 }

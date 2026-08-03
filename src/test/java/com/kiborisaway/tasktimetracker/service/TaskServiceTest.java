@@ -5,13 +5,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
@@ -26,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -201,48 +204,63 @@ class TaskServiceTest {
   void 登録成功_プロジェクトIDを持つタスクの場合はプロジェクトの存在チェックをしてリポジトリの処理を呼び出すこと() {
     // Arrange
     int pId = 1;
-    Task task = new Task(pId, null, "タスク１", "説明", 60);
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle("タスク１");
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
 
     when(pjRepository.existsById(pId)).thenReturn(true);
 
     // Act
-    Task actual = sut.register(task);
+    Task actual = sut.register(pId, null, request);
 
     // Assert
-    assertThat(actual).isSameAs(task);
+    assertThat(actual.getProjectId()).isEqualTo(pId);
+    assertThat(actual.getTaskGroupId()).isNull();
     verify(pjRepository, times(1)).existsById(pId);
     verify(tgRepository, never()).existsById(anyInt());
-    verify(tsRepository, times(1)).insert(same(task));
+    ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+    verify(tsRepository, times(1)).insert(captor.capture());
+    assertThat(captor.getValue()).isSameAs(actual);
   }
 
   @Test
   void 登録成功_タスクグループIDを持つタスクの場合はタスクグループの存在チェックをしてリポジトリの処理を呼び出すこと() {
     // Arrange
     int tgId = 1;
-    Task task = new Task(null, tgId, "タスク１", "説明", 60);
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle("タスク１");
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
 
     when(tgRepository.existsById(tgId)).thenReturn(true);
 
     // Act
-    Task actual = sut.register(task);
+    Task actual = sut.register(null, tgId, request);
 
     // Assert
-    assertThat(actual).isSameAs(task);
+    assertThat(actual.getTaskGroupId()).isEqualTo(tgId);
+    assertThat(actual.getProjectId()).isNull();
     verify(tgRepository, times(1)).existsById(tgId);
     verify(pjRepository, never()).existsById(anyInt());
-    verify(tsRepository, times(1)).insert(same(task));
+    ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+    verify(tsRepository, times(1)).insert(captor.capture());
+    assertThat(captor.getValue()).isSameAs(actual);
   }
 
   @Test
   void 登録失敗_指定したプロジェクトが存在しない場合は例外を投げて以降のリポジトリの処理を呼び出さないこと() {
     // Arrange
     int pId = 999;
-    Task task = new Task(pId, null, "タスク１", "説明", 60);
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle("タスク１");
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
 
     when(pjRepository.existsById(pId)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.register(task))
+    assertThatThrownBy(() -> sut.register(pId, null, request))
         .isInstanceOf(TargetNotFoundException.class);
 
     verify(pjRepository, times(1)).existsById(pId);
@@ -254,12 +272,15 @@ class TaskServiceTest {
   void 登録失敗_指定したタスクグループが存在しない場合は例外を投げて以降のリポジトリの処理を呼び出さないこと() {
     // Arrange
     int tgId = 999;
-    Task task = new Task(null, tgId, "タスク１", "説明", 60);
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle("タスク１");
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
 
     when(tgRepository.existsById(tgId)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.register(task))
+    assertThatThrownBy(() -> sut.register(null, tgId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
     verify(tgRepository, times(1)).existsById(tgId);
@@ -271,62 +292,76 @@ class TaskServiceTest {
   void 登録失敗_DB制約違反の例外をそのまま送出すること() {
     // Arrange
     int pId = 1;
-    Task task = new Task(pId, null, null, "説明", 60);
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle(null);
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
 
     when(pjRepository.existsById(pId)).thenReturn(true);
     doThrow(new DataIntegrityViolationException("db constraint violation"))
-        .when(tsRepository).insert(same(task));
+        .when(tsRepository).insert(any(Task.class));
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.register(task))
+    assertThatThrownBy(() -> sut.register(pId, null, request))
         .isInstanceOf(DataIntegrityViolationException.class);
 
     verify(pjRepository, times(1)).existsById(pId);
-    verify(tsRepository, times(1)).insert(same(task));
+    verify(tsRepository, times(1)).insert(any(Task.class));
   }
 
   @Test
   void タスク名説明更新成功_リポジトリのメソッドを呼び出すこと() {
     // Arrange
-    Task task = new Task(1, 1, null, "更新後タスク", "説明更新", 60, null, null, null, null, null);
+    int id = 1;
+    TaskUpdatePropertyRequest request = new TaskUpdatePropertyRequest();
+    request.setTitle("更新後タスク");
+    request.setDescription("説明更新");
 
-    when(tsRepository.updateProperty(task)).thenReturn(1);
+    when(tsRepository.updateProperty(any(Task.class))).thenReturn(1);
 
     // Act
-    sut.updateProperty(task);
+    sut.updateProperty(id, request);
 
     // Assert
-    verify(tsRepository, times(1)).updateProperty(same(task));
+    ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+    verify(tsRepository, times(1)).updateProperty(captor.capture());
+    assertThat(captor.getValue().getId()).isEqualTo(id);
+    assertThat(captor.getValue().getTitle()).isEqualTo("更新後タスク");
   }
 
   @Test
   void タスク名説明更新失敗_DB制約違反の例外をそのまま送出すること() {
     // Arrange
-    Task task = new Task(1, 1, null, null, "説明更新", 60, null, null, null, null, null);
+    int id = 1;
+    TaskUpdatePropertyRequest request = new TaskUpdatePropertyRequest();
+    request.setTitle(null);
+    request.setDescription("説明更新");
 
-    when(tsRepository.updateProperty(task))
+    when(tsRepository.updateProperty(any(Task.class)))
         .thenThrow(new DataIntegrityViolationException("db constraint violation"));
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.updateProperty(task))
+    assertThatThrownBy(() -> sut.updateProperty(id, request))
         .isInstanceOf(DataIntegrityViolationException.class);
 
-    verify(tsRepository, times(1)).updateProperty(same(task));
+    verify(tsRepository, times(1)).updateProperty(any(Task.class));
   }
 
   @Test
   void タスク名説明更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
-    Task task = new Task(999, 1, null, "更新後タスク", "説明更新", 60, null, null, null, null,
-        null);
+    int id = 999;
+    TaskUpdatePropertyRequest request = new TaskUpdatePropertyRequest();
+    request.setTitle("更新後タスク");
+    request.setDescription("説明更新");
 
-    when(tsRepository.updateProperty(task)).thenReturn(0);
+    when(tsRepository.updateProperty(any(Task.class))).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.updateProperty(task))
+    assertThatThrownBy(() -> sut.updateProperty(id, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(tsRepository, times(1)).updateProperty(same(task));
+    verify(tsRepository, times(1)).updateProperty(any(Task.class));
   }
 
   @Test
@@ -517,12 +552,14 @@ class TaskServiceTest {
     // Arrange
     int taskId = 1;
     int estimatedMinutes = 120;
+    TaskUpdateEstimatedMinutesRequest request = new TaskUpdateEstimatedMinutesRequest();
+    request.setEstimatedMinutes(estimatedMinutes);
 
     when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
     when(tsRepository.updateEstimateMinutes(taskId, estimatedMinutes)).thenReturn(1);
 
     // Act
-    sut.updateEstimateMinutes(taskId, estimatedMinutes);
+    sut.updateEstimateMinutes(taskId, request);
 
     // Assert
     verify(wsRepository, times(1)).existsByTaskId(taskId);
@@ -534,11 +571,13 @@ class TaskServiceTest {
     // Arrange
     int taskId = 1;
     int estimatedMinutes = 120;
+    TaskUpdateEstimatedMinutesRequest request = new TaskUpdateEstimatedMinutesRequest();
+    request.setEstimatedMinutes(estimatedMinutes);
 
     when(wsRepository.existsByTaskId(taskId)).thenReturn(true);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.updateEstimateMinutes(taskId, estimatedMinutes))
+    assertThatThrownBy(() -> sut.updateEstimateMinutes(taskId, request))
         .isInstanceOf(EstimateMinutesUpdateNotAllowedException.class);
 
     verify(wsRepository, times(1)).existsByTaskId(taskId);
@@ -550,12 +589,14 @@ class TaskServiceTest {
     // Arrange
     int taskId = 999;
     int estimatedMinutes = 120;
+    TaskUpdateEstimatedMinutesRequest request = new TaskUpdateEstimatedMinutesRequest();
+    request.setEstimatedMinutes(estimatedMinutes);
 
     when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
     when(tsRepository.updateEstimateMinutes(taskId, estimatedMinutes)).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.updateEstimateMinutes(taskId, estimatedMinutes))
+    assertThatThrownBy(() -> sut.updateEstimateMinutes(taskId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
     verify(wsRepository, times(1)).existsByTaskId(taskId);

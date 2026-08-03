@@ -1,10 +1,10 @@
 package com.kiborisaway.tasktimetracker.controller;
 
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.ProjectService;
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -115,7 +115,7 @@ public class ProjectController {
           description = "新規に登録したいプロジェクトの詳細",
           required = true,
           content = @Content(
-              schema = @Schema(implementation = Project.class)
+              schema = @Schema(implementation = ProjectCreateRequest.class)
           )
       ),
       responses = {
@@ -130,13 +130,13 @@ public class ProjectController {
               responseCode = "400", description = "入力値のバリデーションエラー",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = Project.class))
+                  schema = @Schema(implementation = ErrorResponse.class))
           )
       }
   )
   @PostMapping
   public ResponseEntity<Project> create(
-      @RequestBody @Validated(CreateGroup.class) Project request) {
+      @RequestBody @Validated ProjectCreateRequest request) {
     Project response = service.register(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
@@ -148,7 +148,7 @@ public class ProjectController {
           description = "更新したいプロジェクト",
           required = true,
           content = @Content(
-              schema = @Schema(implementation = Project.class)
+              schema = @Schema(implementation = ProjectUpdateRequest.class)
           )
       ),
       responses = {
@@ -176,9 +176,8 @@ public class ProjectController {
   @PutMapping("/{id}")
   public ResponseEntity<String> update(
       @PathVariable @Positive int id,
-      @RequestBody @Validated(UpdateGroup.class) Project request) {
-    request.setId(id);
-    service.update(request);
+      @RequestBody @Validated ProjectUpdateRequest request) {
+    service.update(id, request);
     return ResponseEntity.ok("更新成功");
   }
 }

@@ -1,11 +1,8 @@
 package com.kiborisaway.tasktimetracker.data.entity;
 
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -37,16 +34,26 @@ public class TaskGroup {
   private Integer projectId;
 
   @Schema(description = "タスクグループ名", example = "環境構築")
-  @NotBlank(groups = {CreateGroup.class, UpdateGroup.class})
-  @Size(max = 20, groups = {CreateGroup.class, UpdateGroup.class})
   private String title;
 
   @Schema(description = "タスクグループの説明　省略可", example = "Dockerを使う")
-  @Size(max = 200, groups = {CreateGroup.class, UpdateGroup.class})
   private String description;
 
   @Schema(description = "完了フラグ", example = "false")
-  @NotNull(groups = {UpdateGroup.class})
   private Boolean isFinished;
+
+  // 新規登録用
+  public TaskGroup(TaskGroupCreateRequest request) {
+    this.title = request.getTitle();
+    this.description = request.getDescription();
+  }
+
+  // 更新用
+  public TaskGroup(int id, TaskGroupUpdateRequest request) {
+    this.id = id;
+    this.title = request.getTitle();
+    this.description = request.getDescription();
+    this.isFinished = request.getIsFinished();
+  }
 
 }

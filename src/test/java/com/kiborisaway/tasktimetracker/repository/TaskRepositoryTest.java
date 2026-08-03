@@ -17,6 +17,17 @@ class TaskRepositoryTest {
   @Autowired
   private TaskRepository sut;
 
+  private static Task newTask(Integer projectId, Integer taskGroupId, String title,
+      String description, Integer estimatedMinutes) {
+    Task task = new Task();
+    task.setProjectId(projectId);
+    task.setTaskGroupId(taskGroupId);
+    task.setTitle(title);
+    task.setDescription(description);
+    task.setEstimatedMinutes(estimatedMinutes);
+    return task;
+  }
+
   @Test
   void 全件検索_指定のタスクグループ配下のタスクの初期データを取得できること() {
     // Act
@@ -236,7 +247,7 @@ class TaskRepositoryTest {
   void 登録成功_タスクグループIDのみを指定したタスクを登録でき採番されたidが設定されること() {
     // Arrange
     List<Task> before = sut.findAllInProject(1);
-    Task task = new Task(null, 1, "API実装", "タスクAPIを実装する", 100);
+    Task task = newTask(null, 1, "API実装", "タスクAPIを実装する", 100);
 
     // Act
     sut.insert(task);
@@ -260,7 +271,7 @@ class TaskRepositoryTest {
   void 登録成功_プロジェクトIDのみを指定したタスクを登録できること() {
     // Arrange
     List<Task> before = sut.findAllInProject(1);
-    Task task = new Task(1, null, "要件整理", "プロジェクト直下のタスクを登録する", 80);
+    Task task = newTask(1, null, "要件整理", "プロジェクト直下のタスクを登録する", 80);
 
     // Act
     sut.insert(task);
@@ -281,7 +292,7 @@ class TaskRepositoryTest {
   @Test
   void 登録失敗_titleがnullの場合は例外が発生すること() {
     // Arrange
-    Task task = new Task(null, 1, null, "説明", 60);
+    Task task = newTask(null, 1, null, "説明", 60);
 
     // Assert
     assertThatThrownBy(() -> sut.insert(task))
@@ -291,7 +302,7 @@ class TaskRepositoryTest {
   @Test
   void 登録失敗_プロジェクトIDとタスクグループIDがどちらもnullの場合は例外が発生すること() {
     // Arrange
-    Task task = new Task(null, null, "親なしタスク", "親を指定しない", 60);
+    Task task = newTask(null, null, "親なしタスク", "親を指定しない", 60);
 
     // Assert
     assertThatThrownBy(() -> sut.insert(task))
@@ -301,7 +312,7 @@ class TaskRepositoryTest {
   @Test
   void 登録失敗_プロジェクトIDとタスクグループIDがどちらも指定された場合は例外が発生すること() {
     // Arrange
-    Task task = new Task(1, 1, "親重複タスク", "親を重複指定する", 60);
+    Task task = newTask(1, 1, "親重複タスク", "親を重複指定する", 60);
 
     // Assert
     assertThatThrownBy(() -> sut.insert(task))
@@ -313,7 +324,7 @@ class TaskRepositoryTest {
     // Arrange
     int id = 1;
     Task before = sut.findById(id);
-    Task task = new Task(2, null, "例外設計", "例外設計を見直す", 999);
+    Task task = newTask(2, null, "例外設計", "例外設計を見直す", 999);
     task.setId(id);
 
     // Act
@@ -339,7 +350,7 @@ class TaskRepositoryTest {
   void 更新失敗_タイトルと説明の更新で存在しないIDの場合は更新されず0件となること() {
     // Arrange
     List<Task> before = sut.findAllInProject(1);
-    Task task = new Task(null, 1, "更新されないタイトル", "更新されない説明", 60);
+    Task task = newTask(null, 1, "更新されないタイトル", "更新されない説明", 60);
     task.setId(999);
 
     // Act
@@ -355,7 +366,7 @@ class TaskRepositoryTest {
   @Test
   void 更新失敗_titleがnullの場合は例外が発生すること() {
     // Arrange
-    Task task = new Task(null, 1, null, "説明", 60);
+    Task task = newTask(null, 1, null, "説明", 60);
     task.setId(1);
 
     // Assert
@@ -446,7 +457,7 @@ class TaskRepositoryTest {
     // Arrange
     int id = 1;
     Task before = sut.findById(id);
-    Task task = new Task(2, null, "更新されないタイトル", "更新されない説明", 45);
+    Task task = newTask(2, null, "更新されないタイトル", "更新されない説明", 45);
     task.setId(id);
 
     // Act
@@ -472,7 +483,7 @@ class TaskRepositoryTest {
   void 更新失敗_見積もり作業時間の更新で存在しないIDの場合は更新されず0件となること() {
     // Arrange
     List<Task> before = sut.findAllInProject(1);
-    Task task = new Task(null, 1, "更新されないタイトル", "更新されない説明", 45);
+    Task task = newTask(null, 1, "更新されないタイトル", "更新されない説明", 45);
     task.setId(999);
 
     // Act

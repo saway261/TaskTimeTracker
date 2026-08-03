@@ -1,10 +1,10 @@
 package com.kiborisaway.tasktimetracker.controller;
 
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -213,7 +213,7 @@ public class WorkSessionController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "登録する作業セッションの詳細",
           required = true,
-          content = @Content(schema = @Schema(implementation = WorkSession.class))
+          content = @Content(schema = @Schema(implementation = WorkSessionCreateRequest.class))
       ),
       responses = {
           @ApiResponse(
@@ -231,7 +231,7 @@ public class WorkSessionController {
   @PostMapping("/tasks/{taskId}/work-sessions")
   public ResponseEntity<WorkSession> create(
       @PathVariable @Positive int taskId,
-      @RequestBody @Validated(CreateGroup.class) WorkSession request) {
+      @RequestBody @Validated WorkSessionCreateRequest request) {
     return ResponseEntity.ok(service.create(taskId, request));
   }
 
@@ -289,7 +289,7 @@ public class WorkSessionController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "更新する作業セッションの詳細",
           required = true,
-          content = @Content(schema = @Schema(implementation = WorkSession.class))
+          content = @Content(schema = @Schema(implementation = WorkSessionUpdateRequest.class))
       ),
       responses = {
           @ApiResponse(
@@ -312,7 +312,7 @@ public class WorkSessionController {
   @PatchMapping("/work-sessions/{wsId}")
   public ResponseEntity<String> update(
       @PathVariable @Positive int wsId,
-      @RequestBody @Validated(UpdateGroup.class) WorkSession request
+      @RequestBody @Validated WorkSessionUpdateRequest request
   ) {
     service.update(wsId, request);
     return ResponseEntity.ok("作業セッションを更新しました");

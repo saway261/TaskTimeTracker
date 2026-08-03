@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
@@ -145,7 +147,7 @@ class TaskGroupControllerTest {
     response.setProjectId(pId);
     response.setTitle("タスクグループ1");
     response.setDescription("説明");
-    when(service.register(eq(pId), any(TaskGroup.class))).thenReturn(response);
+    when(service.register(eq(pId), any(TaskGroupCreateRequest.class))).thenReturn(response);
     String validRequest = """
         {
             "title" : "タスクグループ1",
@@ -159,7 +161,7 @@ class TaskGroupControllerTest {
             .content(validRequest))
         .andExpect(status().isCreated());
 
-    verify(service).register(eq(pId), any(TaskGroup.class));
+    verify(service).register(eq(pId), any(TaskGroupCreateRequest.class));
   }
 
   @Test
@@ -172,7 +174,7 @@ class TaskGroupControllerTest {
           "description": "説明"
         }
         """;
-    when(service.register(eq(pId), any(TaskGroup.class))).thenThrow(
+    when(service.register(eq(pId), any(TaskGroupCreateRequest.class))).thenThrow(
         new TargetNotFoundException("project.id",
             "指定したIDのプロジェクトは見つかりませんでした"));
 
@@ -182,7 +184,7 @@ class TaskGroupControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).register(eq(pId), any(TaskGroup.class));
+    verify(service).register(eq(pId), any(TaskGroupCreateRequest.class));
   }
 
   @Test
@@ -215,7 +217,7 @@ class TaskGroupControllerTest {
         }
         """;
 
-    doNothing().when(service).update(any(TaskGroup.class));
+    doNothing().when(service).update(eq(tgId), any(TaskGroupUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}", tgId)
@@ -224,7 +226,7 @@ class TaskGroupControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().string("更新成功"));
 
-    verify(service).update(any(TaskGroup.class));
+    verify(service).update(eq(tgId), any(TaskGroupUpdateRequest.class));
   }
 
   @Test
@@ -253,7 +255,7 @@ class TaskGroupControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("id", "project not found"))
-        .when(service).update(any(TaskGroup.class));
+        .when(service).update(eq(tgId), any(TaskGroupUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/" + tgId)
@@ -261,7 +263,7 @@ class TaskGroupControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).update(any(TaskGroup.class));
+    verify(service).update(eq(tgId), any(TaskGroupUpdateRequest.class));
   }
 
   @Test

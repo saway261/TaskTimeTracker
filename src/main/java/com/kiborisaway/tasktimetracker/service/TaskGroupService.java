@@ -1,7 +1,10 @@
 package com.kiborisaway.tasktimetracker.service;
 
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.mapper.TaskGroupMapper;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import java.util.List;
@@ -58,14 +61,15 @@ public class TaskGroupService {
   /**
    * タスクグループの新規登録を行います。
    *
-   * @param tg 新規登録するタスクグループ
+   * @param request 新規登録するタスクグループのリクエスト
    */
   @Transactional
-  public TaskGroup register(int pId, TaskGroup tg) {
+  public TaskGroup register(int pId, TaskGroupCreateRequest request) {
     if (!prRepository.existsById(pId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
+    TaskGroup tg = TaskGroupMapper.toEntity(request);
     tg.setProjectId(pId);
     tgRepository.insert(tg);
     return tg;
@@ -74,10 +78,12 @@ public class TaskGroupService {
   /**
    * タスクグループIDを指定してタスクグループ名と説明と完了フラグを更新します
    *
-   * @param tg 更新するタスクグループ
+   * @param id      更新するタスクグループのID
+   * @param request 更新するタスクグループのリクエスト
    */
   @Transactional
-  public void update(TaskGroup tg) {
+  public void update(int id, TaskGroupUpdateRequest request) {
+    TaskGroup tg = TaskGroupMapper.toEntity(id, request);
     int updated = tgRepository.update(tg);
     if (updated == 0) {
       throw new TargetNotFoundException("taskGroup",

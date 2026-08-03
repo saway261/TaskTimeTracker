@@ -1,9 +1,12 @@
 package com.kiborisaway.tasktimetracker.service;
 
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
+import com.kiborisaway.tasktimetracker.mapper.WorkSessionMapper;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
 import java.util.List;
@@ -81,18 +84,19 @@ public class WorkSessionService {
   /**
    * タスクIDを作業セッションに設定して新規登録します。
    *
-   * @param taskId      タスクID
-   * @param workSession 作業セッション
+   * @param taskId  タスクID
+   * @param request 新規登録する作業セッションのリクエスト
    * @return 登録した作業セッション
    */
   @Transactional
-  public WorkSession create(int taskId, WorkSession workSession) {
+  public WorkSession create(int taskId, WorkSessionCreateRequest request) {
     if (!tsRepository.existsById(taskId)) {
       throw new TargetNotFoundException("task.id",
           "指定したIDのタスクは見つかりませんでした");
     }
     validateTaskIsNotFinished(taskId);
 
+    WorkSession workSession = WorkSessionMapper.toEntity(request);
     workSession.setTaskId(taskId);
     wsRepository.insert(workSession);
     return workSession;
@@ -120,15 +124,15 @@ public class WorkSessionService {
   /**
    * 作業セッションIDを作業セッションに設定して更新します。
    *
-   * @param wsId        作業セッションID
-   * @param workSession 作業セッション
+   * @param wsId    作業セッションID
+   * @param request 更新する作業セッションのリクエスト
    */
   @Transactional
-  public void update(int wsId, WorkSession workSession) {
+  public void update(int wsId, WorkSessionUpdateRequest request) {
     int taskId = findTaskIdByWorkSessionId(wsId);
     validateTaskIsNotFinished(taskId);
 
-    workSession.setId(wsId);
+    WorkSession workSession = WorkSessionMapper.toEntity(wsId, request);
     int updated = wsRepository.update(workSession);
     if (updated == 0) {
       throw new TargetNotFoundException("workSession.id",

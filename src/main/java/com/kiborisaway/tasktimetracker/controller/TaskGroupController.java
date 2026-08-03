@@ -1,10 +1,10 @@
 package com.kiborisaway.tasktimetracker.controller;
 
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.TaskGroupService;
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -130,7 +130,7 @@ public class TaskGroupController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "新規に登録したいタスクグループの詳細",
           required = true,
-          content = @Content(schema = @Schema(implementation = TaskGroup.class))
+          content = @Content(schema = @Schema(implementation = TaskGroupCreateRequest.class))
       ),
       responses = {
           @ApiResponse(
@@ -152,7 +152,7 @@ public class TaskGroupController {
   @PostMapping("/projects/{pId}/task-groups")
   public ResponseEntity<TaskGroup> create(
       @PathVariable @Positive int pId,
-      @RequestBody @Validated(CreateGroup.class) TaskGroup request
+      @RequestBody @Validated TaskGroupCreateRequest request
   ) {
     TaskGroup response = service.register(pId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -171,7 +171,7 @@ public class TaskGroupController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "更新したいタスクグループ",
           required = true,
-          content = @Content(schema = @Schema(implementation = TaskGroup.class))
+          content = @Content(schema = @Schema(implementation = TaskGroupUpdateRequest.class))
       ),
       responses = {
           @ApiResponse(
@@ -200,9 +200,8 @@ public class TaskGroupController {
   @PutMapping("/task-groups/{tgId}")
   public ResponseEntity<String> update(
       @PathVariable @Positive int tgId,
-      @RequestBody @Validated(UpdateGroup.class) TaskGroup request) {
-    request.setId(tgId);
-    service.update(request);
+      @RequestBody @Validated TaskGroupUpdateRequest request) {
+    service.update(tgId, request);
     return ResponseEntity.ok("更新成功");
   }
 }

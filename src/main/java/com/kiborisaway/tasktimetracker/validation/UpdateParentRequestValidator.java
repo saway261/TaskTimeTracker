@@ -1,14 +1,14 @@
 package com.kiborisaway.tasktimetracker.validation;
 
-import com.kiborisaway.tasktimetracker.controller.TaskController.UpdateParentRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateParentRequest;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 public class UpdateParentRequestValidator implements
-    ConstraintValidator<ValidUpdateParentRequest, UpdateParentRequest> {
+    ConstraintValidator<ValidUpdateParentRequest, TaskUpdateParentRequest> {
 
   @Override
-  public boolean isValid(UpdateParentRequest value, ConstraintValidatorContext context) {
+  public boolean isValid(TaskUpdateParentRequest value, ConstraintValidatorContext context) {
     if (value == null) {
       return true;
     }

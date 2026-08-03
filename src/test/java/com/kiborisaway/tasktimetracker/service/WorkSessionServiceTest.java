@@ -2,13 +2,15 @@ package com.kiborisaway.tasktimetracker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSessionType;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
@@ -20,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -131,62 +134,62 @@ class WorkSessionServiceTest {
   void 登録成功_受け取ったタスクIDをWorkSessionにセットしてリポジトリの登録処理を呼び出すこと() {
     // Arrange
     int taskId = 1;
-    WorkSession workSession = new WorkSession();
-    workSession.setType(WorkSessionType.MANUAL);
-    workSession.setMinutes(30);
+    WorkSessionCreateRequest request = new WorkSessionCreateRequest();
+    request.setType(WorkSessionType.MANUAL);
+    request.setMinutes(30);
 
     when(taskRepository.existsById(taskId)).thenReturn(true);
 
     // Act
-    WorkSession actual = sut.create(taskId, workSession);
+    WorkSession actual = sut.create(taskId, request);
 
     // Assert
-    assertThat(actual).isSameAs(workSession);
-    assertThat(workSession.getTaskId()).isEqualTo(taskId);
+    assertThat(actual.getTaskId()).isEqualTo(taskId);
+    assertThat(actual.getMinutes()).isEqualTo(30);
     verify(taskRepository, times(1)).existsById(taskId);
     verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, times(1)).insert(same(workSession));
+    ArgumentCaptor<WorkSession> captor = ArgumentCaptor.forClass(WorkSession.class);
+    verify(repository, times(1)).insert(captor.capture());
+    assertThat(captor.getValue()).isSameAs(actual);
   }
 
   @Test
   void 登録失敗_指定したタスクIDが存在しない場合は例外を投げて登録処理を呼び出さないこと() {
     // Arrange
     int taskId = 999;
-    WorkSession workSession = new WorkSession();
-    workSession.setType(WorkSessionType.MANUAL);
-    workSession.setMinutes(30);
+    WorkSessionCreateRequest request = new WorkSessionCreateRequest();
+    request.setType(WorkSessionType.MANUAL);
+    request.setMinutes(30);
 
     when(taskRepository.existsById(taskId)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.create(taskId, workSession))
+    assertThatThrownBy(() -> sut.create(taskId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    assertThat(workSession.getTaskId()).isNull();
     verify(taskRepository, times(1)).existsById(taskId);
     verify(taskRepository, never()).isFinished(anyInt());
-    verify(repository, never()).insert(same(workSession));
+    verify(repository, never()).insert(any(WorkSession.class));
   }
 
   @Test
   void 登録失敗_指定したタスクが完了済みの場合は例外を投げて登録処理を呼び出さないこと() {
     // Arrange
     int taskId = 3;
-    WorkSession workSession = new WorkSession();
-    workSession.setType(WorkSessionType.MANUAL);
-    workSession.setMinutes(30);
+    WorkSessionCreateRequest request = new WorkSessionCreateRequest();
+    request.setType(WorkSessionType.MANUAL);
+    request.setMinutes(30);
 
     when(taskRepository.existsById(taskId)).thenReturn(true);
     when(taskRepository.isFinished(taskId)).thenReturn(true);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.create(taskId, workSession))
+    assertThatThrownBy(() -> sut.create(taskId, request))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    assertThat(workSession.getTaskId()).isNull();
     verify(taskRepository, times(1)).existsById(taskId);
     verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, never()).insert(same(workSession));
+    verify(repository, never()).insert(any(WorkSession.class));
   }
 
   @Test
@@ -238,23 +241,25 @@ class WorkSessionServiceTest {
     // Arrange
     int wsId = 1;
     int taskId = 1;
-    WorkSession workSession = new WorkSession();
-    workSession.setMinutes(30);
-    workSession.setStartedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
-    workSession.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 30));
+    WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setMinutes(30);
+    request.setStartedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
+    request.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 30));
 
     when(repository.findTaskIdById(wsId)).thenReturn(taskId);
     when(taskRepository.isFinished(taskId)).thenReturn(false);
-    when(repository.update(workSession)).thenReturn(1);
+    when(repository.update(any(WorkSession.class))).thenReturn(1);
 
     // Act
-    sut.update(wsId, workSession);
+    sut.update(wsId, request);
 
     // Assert
-    assertThat(workSession.getId()).isEqualTo(wsId);
     verify(repository, times(1)).findTaskIdById(wsId);
     verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, times(1)).update(same(workSession));
+    ArgumentCaptor<WorkSession> captor = ArgumentCaptor.forClass(WorkSession.class);
+    verify(repository, times(1)).update(captor.capture());
+    assertThat(captor.getValue().getId()).isEqualTo(wsId);
+    assertThat(captor.getValue().getMinutes()).isEqualTo(30);
   }
 
   @Test
@@ -262,40 +267,38 @@ class WorkSessionServiceTest {
     // Arrange
     int wsId = 999;
     int taskId = 1;
-    WorkSession workSession = new WorkSession();
-    workSession.setMinutes(30);
+    WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setMinutes(30);
 
     when(repository.findTaskIdById(wsId)).thenReturn(taskId);
     when(taskRepository.isFinished(taskId)).thenReturn(false);
-    when(repository.update(workSession)).thenReturn(0);
+    when(repository.update(any(WorkSession.class))).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(wsId, workSession))
+    assertThatThrownBy(() -> sut.update(wsId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    assertThat(workSession.getId()).isEqualTo(wsId);
     verify(repository, times(1)).findTaskIdById(wsId);
     verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, times(1)).update(same(workSession));
+    verify(repository, times(1)).update(any(WorkSession.class));
   }
 
   @Test
   void 更新失敗_作業セッションが存在しない場合は例外を投げて更新処理を呼び出さないこと() {
     // Arrange
     int wsId = 999;
-    WorkSession workSession = new WorkSession();
-    workSession.setMinutes(30);
+    WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setMinutes(30);
 
     when(repository.findTaskIdById(wsId)).thenReturn(null);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(wsId, workSession))
+    assertThatThrownBy(() -> sut.update(wsId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    assertThat(workSession.getId()).isNull();
     verify(repository, times(1)).findTaskIdById(wsId);
     verify(taskRepository, never()).isFinished(anyInt());
-    verify(repository, never()).update(same(workSession));
+    verify(repository, never()).update(any(WorkSession.class));
   }
 
   @Test
@@ -303,20 +306,19 @@ class WorkSessionServiceTest {
     // Arrange
     int wsId = 1;
     int taskId = 3;
-    WorkSession workSession = new WorkSession();
-    workSession.setMinutes(30);
+    WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setMinutes(30);
 
     when(repository.findTaskIdById(wsId)).thenReturn(taskId);
     when(taskRepository.isFinished(taskId)).thenReturn(true);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(wsId, workSession))
+    assertThatThrownBy(() -> sut.update(wsId, request))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    assertThat(workSession.getId()).isNull();
     verify(repository, times(1)).findTaskIdById(wsId);
     verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, never()).update(same(workSession));
+    verify(repository, never()).update(any(WorkSession.class));
   }
 
   @Test

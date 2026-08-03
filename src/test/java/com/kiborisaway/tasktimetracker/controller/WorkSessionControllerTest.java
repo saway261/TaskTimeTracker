@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -148,7 +150,7 @@ class WorkSessionControllerTest {
     WorkSession response = new WorkSession();
     response.setId(10);
     response.setTaskId(taskId);
-    when(service.create(eq(taskId), any(WorkSession.class))).thenReturn(response);
+    when(service.create(eq(taskId), any(WorkSessionCreateRequest.class))).thenReturn(response);
     String validRequest = """
         {
           "type": "MANUAL",
@@ -162,7 +164,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isOk());
 
-    verify(service).create(eq(taskId), any(WorkSession.class));
+    verify(service).create(eq(taskId), any(WorkSessionCreateRequest.class));
   }
 
   @Test
@@ -175,7 +177,7 @@ class WorkSessionControllerTest {
           "minutes": 30
         }
         """;
-    when(service.create(eq(taskId), any(WorkSession.class))).thenThrow(
+    when(service.create(eq(taskId), any(WorkSessionCreateRequest.class))).thenThrow(
         new TargetNotFoundException("task.id", "task not found"));
 
     // Act & Assert
@@ -184,7 +186,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).create(eq(taskId), any(WorkSession.class));
+    verify(service).create(eq(taskId), any(WorkSessionCreateRequest.class));
   }
 
   @Test
@@ -197,7 +199,7 @@ class WorkSessionControllerTest {
           "minutes": 30
         }
         """;
-    when(service.create(eq(taskId), any(WorkSession.class))).thenThrow(
+    when(service.create(eq(taskId), any(WorkSessionCreateRequest.class))).thenThrow(
         new WorkSessionOperationNotAllowedException("task.id", "cannot create"));
 
     // Act & Assert
@@ -206,7 +208,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isBadRequest());
 
-    verify(service).create(eq(taskId), any(WorkSession.class));
+    verify(service).create(eq(taskId), any(WorkSessionCreateRequest.class));
   }
 
   @Test
@@ -273,7 +275,7 @@ class WorkSessionControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().string("作業セッションを更新しました"));
 
-    verify(service).update(eq(wsId), any(WorkSession.class));
+    verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
   }
 
   @Test
@@ -287,7 +289,7 @@ class WorkSessionControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("workSession.id", "work session not found"))
-        .when(service).update(eq(wsId), any(WorkSession.class));
+        .when(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
@@ -295,7 +297,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).update(eq(wsId), any(WorkSession.class));
+    verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
   }
 
   @Test
@@ -309,7 +311,7 @@ class WorkSessionControllerTest {
         }
         """;
     doThrow(new WorkSessionOperationNotAllowedException("workSession.id", "cannot change"))
-        .when(service).update(eq(wsId), any(WorkSession.class));
+        .when(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
@@ -317,7 +319,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isBadRequest());
 
-    verify(service).update(eq(wsId), any(WorkSession.class));
+    verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
   }
 
   @Test

@@ -1,11 +1,13 @@
 package com.kiborisaway.tasktimetracker.controller;
 
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateFinishedRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateParentRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.TaskService;
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
-import com.kiborisaway.tasktimetracker.validation.ValidUpdateParentRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -13,7 +15,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -174,7 +175,7 @@ public class TaskController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "新規に登録したいタスクの詳細",
           required = true,
-          content = @Content(schema = @Schema(implementation = Task.class))
+          content = @Content(schema = @Schema(implementation = TaskCreateRequest.class))
       ),
       responses = {
           @ApiResponse(
@@ -196,10 +197,8 @@ public class TaskController {
   @PostMapping("/projects/{pId}/tasks")
   public ResponseEntity<Task> createInProject(
       @PathVariable @Positive int pId,
-      @RequestBody @Validated(CreateGroup.class) Task request) {
-    request.setProjectId(pId);
-    request.setTaskGroupId(null);//タスクグループIDは明示的にnullにする
-    Task response = service.register(request);
+      @RequestBody @Validated TaskCreateRequest request) {
+    Task response = service.register(pId, null, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -216,7 +215,7 @@ public class TaskController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "新規に登録したいタスクの詳細",
           required = true,
-          content = @Content(schema = @Schema(implementation = Task.class))
+          content = @Content(schema = @Schema(implementation = TaskCreateRequest.class))
       ),
       responses = {
           @ApiResponse(
@@ -238,10 +237,8 @@ public class TaskController {
   @PostMapping("/task-groups/{tgId}/tasks")
   public ResponseEntity<Task> createInTaskGroup(
       @PathVariable @Positive int tgId,
-      @RequestBody @Validated(CreateGroup.class) Task request) {
-    request.setTaskGroupId(tgId);
-    request.setProjectId(null);//プロジェクトIDは明示的にnullにする
-    Task response = service.register(request);
+      @RequestBody @Validated TaskCreateRequest request) {
+    Task response = service.register(null, tgId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -258,7 +255,7 @@ public class TaskController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "更新したいタスクの詳細",
           required = true,
-          content = @Content(schema = @Schema(implementation = Task.class))
+          content = @Content(schema = @Schema(implementation = TaskUpdatePropertyRequest.class))
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
@@ -278,9 +275,8 @@ public class TaskController {
   @PatchMapping("/tasks/{taskId}")
   public ResponseEntity<String> updateProperty(
       @PathVariable @Positive int taskId,
-      @RequestBody @Validated(UpdateGroup.class) Task request) {
-    request.setId(taskId);
-    service.updateProperty(request);
+      @RequestBody @Validated TaskUpdatePropertyRequest request) {
+    service.updateProperty(taskId, request);
     return ResponseEntity.ok("タスク名と説明を更新しました");
   }
 
@@ -297,7 +293,7 @@ public class TaskController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "更新したい見積作業時間（分）",
           required = true,
-          content = @Content(schema = @Schema(type = "integer", format = "int32", example = "60"))
+          content = @Content(schema = @Schema(implementation = TaskUpdateEstimatedMinutesRequest.class))
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
@@ -317,8 +313,8 @@ public class TaskController {
   @PatchMapping("/tasks/{taskId}/estimated-minutes")
   public ResponseEntity<String> updateEstimatedMinutes(
       @PathVariable @Positive int taskId,
-      @RequestBody @Positive Integer estimatedMinutes) {
-    service.updateEstimateMinutes(taskId, estimatedMinutes);
+      @RequestBody @Validated TaskUpdateEstimatedMinutesRequest request) {
+    service.updateEstimateMinutes(taskId, request);
     return ResponseEntity.ok("見積作業時間を更新しました");
   }
 
@@ -339,7 +335,7 @@ public class TaskController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "移動先の親ID（projectId と taskGroupId のどちらか片方のみ指定）",
           required = true,
-          content = @Content(schema = @Schema(implementation = UpdateParentRequest.class))
+          content = @Content(schema = @Schema(implementation = TaskUpdateParentRequest.class))
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
@@ -359,7 +355,7 @@ public class TaskController {
   @PatchMapping("/tasks/{taskId}/parent")
   public ResponseEntity<String> updateParent(
       @PathVariable @Positive int taskId,
-      @RequestBody @Validated UpdateParentRequest request) {
+      @RequestBody @Validated TaskUpdateParentRequest request) {
     service.updateParent(taskId, request.projectId(), request.taskGroupId());
     return ResponseEntity.ok("タスクの所属を更新しました");
   }
@@ -377,7 +373,7 @@ public class TaskController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "完了状態フラグ（true: 完了、false: 作業中）",
           required = true,
-          content = @Content(schema = @Schema(implementation = TaskFinishedUpdateRequest.class))
+          content = @Content(schema = @Schema(implementation = TaskUpdateFinishedRequest.class))
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
@@ -397,7 +393,7 @@ public class TaskController {
   @PatchMapping("/tasks/{taskId}/finished")
   public ResponseEntity<String> updateFinished(
       @PathVariable @Positive int taskId,
-      @RequestBody @Validated TaskFinishedUpdateRequest request) {
+      @RequestBody @Validated TaskUpdateFinishedRequest request) {
     service.updateFinished(taskId, request.isFinished());
     return ResponseEntity.ok("タスクの完了状態を更新しました");
   }
@@ -431,33 +427,5 @@ public class TaskController {
   public ResponseEntity<String> delete(@PathVariable @Positive int taskId) {
     service.deleteById(taskId);
     return ResponseEntity.ok("タスクを削除しました");
-  }
-
-  /**
-   * updateFinished に isFinished だけをリクエストボディとして渡すためのrecord
-   *
-   * @param isFinished trueの場合完了状態にする / falseの場合は作業中状態にする
-   */
-  @Schema(description = "タスク完了状態更新リクエスト")
-  public record TaskFinishedUpdateRequest(
-      @Schema(description = "完了フラグ。trueの場合完了状態、falseの場合は作業中状態にする", example = "true")
-      @NotNull Boolean isFinished) {
-
-  }
-
-  /**
-   * updateParent に移動先の親IDをリクエストボディとして渡すためのrecord
-   *
-   * @param projectId   移動先プロジェクトID
-   * @param taskGroupId 移動先タスクグループID
-   */
-  @Schema(description = "タスク所属変更リクエスト。projectId と taskGroupId のどちらか片方のみ指定すること")
-  @ValidUpdateParentRequest
-  public record UpdateParentRequest(
-      @Schema(description = "移動先プロジェクトID", example = "1")
-      @Positive Integer projectId,
-      @Schema(description = "移動先タスクグループID", example = "1")
-      @Positive Integer taskGroupId) {
-
   }
 }

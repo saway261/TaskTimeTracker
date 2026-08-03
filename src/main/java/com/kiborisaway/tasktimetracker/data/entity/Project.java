@@ -1,11 +1,8 @@
 package com.kiborisaway.tasktimetracker.data.entity;
 
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -29,19 +26,26 @@ public class Project {
   private Integer id;
 
   @Schema(description = "プロジェクト名", example = "タスク管理アプリ開発")
-  @NotBlank(groups = {CreateGroup.class, UpdateGroup.class})
-  @Size(max = 20, groups = {CreateGroup.class, UpdateGroup.class})
   private String title;
 
   @Schema(description = "プロジェクトの説明　省略可", example = "自主開発")
-  @Size(max = 200, groups = {CreateGroup.class, UpdateGroup.class})
   private String description;
 
   @Schema(description = "完了フラグ", example = "false")
-  @NotNull(groups = {UpdateGroup.class})
   private Boolean isFinished;
 
+  // 新規登録用
+  public Project(ProjectCreateRequest request) {
+    this.title = request.getTitle();
+    this.description = request.getDescription();
+  }
+
+  // 更新用
+  public Project(int id, ProjectUpdateRequest request) {
+    this.id = id;
+    this.title = request.getTitle();
+    this.description = request.getDescription();
+    this.isFinished = request.getIsFinished();
+  }
 
 }
-
-

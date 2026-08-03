@@ -1,10 +1,14 @@
 package com.kiborisaway.tasktimetracker.service;
 
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
+import com.kiborisaway.tasktimetracker.mapper.TaskMapper;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
@@ -91,10 +95,14 @@ public class TaskService {
   /**
    * タスクの新規登録を行います。projectIdとtaskGroupIdはXORになるようコントローラで制御する前提です。
    *
-   * @param task 新規登録するタスク
+   * @param projectId   親となるプロジェクトID
+   * @param taskGroupId 親となるタスクグループID
+   * @param request     新規登録するタスクのリクエスト
    */
   @Transactional
-  public Task register(Task task) {
+  public Task register(Integer projectId, Integer taskGroupId, TaskCreateRequest request) {
+    Task task = TaskMapper.toEntity(projectId, taskGroupId, request);
+
     String parentField = "";
     boolean existsParent = false;
 
@@ -119,10 +127,12 @@ public class TaskService {
   /**
    * タスクIDを指定してタスク名と説明を更新します
    *
-   * @param task 更新するタスク
+   * @param id      更新するタスクのID
+   * @param request 更新するタスクのリクエスト
    */
   @Transactional
-  public void updateProperty(Task task) {
+  public void updateProperty(int id, TaskUpdatePropertyRequest request) {
+    Task task = TaskMapper.toEntity(id, request);
     int updated = tsRepository.updateProperty(task);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
@@ -189,16 +199,16 @@ public class TaskService {
   /**
    * タスクIDを指定して見積もり作業時間を更新します。 紐づく作業セッションが存在する場合は更新できません。
    *
-   * @param id               タスクID
-   * @param estimatedMinutes 更新する見積作業時間
+   * @param id      タスクID
+   * @param request 更新する見積作業時間のリクエスト
    */
   @Transactional
-  public void updateEstimateMinutes(int id, int estimatedMinutes) {
+  public void updateEstimateMinutes(int id, TaskUpdateEstimatedMinutesRequest request) {
     if (wsRepository.existsByTaskId(id)) {
       throw new EstimateMinutesUpdateNotAllowedException("task.id",
           "作業セッションが存在するタスクの見積もり作業時間は変更できません");
     }
-    int updated = tsRepository.updateEstimateMinutes(id, estimatedMinutes);
+    int updated = tsRepository.updateEstimateMinutes(id, request.getEstimatedMinutes());
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
           "更新対象のタスクが見つかりませんでした");
