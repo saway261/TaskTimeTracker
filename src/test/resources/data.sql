@@ -25,3 +25,10 @@ VALUES (4, 30, '2026-01-02 09:00:00', '2026-01-02 09:30:00', 'TIMER', '2026-01-0
 INSERT INTO work_sessions (task_id, minutes, started_at, ended_at, type, created_at, updated_at)
 VALUES (4, 45, '2026-01-02 10:00:00', '2026-01-02 10:45:00', 'TIMER', '2026-01-02 10:00:00', '2026-01-02 10:45:00');
 --id =2のワークセッションは存在しない
+
+INSERT INTO memos (project_id, comment)
+VALUES (1, 'プロジェクト方針を確認する');-- id=1
+INSERT INTO memos (task_group_id, comment)
+VALUES (1, 'バックエンド優先で進める');-- id=2
+INSERT INTO memos (task_id, comment)
+VALUES (1, '例外メッセージを見直す');-- id=3

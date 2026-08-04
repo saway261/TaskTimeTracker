@@ -1,0 +1,143 @@
+package com.kiborisaway.tasktimetracker.repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+
+import com.kiborisaway.tasktimetracker.data.entity.Memo;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+
+@MybatisTest
+class MemoRepositoryTest {
+
+  @Autowired
+  private MemoRepository sut;
+
+  @Test
+  void プロジェクト内メモ検索_指定のプロジェクト配下のメモを取得できること() {
+    // Act
+    List<Memo> actual = sut.findAllInProject(1);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Memo::getProjectId, Memo::getTaskGroupId, Memo::getTaskId, Memo::getComment)
+        .containsExactly(tuple(1, null, null, "プロジェクト方針を確認する"));
+  }
+
+  @Test
+  void タスクグループ内メモ検索_指定のタスクグループ配下のメモを取得できること() {
+    // Act
+    List<Memo> actual = sut.findAllInTaskGroup(1);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Memo::getProjectId, Memo::getTaskGroupId, Memo::getTaskId, Memo::getComment)
+        .containsExactly(tuple(null, 1, null, "バックエンド優先で進める"));
+  }
+
+  @Test
+  void タスク内メモ検索_指定のタスク配下のメモを取得できること() {
+    // Act
+    List<Memo> actual = sut.findAllInTask(1);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Memo::getProjectId, Memo::getTaskGroupId, Memo::getTaskId, Memo::getComment)
+        .containsExactly(tuple(null, null, 1, "例外メッセージを見直す"));
+  }
+
+  @Test
+  void 登録成功_プロジェクトIDのみを指定したメモを登録でき採番されたidが設定されること() {
+    // Arrange
+    Memo memo = new Memo(null, 1, null, null, "追加メモ");
+
+    // Act
+    sut.insert(memo);
+
+    // Assert
+    assertThat(memo.getId()).isNotNull();
+    assertThat(sut.findAllInProject(1))
+        .extracting(Memo::getComment)
+        .contains("追加メモ");
+  }
+
+  @Test
+  void 登録失敗_親IDがすべてnullの場合は例外が発生すること() {
+    // Arrange
+    Memo memo = new Memo(null, null, null, null, "親なしメモ");
+
+    // Assert
+    assertThatThrownBy(() -> sut.insert(memo))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void 登録失敗_親IDを複数指定した場合は例外が発生すること() {
+    // Arrange
+    Memo memo = new Memo(null, 1, 1, null, "親重複メモ");
+
+    // Assert
+    assertThatThrownBy(() -> sut.insert(memo))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void 更新成功_既存メモのコメントだけを更新できること() {
+    // Arrange
+    Memo memo = new Memo(1, null, null, null, "更新後コメント");
+
+    // Act
+    int actual = sut.update(memo);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+    assertThat(sut.findAllInProject(1))
+        .extracting(Memo::getComment)
+        .containsExactly("更新後コメント");
+  }
+
+  @Test
+  void 更新失敗_存在しないIDの場合は更新されず0件となること() {
+    // Arrange
+    List<Memo> before = sut.findAllInProject(1);
+    Memo memo = new Memo(999, null, null, null, "更新されないコメント");
+
+    // Act
+    int actual = sut.update(memo);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+
+  @Test
+  void 削除成功_既存メモをID指定で削除できること() {
+    // Act
+    int actual = sut.delete(1);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+    assertThat(sut.findAllInProject(1)).isEmpty();
+  }
+
+  @Test
+  void 削除失敗_存在しないIDの場合は削除されず0件となること() {
+    // Arrange
+    List<Memo> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.delete(999);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+}
