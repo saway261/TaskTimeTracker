@@ -3,15 +3,18 @@ package com.kiborisaway.tasktimetracker.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -28,6 +31,9 @@ class ProjectServiceTest {
   @Mock
   private ProjectRepository repository;
 
+  @Mock
+  private MemoRepository memoRepository;
+
   @InjectMocks
   private ProjectService sut;
 
@@ -42,10 +48,16 @@ class ProjectServiceTest {
     when(repository.findAll()).thenReturn(expected);
 
     // Act
-    List<Project> actual = sut.findAllByCondition(null);
+    List<ProjectResponse> actual = sut.findAllByCondition(null);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getDescription,
+            ProjectResponse::getIsFinished)
+        .containsExactly(
+            org.assertj.core.api.Assertions.tuple(1, "タスク管理アプリ開発", "A社から受託した開発", false),
+            org.assertj.core.api.Assertions.tuple(2, "Java Silver勉強", null, true)
+        );
     verify(repository, times(1)).findAll();
   }
 
@@ -59,10 +71,12 @@ class ProjectServiceTest {
     when(repository.findAllByIsFinished(true)).thenReturn(expected);
 
     // Act
-    List<Project> actual = sut.findAllByCondition(true);
+    List<ProjectResponse> actual = sut.findAllByCondition(true);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getIsFinished)
+        .containsExactly(org.assertj.core.api.Assertions.tuple(2, "Java Silver勉強", true));
     verify(repository, times(1)).findAllByIsFinished(true);
   }
 
@@ -76,10 +90,12 @@ class ProjectServiceTest {
     when(repository.findAllByIsFinished(false)).thenReturn(expected);
 
     // Act
-    List<Project> actual = sut.findAllByCondition(false);
+    List<ProjectResponse> actual = sut.findAllByCondition(false);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getIsFinished)
+        .containsExactly(org.assertj.core.api.Assertions.tuple(1, "タスク管理アプリ開発", false));
     verify(repository, times(1)).findAllByIsFinished(false);
   }
 
@@ -92,10 +108,14 @@ class ProjectServiceTest {
     when(repository.findById(id)).thenReturn(expected);
 
     // Act
-    Project actual = sut.findById(id);
+    ProjectResponse actual = sut.findById(id);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual.getId()).isEqualTo(expected.getId());
+    assertThat(actual.getTitle()).isEqualTo(expected.getTitle());
+    assertThat(actual.getDescription()).isEqualTo(expected.getDescription());
+    assertThat(actual.getIsFinished()).isEqualTo(expected.getIsFinished());
+    assertThat(actual.getMemos()).isEmpty();
     verify(repository, times(1)).findById(id);
   }
 
@@ -117,16 +137,23 @@ class ProjectServiceTest {
     ProjectCreateRequest request = new ProjectCreateRequest();
     request.setTitle("Spring Boot学習");
     request.setDescription("REST APIを作る");
+    doAnswer(invocation -> {
+      Project project = invocation.getArgument(0);
+      project.setId(10);
+      return null;
+    }).when(repository).insert(any(Project.class));
 
     // Act
-    Project actual = sut.register(request);
+    ProjectResponse actual = sut.register(request);
 
     // Assert
     assertThat(actual.getTitle()).isEqualTo("Spring Boot学習");
     assertThat(actual.getDescription()).isEqualTo("REST APIを作る");
+    assertThat(actual.getMemos()).isEmpty();
     ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
     verify(repository, times(1)).insert(captor.capture());
-    assertThat(captor.getValue()).isSameAs(actual);
+    assertThat(captor.getValue().getTitle()).isEqualTo("Spring Boot学習");
+    assertThat(captor.getValue().getDescription()).isEqualTo("REST APIを作る");
   }
 
   @Test

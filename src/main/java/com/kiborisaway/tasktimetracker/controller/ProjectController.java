@@ -1,8 +1,8 @@
 package com.kiborisaway.tasktimetracker.controller;
 
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
-import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,7 +52,7 @@ public class ProjectController {
               description = "検索成功",
               content = @Content(
                   mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = Project.class))
+                  array = @ArraySchema(schema = @Schema(implementation = ProjectResponse.class))
               )
           ),
           @ApiResponse(
@@ -66,7 +66,7 @@ public class ProjectController {
       }
   )
   @GetMapping
-  public List<Project> getAll(@RequestParam(required = false) Boolean isFinished) {
+  public List<ProjectResponse> getAll(@RequestParam(required = false) Boolean isFinished) {
     return service.findAllByCondition(isFinished);
   }
 
@@ -87,7 +87,7 @@ public class ProjectController {
               responseCode = "200", description = "ok",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = Project.class)
+                  schema = @Schema(implementation = ProjectResponse.class)
               )),
           @ApiResponse(
               responseCode = "404", description = "指定されたプロジェクトIDが存在しなかったときのエラー",
@@ -104,7 +104,7 @@ public class ProjectController {
       }
   )
   @GetMapping("/{id}")
-  public Project getById(@PathVariable @Positive int id) {
+  public ProjectResponse getById(@PathVariable @Positive int id) {
     return service.findById(id);
   }
 
@@ -123,7 +123,7 @@ public class ProjectController {
               responseCode = "201", description = "ok",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = Project.class)
+                  schema = @Schema(implementation = ProjectResponse.class)
               )
           ),
           @ApiResponse(
@@ -135,9 +135,9 @@ public class ProjectController {
       }
   )
   @PostMapping
-  public ResponseEntity<Project> create(
+  public ResponseEntity<ProjectResponse> create(
       @RequestBody @Validated ProjectCreateRequest request) {
-    Project response = service.register(request);
+    ProjectResponse response = service.register(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -155,8 +155,8 @@ public class ProjectController {
           @ApiResponse(
               responseCode = "200", description = "更新成功",
               content = @Content(
-                  mediaType = "application/json",
-                  schema = @Schema(implementation = Project.class)
+                  mediaType = "text/plain",
+                  schema = @Schema(type = "string", example = "更新成功")
               )
           ),
           @ApiResponse(
@@ -166,7 +166,7 @@ public class ProjectController {
                   schema = @Schema(implementation = ErrorResponse.class))
           ),
           @ApiResponse(
-              responseCode = "404", description = "指定された受講生IDが存在しないときのエラー",
+              responseCode = "404", description = "指定されたプロジェクトIDが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))

@@ -11,11 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.TaskGroupService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -102,7 +104,7 @@ class TaskGroupControllerTest {
     int tgId = 1;
     TaskGroup tg = new TaskGroup();
     tg.setId(tgId);
-    when(service.findById(tgId)).thenReturn(tg);
+    when(service.findById(tgId)).thenReturn(new TaskGroupResponse(tg, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}", tgId))
@@ -147,7 +149,8 @@ class TaskGroupControllerTest {
     response.setProjectId(pId);
     response.setTitle("タスクグループ1");
     response.setDescription("説明");
-    when(service.register(eq(pId), any(TaskGroupCreateRequest.class))).thenReturn(response);
+    when(service.register(eq(pId), any(TaskGroupCreateRequest.class)))
+        .thenReturn(new TaskGroupResponse(response, List.of()));
     String validRequest = """
         {
             "title" : "タスクグループ1",

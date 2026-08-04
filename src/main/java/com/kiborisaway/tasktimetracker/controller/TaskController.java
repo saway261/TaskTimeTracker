@@ -1,11 +1,11 @@
 package com.kiborisaway.tasktimetracker.controller;
 
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateFinishedRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateParentRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
-import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,7 +61,7 @@ public class TaskController {
               description = "検索成功",
               content = @Content(
                   mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = Task.class))
+                  array = @ArraySchema(schema = @Schema(implementation = TaskResponse.class))
               )
           ),
           @ApiResponse(
@@ -75,7 +75,7 @@ public class TaskController {
       }
   )
   @GetMapping("/projects/{pId}/tasks")
-  public List<Task> getAllInProject(
+  public List<TaskResponse> getAllInProject(
       @PathVariable @Positive int pId,
       @RequestParam(required = false) Boolean isFinished
   ) {
@@ -102,7 +102,7 @@ public class TaskController {
               description = "検索成功",
               content = @Content(
                   mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = Task.class))
+                  array = @ArraySchema(schema = @Schema(implementation = TaskResponse.class))
               )
           ),
           @ApiResponse(
@@ -116,7 +116,7 @@ public class TaskController {
       }
   )
   @GetMapping("/task-groups/{tgId}/tasks")
-  public List<Task> getAllInTaskGroup(
+  public List<TaskResponse> getAllInTaskGroup(
       @PathVariable @Positive int tgId,
       @RequestParam(required = false) Boolean isFinished
   ) {
@@ -138,7 +138,7 @@ public class TaskController {
               responseCode = "200", description = "ok",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = Task.class)
+                  schema = @Schema(implementation = TaskResponse.class)
               )
           ),
           @ApiResponse(
@@ -158,7 +158,7 @@ public class TaskController {
       }
   )
   @GetMapping("/tasks/{taskId}")
-  public Task getById(@PathVariable @Positive int taskId) {
+  public TaskResponse getById(@PathVariable @Positive int taskId) {
     return service.findById(taskId);
   }
 
@@ -182,7 +182,7 @@ public class TaskController {
               responseCode = "201", description = "登録成功",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = Task.class)
+                  schema = @Schema(implementation = TaskResponse.class)
               )
           ),
           @ApiResponse(
@@ -195,10 +195,10 @@ public class TaskController {
       }
   )
   @PostMapping("/projects/{pId}/tasks")
-  public ResponseEntity<Task> createInProject(
+  public ResponseEntity<TaskResponse> createInProject(
       @PathVariable @Positive int pId,
       @RequestBody @Validated TaskCreateRequest request) {
-    Task response = service.register(pId, null, request);
+    TaskResponse response = service.register(pId, null, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -222,7 +222,7 @@ public class TaskController {
               responseCode = "201", description = "登録成功",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = Task.class)
+                  schema = @Schema(implementation = TaskResponse.class)
               )
           ),
           @ApiResponse(
@@ -235,10 +235,10 @@ public class TaskController {
       }
   )
   @PostMapping("/task-groups/{tgId}/tasks")
-  public ResponseEntity<Task> createInTaskGroup(
+  public ResponseEntity<TaskResponse> createInTaskGroup(
       @PathVariable @Positive int tgId,
       @RequestBody @Validated TaskCreateRequest request) {
-    Task response = service.register(null, tgId, request);
+    TaskResponse response = service.register(null, tgId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -259,7 +259,7 @@ public class TaskController {
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
-              content = @Content(mediaType = "application/json",
+              content = @Content(mediaType = "text/plain",
                   schema = @Schema(type = "string", example = "タスク名と説明を更新しました"))
           ),
           @ApiResponse(responseCode = "400", description = "入力値のバリデーションエラー",
@@ -297,7 +297,7 @@ public class TaskController {
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
-              content = @Content(mediaType = "application/json",
+              content = @Content(mediaType = "text/plain",
                   schema = @Schema(type = "string", example = "見積作業時間を更新しました"))
           ),
           @ApiResponse(responseCode = "400", description = "入力値のバリデーションエラー",
@@ -339,7 +339,7 @@ public class TaskController {
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
-              content = @Content(mediaType = "application/json",
+              content = @Content(mediaType = "text/plain",
                   schema = @Schema(type = "string", example = "タスクの所属を更新しました"))
           ),
           @ApiResponse(responseCode = "400", description = "入力値のバリデーションエラー",
@@ -377,7 +377,7 @@ public class TaskController {
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
-              content = @Content(mediaType = "application/json",
+              content = @Content(mediaType = "text/plain",
                   schema = @Schema(type = "string", example = "タスクの完了状態を更新しました"))
           ),
           @ApiResponse(responseCode = "400", description = "入力値のバリデーションエラー",
@@ -410,7 +410,7 @@ public class TaskController {
       },
       responses = {
           @ApiResponse(responseCode = "200", description = "削除成功",
-              content = @Content(mediaType = "application/json",
+              content = @Content(mediaType = "text/plain",
                   schema = @Schema(type = "string", example = "タスクを削除しました"))
           ),
           @ApiResponse(responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",

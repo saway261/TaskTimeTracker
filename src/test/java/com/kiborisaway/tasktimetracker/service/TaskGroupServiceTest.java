@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -12,9 +13,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import java.util.List;
@@ -37,6 +40,9 @@ class TaskGroupServiceTest {
   @Mock
   private ProjectRepository prRepository;
 
+  @Mock
+  private MemoRepository memoRepository;
+
   @InjectMocks
   private TaskGroupService sut;
 
@@ -53,10 +59,17 @@ class TaskGroupServiceTest {
     when(tgRepository.findAllInProject(pId)).thenReturn(expected);
 
     // Act
-    List<TaskGroup> actual = sut.findAllByCondition(pId, null);
+    List<TaskGroupResponse> actual = sut.findAllByCondition(pId, null);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(TaskGroupResponse::getId, TaskGroupResponse::getProjectId,
+            TaskGroupResponse::getTitle, TaskGroupResponse::getDescription,
+            TaskGroupResponse::getIsFinished)
+        .containsExactly(
+            org.assertj.core.api.Assertions.tuple(1, pId, "タスクグループ１", "説明", false),
+            org.assertj.core.api.Assertions.tuple(2, pId, "タスクグループ２", null, true)
+        );
     verify(prRepository, times(1)).existsById(pId);
     verify(tgRepository, times(1)).findAllInProject(pId);
     verify(tgRepository, never()).findAllInProjectByIsFinished(anyInt(), anyBoolean());
@@ -76,10 +89,13 @@ class TaskGroupServiceTest {
     when(tgRepository.findAllInProjectByIsFinished(pId, flg)).thenReturn(expected);
 
     // Act
-    List<TaskGroup> actual = sut.findAllByCondition(pId, flg);
+    List<TaskGroupResponse> actual = sut.findAllByCondition(pId, flg);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(TaskGroupResponse::getId, TaskGroupResponse::getProjectId,
+            TaskGroupResponse::getTitle)
+        .containsExactly(org.assertj.core.api.Assertions.tuple(2, pId, "タスクグループ２"));
     verify(prRepository, times(1)).existsById(pId);
     verify(tgRepository, times(1)).findAllInProjectByIsFinished(pId, flg);
     verify(tgRepository, never()).findAllInProject(anyInt());
@@ -108,10 +124,15 @@ class TaskGroupServiceTest {
     when(tgRepository.findById(id)).thenReturn(expected);
 
     // Act
-    TaskGroup actual = sut.findById(id);
+    TaskGroupResponse actual = sut.findById(id);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual.getId()).isEqualTo(expected.getId());
+    assertThat(actual.getProjectId()).isEqualTo(expected.getProjectId());
+    assertThat(actual.getTitle()).isEqualTo(expected.getTitle());
+    assertThat(actual.getDescription()).isEqualTo(expected.getDescription());
+    assertThat(actual.getIsFinished()).isEqualTo(expected.getIsFinished());
+    assertThat(actual.getMemos()).isEmpty();
     verify(tgRepository, times(1)).findById(id);
   }
 
@@ -135,17 +156,24 @@ class TaskGroupServiceTest {
     request.setTitle("タスクグループ２");
     request.setDescription(null);
     when(prRepository.existsById(pId)).thenReturn(true);
+    doAnswer(invocation -> {
+      TaskGroup taskGroup = invocation.getArgument(0);
+      taskGroup.setId(10);
+      return null;
+    }).when(tgRepository).insert(any(TaskGroup.class));
 
     // Act
-    TaskGroup actual = sut.register(pId, request);
+    TaskGroupResponse actual = sut.register(pId, request);
 
     // Assert
     assertThat(actual.getProjectId()).isEqualTo(pId);
     assertThat(actual.getTitle()).isEqualTo("タスクグループ２");
+    assertThat(actual.getMemos()).isEmpty();
     verify(prRepository, times(1)).existsById(pId);
     ArgumentCaptor<TaskGroup> captor = ArgumentCaptor.forClass(TaskGroup.class);
     verify(tgRepository, times(1)).insert(captor.capture());
-    assertThat(captor.getValue()).isSameAs(actual);
+    assertThat(captor.getValue().getProjectId()).isEqualTo(pId);
+    assertThat(captor.getValue().getTitle()).isEqualTo("タスクグループ２");
   }
 
   @Test

@@ -6,7 +6,6 @@ import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
-import com.kiborisaway.tasktimetracker.mapper.WorkSessionMapper;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
 import java.util.List;
@@ -96,7 +95,7 @@ public class WorkSessionService {
     }
     validateTaskIsNotFinished(taskId);
 
-    WorkSession workSession = WorkSessionMapper.toEntity(request);
+    WorkSession workSession = toEntity(request);
     workSession.setTaskId(taskId);
     wsRepository.insert(workSession);
     return workSession;
@@ -132,7 +131,7 @@ public class WorkSessionService {
     int taskId = findTaskIdByWorkSessionId(wsId);
     validateTaskIsNotFinished(taskId);
 
-    WorkSession workSession = WorkSessionMapper.toEntity(wsId, request);
+    WorkSession workSession = toEntity(wsId, request);
     int updated = wsRepository.update(workSession);
     if (updated == 0) {
       throw new TargetNotFoundException("workSession.id",
@@ -171,6 +170,14 @@ public class WorkSessionService {
       throw new WorkSessionOperationNotAllowedException("task.id",
           "完了済みタスクの作業セッションは追加・更新・削除できません");
     }
+  }
+
+  private WorkSession toEntity(WorkSessionCreateRequest request) {
+    return new WorkSession(request);
+  }
+
+  private WorkSession toEntity(int id, WorkSessionUpdateRequest request) {
+    return new WorkSession(id, request);
   }
 
 }

@@ -11,11 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.ProjectService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -80,7 +82,7 @@ class ProjectControllerTest {
     int id = 1;
     Project project = new Project();
     project.setId(id);
-    when(service.findById(id)).thenReturn(project);
+    when(service.findById(id)).thenReturn(new ProjectResponse(project, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{id}", id))
@@ -123,7 +125,8 @@ class ProjectControllerTest {
     response.setId(10);
     response.setTitle("Spring学習");
     response.setDescription("REST APIを作る");
-    when(service.register(any(ProjectCreateRequest.class))).thenReturn(response);
+    when(service.register(any(ProjectCreateRequest.class)))
+        .thenReturn(new ProjectResponse(response, List.of()));
     String validRequest = """
         {
             "title" : "Spring学習",

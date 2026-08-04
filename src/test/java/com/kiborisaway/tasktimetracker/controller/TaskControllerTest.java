@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
@@ -19,6 +20,7 @@ import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.TaskService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -141,7 +143,7 @@ class TaskControllerTest {
     int taskId = 1;
     Task task = new Task();
     task.setId(taskId);
-    when(service.findById(taskId)).thenReturn(task);
+    when(service.findById(taskId)).thenReturn(new TaskResponse(task, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}", taskId))
@@ -185,7 +187,8 @@ class TaskControllerTest {
     Task response = new Task();
     response.setId(10);
     response.setProjectId(pId);
-    when(service.register(eq(pId), isNull(), any(TaskCreateRequest.class))).thenReturn(response);
+    when(service.register(eq(pId), isNull(), any(TaskCreateRequest.class)))
+        .thenReturn(new TaskResponse(response, List.of()));
     String validRequest = """
         {
           "taskGroupId": 999,
@@ -212,7 +215,8 @@ class TaskControllerTest {
     Task response = new Task();
     response.setId(10);
     response.setTaskGroupId(tgId);
-    when(service.register(isNull(), eq(tgId), any(TaskCreateRequest.class))).thenReturn(response);
+    when(service.register(isNull(), eq(tgId), any(TaskCreateRequest.class)))
+        .thenReturn(new TaskResponse(response, List.of()));
     String validRequest = """
         {
           "projectId": 999,

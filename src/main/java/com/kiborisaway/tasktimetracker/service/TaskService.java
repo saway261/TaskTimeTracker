@@ -1,14 +1,17 @@
 package com.kiborisaway.tasktimetracker.service;
 
+import com.kiborisaway.tasktimetracker.data.dto.memo.MemoResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
+import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
-import com.kiborisaway.tasktimetracker.mapper.TaskMapper;
+import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
@@ -25,18 +28,21 @@ public class TaskService {
   private WorkSessionRepository wsRepository;
   private TaskGroupRepository tgRepository;
   private ProjectRepository pjRepository;
+  private MemoRepository memoRepository;
 
   @Autowired
   public TaskService(
       TaskRepository tsRepository,
       WorkSessionRepository wsRepository,
       TaskGroupRepository tgRepository,
-      ProjectRepository pjRepository
+      ProjectRepository pjRepository,
+      MemoRepository memoRepository
   ) {
     this.tsRepository = tsRepository;
     this.wsRepository = wsRepository;
     this.tgRepository = tgRepository;
     this.pjRepository = pjRepository;
+    this.memoRepository = memoRepository;
   }
 
   /**
@@ -46,16 +52,19 @@ public class TaskService {
    * @param isFinished 完了フラグ
    * @return タスクグループ内の全件または指定した完了状態のタスクの一覧
    */
-  public List<Task> findAllInTaskGroupByCondition(int tgId, Boolean isFinished) {
+  public List<TaskResponse> findAllInTaskGroupByCondition(int tgId, Boolean isFinished) {
     if (!tgRepository.existsById(tgId)) {
       throw new TargetNotFoundException("taskGroup.id",
           "指定したIDのタスクグループは見つかりませんでした");
     }
 
+    List<Task> tasks;
     if (isFinished == null) {
-      return tsRepository.findAllInTaskGroup(tgId);
+      tasks = tsRepository.findAllInTaskGroup(tgId);
+    } else {
+      tasks = tsRepository.findAllInTaskGroupByCondition(tgId, isFinished);
     }
-    return tsRepository.findAllInTaskGroupByCondition(tgId, isFinished);
+    return tasks.stream().map(this::toResponse).toList();
   }
 
   /**
@@ -65,16 +74,19 @@ public class TaskService {
    * @param isFinished 完了フラグ
    * @return プロジェクト内の全件または指定した完了状態のタスクの一覧
    */
-  public List<Task> findAllInProjectByCondition(int pjId, Boolean isFinished) {
+  public List<TaskResponse> findAllInProjectByCondition(int pjId, Boolean isFinished) {
     if (!pjRepository.existsById(pjId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
 
+    List<Task> tasks;
     if (isFinished == null) {
-      return tsRepository.findAllInProject(pjId);
+      tasks = tsRepository.findAllInProject(pjId);
+    } else {
+      tasks = tsRepository.findAllInProjectByCondition(pjId, isFinished);
     }
-    return tsRepository.findAllInProjectByCondition(pjId, isFinished);
+    return tasks.stream().map(this::toResponse).toList();
   }
 
   /**
@@ -83,13 +95,13 @@ public class TaskService {
    * @param id タスクグループのID
    * @return タスクグループ
    */
-  public Task findById(int id) {
+  public TaskResponse findById(int id) {
     Task task = tsRepository.findById(id);
     if (task == null) {
       throw new TargetNotFoundException("task.id",
           "指定したIDのタスクは見つかりませんでした");
     }
-    return task;
+    return toResponse(task);
   }
 
   /**
@@ -100,8 +112,8 @@ public class TaskService {
    * @param request     新規登録するタスクのリクエスト
    */
   @Transactional
-  public Task register(Integer projectId, Integer taskGroupId, TaskCreateRequest request) {
-    Task task = TaskMapper.toEntity(projectId, taskGroupId, request);
+  public TaskResponse register(Integer projectId, Integer taskGroupId, TaskCreateRequest request) {
+    Task task = toEntity(projectId, taskGroupId, request);
 
     String parentField = "";
     boolean existsParent = false;
@@ -121,7 +133,7 @@ public class TaskService {
     }
 
     tsRepository.insert(task);
-    return task;
+    return toResponse(task);
   }
 
   /**
@@ -132,7 +144,7 @@ public class TaskService {
    */
   @Transactional
   public void updateProperty(int id, TaskUpdatePropertyRequest request) {
-    Task task = TaskMapper.toEntity(id, request);
+    Task task = toEntity(id, request);
     int updated = tsRepository.updateProperty(task);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
@@ -249,4 +261,19 @@ public class TaskService {
     }
   }
 
+  private Task toEntity(Integer projectId, Integer taskGroupId, TaskCreateRequest request) {
+    return new Task(projectId, taskGroupId, request);
+  }
+
+  private Task toEntity(int id, TaskUpdatePropertyRequest request) {
+    return new Task(id, request);
+  }
+
+  private TaskResponse toResponse(Task task) {
+    List<Memo> memos = memoRepository.findAllInTask(task.getId());
+    List<MemoResponse> memoResponses = (memos == null ? List.<Memo>of() : memos).stream()
+        .map(MemoResponse::new)
+        .toList();
+    return new TaskResponse(task, memoResponses);
+  }
 }
