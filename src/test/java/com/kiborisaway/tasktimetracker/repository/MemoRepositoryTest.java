@@ -140,4 +140,29 @@ class MemoRepositoryTest {
         .usingRecursiveComparison()
         .isEqualTo(before);
   }
+
+  @Test
+  void タスク配下メモ削除成功_指定したタスクIDに紐づくメモを削除できること() {
+    // Act
+    int actual = sut.deleteAllInTask(1);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+    assertThat(sut.findAllInTask(1)).isEmpty();
+  }
+
+  @Test
+  void タスク配下メモ削除失敗_存在しないタスクIDの場合は削除されず0件となること() {
+    // Arrange
+    List<Memo> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.deleteAllInTask(999);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
 }

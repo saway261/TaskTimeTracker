@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InOrder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -723,7 +724,9 @@ class TaskServiceTest {
     sut.deleteById(id);
 
     // Assert
-    verify(tsRepository, times(1)).deleteById(id);
+    InOrder inOrder = org.mockito.Mockito.inOrder(memoRepository, tsRepository);
+    inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
+    inOrder.verify(tsRepository, times(1)).deleteById(id);
   }
 
   @Test
@@ -737,6 +740,7 @@ class TaskServiceTest {
     assertThatThrownBy(() -> sut.deleteById(id))
         .isInstanceOf(TargetNotFoundException.class);
 
+    verify(memoRepository, times(1)).deleteAllInTask(id);
     verify(tsRepository, times(1)).deleteById(id);
   }
 

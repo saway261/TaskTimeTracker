@@ -254,6 +254,7 @@ public class TaskService {
    */
   @Transactional
   public void deleteById(int id) {
+    memoRepository.deleteAllInTask(id);
     int deleted = tsRepository.deleteById(id);
     if (deleted == 0) {
       throw new TargetNotFoundException("task.id",

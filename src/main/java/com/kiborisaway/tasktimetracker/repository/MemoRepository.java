@@ -40,4 +40,13 @@ public interface MemoRepository {
    */
   @Delete("DELETE FROM memos WHERE id = #{id}")
   int delete(int id);
+
+  /**
+   * タスクIDを指定してタスク配下のメモを削除します。
+   *
+   * @param taskId タスクのID
+   * @return 削除を実行した件数
+   */
+  @Delete("DELETE FROM memos WHERE task_id = #{taskId}")
+  int deleteAllInTask(int taskId);
 }
