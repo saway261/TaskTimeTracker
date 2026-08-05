@@ -1,8 +1,8 @@
 package com.kiborisaway.tasktimetracker.controller;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -10,14 +10,18 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.kiborisaway.tasktimetracker.data.Task;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskResponse;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
+import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
-import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.TaskService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -139,7 +143,7 @@ class TaskControllerTest {
     int taskId = 1;
     Task task = new Task();
     task.setId(taskId);
-    when(service.findById(taskId)).thenReturn(task);
+    when(service.findById(taskId)).thenReturn(new TaskResponse(task, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}", taskId))
@@ -183,7 +187,8 @@ class TaskControllerTest {
     Task response = new Task();
     response.setId(10);
     response.setProjectId(pId);
-    when(service.register(any(Task.class))).thenReturn(response);
+    when(service.register(eq(pId), isNull(), any(TaskCreateRequest.class)))
+        .thenReturn(new TaskResponse(response, List.of()));
     String validRequest = """
         {
           "taskGroupId": 999,
@@ -199,10 +204,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isCreated());
 
-    ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
-    verify(service).register(captor.capture());
-    assertThat(captor.getValue().getProjectId()).isEqualTo(pId);
-    assertThat(captor.getValue().getTaskGroupId()).isNull();
+    verify(service).register(eq(pId), isNull(), any(TaskCreateRequest.class));
   }
 
   @Test
@@ -213,7 +215,8 @@ class TaskControllerTest {
     Task response = new Task();
     response.setId(10);
     response.setTaskGroupId(tgId);
-    when(service.register(any(Task.class))).thenReturn(response);
+    when(service.register(isNull(), eq(tgId), any(TaskCreateRequest.class)))
+        .thenReturn(new TaskResponse(response, List.of()));
     String validRequest = """
         {
           "projectId": 999,
@@ -229,10 +232,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isCreated());
 
-    ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
-    verify(service).register(captor.capture());
-    assertThat(captor.getValue().getProjectId()).isNull();
-    assertThat(captor.getValue().getTaskGroupId()).isEqualTo(tgId);
+    verify(service).register(isNull(), eq(tgId), any(TaskCreateRequest.class));
   }
 
   @Test
@@ -246,7 +246,7 @@ class TaskControllerTest {
           "estimatedMinutes": 60
         }
         """;
-    when(service.register(any(Task.class))).thenThrow(
+    when(service.register(eq(pId), isNull(), any(TaskCreateRequest.class))).thenThrow(
         new TargetNotFoundException("project.id",
             "指定したIDの親項目は見つかりませんでした"));
 
@@ -256,7 +256,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).register(any(Task.class));
+    verify(service).register(eq(pId), isNull(), any(TaskCreateRequest.class));
   }
 
   @Test
@@ -278,9 +278,7 @@ class TaskControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().string("タスク名と説明を更新しました"));
 
-    ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
-    verify(service).updateProperty(captor.capture());
-    assertThat(captor.getValue().getId()).isEqualTo(taskId);
+    verify(service).updateProperty(eq(taskId), any(TaskUpdatePropertyRequest.class));
   }
 
   @Test
@@ -294,7 +292,7 @@ class TaskControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("task.id", "task not found"))
-        .when(service).updateProperty(any(Task.class));
+        .when(service).updateProperty(eq(taskId), any(TaskUpdatePropertyRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}", taskId)
@@ -302,66 +300,104 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).updateProperty(any(Task.class));
+    verify(service).updateProperty(eq(taskId), any(TaskUpdatePropertyRequest.class));
   }
 
   @Test
   void 見積もり作業時間更新成功_200とメッセージを返すこと() throws Exception {
     // Arrange
     int taskId = 1;
-    int estimatedMinutes = 120;
+    String validRequest = """
+        {
+          "estimatedMinutes": 120
+        }
+        """;
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
             .contentType(MediaType.APPLICATION_JSON)
-            .content(String.valueOf(estimatedMinutes)))
+            .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().string("見積作業時間を更新しました"));
 
-    verify(service).updateEstimateMinutes(taskId, estimatedMinutes);
+    verify(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
   }
 
   @Test
   void 見積もり作業時間更新失敗_WorkSessionが存在するなら400を返すこと() throws Exception {
     // Arrange
     int taskId = 1;
-    int estimatedMinutes = 120;
+    String validRequest = """
+        {
+          "estimatedMinutes": 120
+        }
+        """;
     doThrow(new EstimateMinutesUpdateNotAllowedException("task.id",
         "作業セッションが存在するタスクの見積もり作業時間は変更できません"))
-        .when(service).updateEstimateMinutes(taskId, estimatedMinutes);
+        .when(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
             .contentType(MediaType.APPLICATION_JSON)
-            .content(String.valueOf(estimatedMinutes)))
+            .content(validRequest))
         .andExpect(status().isBadRequest());
 
-    verify(service).updateEstimateMinutes(taskId, estimatedMinutes);
+    verify(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
   }
 
   @Test
   void 見積もり作業時間更新失敗_対象が存在しないなら404を返すこと() throws Exception {
     // Arrange
     int taskId = 999;
-    int estimatedMinutes = 120;
+    String validRequest = """
+        {
+          "estimatedMinutes": 120
+        }
+        """;
     doThrow(new TargetNotFoundException("task.id", "task not found"))
-        .when(service).updateEstimateMinutes(taskId, estimatedMinutes);
+        .when(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
             .contentType(MediaType.APPLICATION_JSON)
-            .content(String.valueOf(estimatedMinutes)))
+            .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).updateEstimateMinutes(taskId, estimatedMinutes);
+    verify(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
   }
 
   @Test
   void 見積もり作業時間更新失敗_パス変数が0以下なら400を返すこと() throws Exception {
+    // Arrange
+    String validRequest = """
+        {
+          "estimatedMinutes": 120
+        }
+        """;
+
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/0/estimated-minutes")
             .contentType(MediaType.APPLICATION_JSON)
-            .content("120"))
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void 見積もり作業時間更新失敗_不正なリクエストボディなら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String invalidRequest = """
+        {
+          "estimatedMinutes": 0
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
         .andExpect(status().isBadRequest());
 
     verifyNoInteractions(service);

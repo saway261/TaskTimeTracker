@@ -55,3 +55,22 @@ CREATE TABLE IF NOT EXISTS work_sessions (
       (started_at IS NOT NULL AND ended_at >= started_at)
     )
 );
+
+CREATE TABLE IF NOT EXISTS memos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  project_id INT,
+  task_group_id INT,
+  task_id INT,
+  comment VARCHAR(1000),
+  FOREIGN KEY (project_id) REFERENCES projects(id),
+  FOREIGN KEY (task_group_id) REFERENCES task_groups(id),
+  FOREIGN KEY (task_id) REFERENCES tasks(id),
+  CONSTRAINT chk_memos_parent_xor
+    CHECK (
+      (project_id IS NOT NULL AND task_group_id IS NULL AND task_id IS NULL)
+      OR
+      (project_id IS NULL AND task_group_id IS NOT NULL AND task_id IS NULL)
+      OR
+      (project_id IS NULL AND task_group_id IS NULL AND task_id IS NOT NULL)
+    )
+);

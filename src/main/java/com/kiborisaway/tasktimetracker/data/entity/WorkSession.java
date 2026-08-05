@@ -1,11 +1,8 @@
-package com.kiborisaway.tasktimetracker.data;
+package com.kiborisaway.tasktimetracker.data.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -54,43 +51,22 @@ public class WorkSession {
   private LocalDateTime updatedAt;
 
   @Schema(description = "作業セッションの記録タイプ", example = "TIMER")
-  @NotNull(groups = {CreateGroup.class, UpdateGroup.class})
   private WorkSessionType type;
 
-  @JsonIgnore
-  @AssertTrue(message = "TIMERの場合、登録時はstartedAtが必須です", groups = CreateGroup.class)
-  public boolean isValidCreateTimer() {
-    if (type == null || type != WorkSessionType.TIMER) {
-      return true;
-    }
-    return startedAt != null;
+  // 新規登録用
+  public WorkSession(WorkSessionCreateRequest request) {
+    this.type = request.getType();
+    this.minutes = request.getMinutes();
+    this.startedAt = request.getStartedAt();
   }
 
-  @JsonIgnore
-  @AssertTrue(message = "MANUALの場合、登録時はminutesが必須です", groups = CreateGroup.class)
-  public boolean isValidCreateManual() {
-    if (type == null || type != WorkSessionType.MANUAL) {
-      return true;
-    }
-    return minutes != null;
-  }
-
-  @JsonIgnore
-  @AssertTrue(message = "TIMERの場合、更新時はstartedAtとendedAtが必須です", groups = UpdateGroup.class)
-  public boolean isValidUpdateTimer() {
-    if (type == null || type != WorkSessionType.TIMER) {
-      return true;
-    }
-    return startedAt != null && endedAt != null;
-  }
-
-  @JsonIgnore
-  @AssertTrue(message = "MANUALの場合、更新時はminutesが必須です", groups = UpdateGroup.class)
-  public boolean isValidUpdateManual() {
-    if (type == null || type != WorkSessionType.MANUAL) {
-      return true;
-    }
-    return minutes != null;
+  // 更新用
+  public WorkSession(int id, WorkSessionUpdateRequest request) {
+    this.id = id;
+    this.type = request.getType();
+    this.minutes = request.getMinutes();
+    this.startedAt = request.getStartedAt();
+    this.endedAt = request.getEndedAt();
   }
 
 }

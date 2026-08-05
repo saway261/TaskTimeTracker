@@ -1,7 +1,13 @@
 package com.kiborisaway.tasktimetracker.service;
 
-import com.kiborisaway.tasktimetracker.data.TaskGroup;
+import com.kiborisaway.tasktimetracker.data.dto.memo.MemoResponse;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupResponse;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
+import com.kiborisaway.tasktimetracker.data.entity.Memo;
+import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import java.util.List;
@@ -14,11 +20,16 @@ public class TaskGroupService {
 
   private TaskGroupRepository tgRepository;
   private ProjectRepository prRepository;
+  private MemoRepository memoRepository;
 
   @Autowired
-  public TaskGroupService(TaskGroupRepository tgRepository, ProjectRepository prRepository) {
+  public TaskGroupService(
+      TaskGroupRepository tgRepository,
+      ProjectRepository prRepository,
+      MemoRepository memoRepository) {
     this.tgRepository = tgRepository;
     this.prRepository = prRepository;
+    this.memoRepository = memoRepository;
   }
 
   /**
@@ -28,16 +39,19 @@ public class TaskGroupService {
    * @param isFinished 完了フラグ
    * @return 全件または指定した完了状態のタスクグループの一覧
    */
-  public List<TaskGroup> findAllByCondition(int pId, Boolean isFinished) {
+  public List<TaskGroupResponse> findAllByCondition(int pId, Boolean isFinished) {
     if (!prRepository.existsById(pId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
 
+    List<TaskGroup> taskGroups;
     if (isFinished == null) {
-      return tgRepository.findAllInProject(pId);
+      taskGroups = tgRepository.findAllInProject(pId);
+    } else {
+      taskGroups = tgRepository.findAllInProjectByIsFinished(pId, isFinished);
     }
-    return tgRepository.findAllInProjectByIsFinished(pId, isFinished);
+    return taskGroups.stream().map(this::toResponse).toList();
   }
 
   /**
@@ -46,38 +60,41 @@ public class TaskGroupService {
    * @param id タスクグループのID
    * @return タスクグループ
    */
-  public TaskGroup findById(int id) {
-    TaskGroup project = tgRepository.findById(id);
-    if (project == null) {
+  public TaskGroupResponse findById(int id) {
+    TaskGroup taskGroup = tgRepository.findById(id);
+    if (taskGroup == null) {
       throw new TargetNotFoundException("taskGroup.id",
           "指定したIDのタスクグループは見つかりませんでした");
     }
-    return project;
+    return toResponse(taskGroup);
   }
 
   /**
    * タスクグループの新規登録を行います。
    *
-   * @param tg 新規登録するタスクグループ
+   * @param request 新規登録するタスクグループのリクエスト
    */
   @Transactional
-  public TaskGroup register(int pId, TaskGroup tg) {
+  public TaskGroupResponse register(int pId, TaskGroupCreateRequest request) {
     if (!prRepository.existsById(pId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
+    TaskGroup tg = toEntity(request);
     tg.setProjectId(pId);
     tgRepository.insert(tg);
-    return tg;
+    return toResponse(tg);
   }
 
   /**
    * タスクグループIDを指定してタスクグループ名と説明と完了フラグを更新します
    *
-   * @param tg 更新するタスクグループ
+   * @param id      更新するタスクグループのID
+   * @param request 更新するタスクグループのリクエスト
    */
   @Transactional
-  public void update(TaskGroup tg) {
+  public void update(int id, TaskGroupUpdateRequest request) {
+    TaskGroup tg = toEntity(id, request);
     int updated = tgRepository.update(tg);
     if (updated == 0) {
       throw new TargetNotFoundException("taskGroup",
@@ -85,4 +102,19 @@ public class TaskGroupService {
     }
   }
 
+  private TaskGroup toEntity(TaskGroupCreateRequest request) {
+    return new TaskGroup(request);
+  }
+
+  private TaskGroup toEntity(int id, TaskGroupUpdateRequest request) {
+    return new TaskGroup(id, request);
+  }
+
+  private TaskGroupResponse toResponse(TaskGroup taskGroup) {
+    List<Memo> memos = memoRepository.findAllInTaskGroup(taskGroup.getId());
+    List<MemoResponse> memoResponses = (memos == null ? List.<Memo>of() : memos).stream()
+        .map(MemoResponse::new)
+        .toList();
+    return new TaskGroupResponse(taskGroup, memoResponses);
+  }
 }

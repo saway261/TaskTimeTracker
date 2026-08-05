@@ -1,10 +1,10 @@
 package com.kiborisaway.tasktimetracker.controller;
 
-import com.kiborisaway.tasktimetracker.data.TaskGroup;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupResponse;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.TaskGroupService;
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -57,7 +57,7 @@ public class TaskGroupController {
               description = "検索成功",
               content = @Content(
                   mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = TaskGroup.class))
+                  array = @ArraySchema(schema = @Schema(implementation = TaskGroupResponse.class))
               )
           ),
           @ApiResponse(
@@ -71,7 +71,7 @@ public class TaskGroupController {
       }
   )
   @GetMapping("/projects/{pId}/task-groups")
-  public List<TaskGroup> getAll(
+  public List<TaskGroupResponse> getAll(
       @PathVariable @Positive int pId,
       @RequestParam(required = false) Boolean isFinished
   ) {
@@ -93,7 +93,7 @@ public class TaskGroupController {
               responseCode = "200", description = "ok",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = TaskGroup.class)
+                  schema = @Schema(implementation = TaskGroupResponse.class)
               )
           ),
           @ApiResponse(
@@ -113,7 +113,7 @@ public class TaskGroupController {
       }
   )
   @GetMapping("/task-groups/{tgId}")
-  public TaskGroup getById(@PathVariable @Positive int tgId) {
+  public TaskGroupResponse getById(@PathVariable @Positive int tgId) {
     return service.findById(tgId);
   }
 
@@ -130,14 +130,14 @@ public class TaskGroupController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "新規に登録したいタスクグループの詳細",
           required = true,
-          content = @Content(schema = @Schema(implementation = TaskGroup.class))
+          content = @Content(schema = @Schema(implementation = TaskGroupCreateRequest.class))
       ),
       responses = {
           @ApiResponse(
               responseCode = "201", description = "登録成功",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = TaskGroup.class)
+                  schema = @Schema(implementation = TaskGroupResponse.class)
               )
           ),
           @ApiResponse(
@@ -150,11 +150,11 @@ public class TaskGroupController {
       }
   )
   @PostMapping("/projects/{pId}/task-groups")
-  public ResponseEntity<TaskGroup> create(
+  public ResponseEntity<TaskGroupResponse> create(
       @PathVariable @Positive int pId,
-      @RequestBody @Validated(CreateGroup.class) TaskGroup request
+      @RequestBody @Validated TaskGroupCreateRequest request
   ) {
-    TaskGroup response = service.register(pId, request);
+    TaskGroupResponse response = service.register(pId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -171,13 +171,13 @@ public class TaskGroupController {
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "更新したいタスクグループ",
           required = true,
-          content = @Content(schema = @Schema(implementation = TaskGroup.class))
+          content = @Content(schema = @Schema(implementation = TaskGroupUpdateRequest.class))
       ),
       responses = {
           @ApiResponse(
               responseCode = "200", description = "更新成功",
               content = @Content(
-                  mediaType = "application/json",
+                  mediaType = "text/plain",
                   schema = @Schema(type = "string", example = "更新成功")
               )
           ),
@@ -200,9 +200,8 @@ public class TaskGroupController {
   @PutMapping("/task-groups/{tgId}")
   public ResponseEntity<String> update(
       @PathVariable @Positive int tgId,
-      @RequestBody @Validated(UpdateGroup.class) TaskGroup request) {
-    request.setId(tgId);
-    service.update(request);
+      @RequestBody @Validated TaskGroupUpdateRequest request) {
+    service.update(tgId, request);
     return ResponseEntity.ok("更新成功");
   }
 }

@@ -5,15 +5,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.kiborisaway.tasktimetracker.data.TaskGroup;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupResponse;
+import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
+import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import java.util.List;
@@ -21,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -34,6 +39,9 @@ class TaskGroupServiceTest {
 
   @Mock
   private ProjectRepository prRepository;
+
+  @Mock
+  private MemoRepository memoRepository;
 
   @InjectMocks
   private TaskGroupService sut;
@@ -51,10 +59,17 @@ class TaskGroupServiceTest {
     when(tgRepository.findAllInProject(pId)).thenReturn(expected);
 
     // Act
-    List<TaskGroup> actual = sut.findAllByCondition(pId, null);
+    List<TaskGroupResponse> actual = sut.findAllByCondition(pId, null);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(TaskGroupResponse::getId, TaskGroupResponse::getProjectId,
+            TaskGroupResponse::getTitle, TaskGroupResponse::getDescription,
+            TaskGroupResponse::getIsFinished)
+        .containsExactly(
+            org.assertj.core.api.Assertions.tuple(1, pId, "タスクグループ１", "説明", false),
+            org.assertj.core.api.Assertions.tuple(2, pId, "タスクグループ２", null, true)
+        );
     verify(prRepository, times(1)).existsById(pId);
     verify(tgRepository, times(1)).findAllInProject(pId);
     verify(tgRepository, never()).findAllInProjectByIsFinished(anyInt(), anyBoolean());
@@ -74,10 +89,13 @@ class TaskGroupServiceTest {
     when(tgRepository.findAllInProjectByIsFinished(pId, flg)).thenReturn(expected);
 
     // Act
-    List<TaskGroup> actual = sut.findAllByCondition(pId, flg);
+    List<TaskGroupResponse> actual = sut.findAllByCondition(pId, flg);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(TaskGroupResponse::getId, TaskGroupResponse::getProjectId,
+            TaskGroupResponse::getTitle)
+        .containsExactly(org.assertj.core.api.Assertions.tuple(2, pId, "タスクグループ２"));
     verify(prRepository, times(1)).existsById(pId);
     verify(tgRepository, times(1)).findAllInProjectByIsFinished(pId, flg);
     verify(tgRepository, never()).findAllInProject(anyInt());
@@ -106,10 +124,15 @@ class TaskGroupServiceTest {
     when(tgRepository.findById(id)).thenReturn(expected);
 
     // Act
-    TaskGroup actual = sut.findById(id);
+    TaskGroupResponse actual = sut.findById(id);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual.getId()).isEqualTo(expected.getId());
+    assertThat(actual.getProjectId()).isEqualTo(expected.getProjectId());
+    assertThat(actual.getTitle()).isEqualTo(expected.getTitle());
+    assertThat(actual.getDescription()).isEqualTo(expected.getDescription());
+    assertThat(actual.getIsFinished()).isEqualTo(expected.getIsFinished());
+    assertThat(actual.getMemos()).isEmpty();
     verify(tgRepository, times(1)).findById(id);
   }
 
@@ -129,32 +152,41 @@ class TaskGroupServiceTest {
   void 登録成功_引数のタスクグループインスタンスにプロジェクトIDをセットしてリポジトリの処理を呼び出すこと() {
     // Arrange
     int pId = 2;
-    // ※サービスではINSERT時にidが自動採番されて引数インスタンスに自動でバインドされる挙動を再現できない
-    //   かつ、その挙動はリポジトリのテストで検証するので、サービス層のテストでは初めからidを持っておく
-    TaskGroup raw = new TaskGroup(2, null, "タスクグループ２", null, true);
+    TaskGroupCreateRequest request = new TaskGroupCreateRequest();
+    request.setTitle("タスクグループ２");
+    request.setDescription(null);
     when(prRepository.existsById(pId)).thenReturn(true);
-    TaskGroup processed = new TaskGroup(2, pId, "タスクグループ２", null, true);
+    doAnswer(invocation -> {
+      TaskGroup taskGroup = invocation.getArgument(0);
+      taskGroup.setId(10);
+      return null;
+    }).when(tgRepository).insert(any(TaskGroup.class));
 
     // Act
-    TaskGroup actual = sut.register(pId, raw);
+    TaskGroupResponse actual = sut.register(pId, request);
 
     // Assert
-    assertThat(actual).isEqualTo(processed);
+    assertThat(actual.getProjectId()).isEqualTo(pId);
+    assertThat(actual.getTitle()).isEqualTo("タスクグループ２");
+    assertThat(actual.getMemos()).isEmpty();
     verify(prRepository, times(1)).existsById(pId);
-    verify(tgRepository, times(1)).insert(processed);
+    ArgumentCaptor<TaskGroup> captor = ArgumentCaptor.forClass(TaskGroup.class);
+    verify(tgRepository, times(1)).insert(captor.capture());
+    assertThat(captor.getValue().getProjectId()).isEqualTo(pId);
+    assertThat(captor.getValue().getTitle()).isEqualTo("タスクグループ２");
   }
 
   @Test
   void 登録失敗_指定したプロジェクトが存在しない場合は例外を投げて以降のリポジトリの処理を呼び出さないこと() {
     // Arrange
     int pId = 999;
-    TaskGroup tg = new TaskGroup();
-    tg.setTitle("タイトル");
-    tg.setDescription("説明");
+    TaskGroupCreateRequest request = new TaskGroupCreateRequest();
+    request.setTitle("タイトル");
+    request.setDescription("説明");
     when(prRepository.existsById(pId)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.register(pId, tg))
+    assertThatThrownBy(() -> sut.register(pId, request))
         .isInstanceOf(TargetNotFoundException.class);
     verify(prRepository, times(1)).existsById(pId);
     verify(tgRepository, never()).insert(any());
@@ -164,64 +196,78 @@ class TaskGroupServiceTest {
   void 登録失敗_DB制約違反の例外をそのまま送出すること() {
     // Arrange
     int pId = 1;
-    TaskGroup tg = new TaskGroup();
-    tg.setProjectId(pId);
-    tg.setTitle(null);
-    tg.setDescription("説明");
+    TaskGroupCreateRequest request = new TaskGroupCreateRequest();
+    request.setTitle(null);
+    request.setDescription("説明");
 
     when(prRepository.existsById(pId)).thenReturn(true);
     doThrow(new DataIntegrityViolationException("db constraint violation"))
-        .when(tgRepository).insert(tg);
+        .when(tgRepository).insert(any(TaskGroup.class));
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.register(pId, tg))
+    assertThatThrownBy(() -> sut.register(pId, request))
         .isInstanceOf(DataIntegrityViolationException.class);
 
     verify(prRepository, times(1)).existsById(pId);
-    verify(tgRepository, times(1)).insert(tg);
+    verify(tgRepository, times(1)).insert(any(TaskGroup.class));
   }
 
   @Test
   void 更新成功_リポジトリのメソッドを呼び出すこと() {
     // Arrange
-    TaskGroup tg = new TaskGroup(1, 1, "タスクグループ１", "説明", false);
+    int id = 1;
+    TaskGroupUpdateRequest request = new TaskGroupUpdateRequest();
+    request.setTitle("タスクグループ１");
+    request.setDescription("説明");
+    request.setIsFinished(false);
 
-    when(tgRepository.update(tg)).thenReturn(1);
+    when(tgRepository.update(any(TaskGroup.class))).thenReturn(1);
 
     // Act
-    sut.update(tg);
+    sut.update(id, request);
 
     // Assert
-    verify(tgRepository, times(1)).update(same(tg));
+    ArgumentCaptor<TaskGroup> captor = ArgumentCaptor.forClass(TaskGroup.class);
+    verify(tgRepository, times(1)).update(captor.capture());
+    assertThat(captor.getValue().getId()).isEqualTo(id);
+    assertThat(captor.getValue().getTitle()).isEqualTo("タスクグループ１");
   }
 
   @Test
   void 更新失敗_DB制約違反の例外をそのまま送出すること() {
     // Arrange
-    TaskGroup project = new TaskGroup(1, 1, "タスクグループ１", "説明更新", false);
+    int id = 1;
+    TaskGroupUpdateRequest request = new TaskGroupUpdateRequest();
+    request.setTitle("タスクグループ１");
+    request.setDescription("説明更新");
+    request.setIsFinished(false);
 
-    when(tgRepository.update(project))
+    when(tgRepository.update(any(TaskGroup.class)))
         .thenThrow(new DataIntegrityViolationException("db constraint violation"));
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(project))
+    assertThatThrownBy(() -> sut.update(id, request))
         .isInstanceOf(DataIntegrityViolationException.class);
 
-    verify(tgRepository, times(1)).update(same(project));
+    verify(tgRepository, times(1)).update(any(TaskGroup.class));
   }
 
   @Test
   void 更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
-    TaskGroup project = new TaskGroup(999, 1, "タスクグループ１", "説明", false);
+    int id = 999;
+    TaskGroupUpdateRequest request = new TaskGroupUpdateRequest();
+    request.setTitle("タスクグループ１");
+    request.setDescription("説明");
+    request.setIsFinished(false);
 
-    when(tgRepository.update(project)).thenReturn(0);
+    when(tgRepository.update(any(TaskGroup.class))).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(project))
+    assertThatThrownBy(() -> sut.update(id, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(tgRepository, times(1)).update(same(project));
+    verify(tgRepository, times(1)).update(any(TaskGroup.class));
   }
-  
+
 }

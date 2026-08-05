@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -9,10 +10,14 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.kiborisaway.tasktimetracker.data.Project;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
+import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.ProjectService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -77,7 +82,7 @@ class ProjectControllerTest {
     int id = 1;
     Project project = new Project();
     project.setId(id);
-    when(service.findById(id)).thenReturn(project);
+    when(service.findById(id)).thenReturn(new ProjectResponse(project, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{id}", id))
@@ -120,7 +125,8 @@ class ProjectControllerTest {
     response.setId(10);
     response.setTitle("Spring学習");
     response.setDescription("REST APIを作る");
-    when(service.register(any(Project.class))).thenReturn(response);
+    when(service.register(any(ProjectCreateRequest.class)))
+        .thenReturn(new ProjectResponse(response, List.of()));
     String validRequest = """
         {
             "title" : "Spring学習",
@@ -134,7 +140,7 @@ class ProjectControllerTest {
             .content(validRequest))
         .andExpect(status().isCreated());
 
-    verify(service).register(any(Project.class));
+    verify(service).register(any(ProjectCreateRequest.class));
   }
 
   @Test
@@ -166,7 +172,7 @@ class ProjectControllerTest {
         }
         """;
 
-    doNothing().when(service).update(any(Project.class));
+    doNothing().when(service).update(eq(id), any(ProjectUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
@@ -175,7 +181,7 @@ class ProjectControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().string("更新成功"));
 
-    verify(service).update(any(Project.class));
+    verify(service).update(eq(id), any(ProjectUpdateRequest.class));
   }
 
   @Test
@@ -204,7 +210,7 @@ class ProjectControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("id", "project not found"))
-        .when(service).update(any(Project.class));
+        .when(service).update(eq(id), any(ProjectUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
@@ -212,7 +218,7 @@ class ProjectControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).update(any(Project.class));
+    verify(service).update(eq(id), any(ProjectUpdateRequest.class));
   }
 
   @Test

@@ -2,18 +2,24 @@ package com.kiborisaway.tasktimetracker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.kiborisaway.tasktimetracker.data.Project;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
+import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,6 +30,9 @@ class ProjectServiceTest {
 
   @Mock
   private ProjectRepository repository;
+
+  @Mock
+  private MemoRepository memoRepository;
 
   @InjectMocks
   private ProjectService sut;
@@ -39,10 +48,16 @@ class ProjectServiceTest {
     when(repository.findAll()).thenReturn(expected);
 
     // Act
-    List<Project> actual = sut.findAllByCondition(null);
+    List<ProjectResponse> actual = sut.findAllByCondition(null);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getDescription,
+            ProjectResponse::getIsFinished)
+        .containsExactly(
+            org.assertj.core.api.Assertions.tuple(1, "タスク管理アプリ開発", "A社から受託した開発", false),
+            org.assertj.core.api.Assertions.tuple(2, "Java Silver勉強", null, true)
+        );
     verify(repository, times(1)).findAll();
   }
 
@@ -56,10 +71,12 @@ class ProjectServiceTest {
     when(repository.findAllByIsFinished(true)).thenReturn(expected);
 
     // Act
-    List<Project> actual = sut.findAllByCondition(true);
+    List<ProjectResponse> actual = sut.findAllByCondition(true);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getIsFinished)
+        .containsExactly(org.assertj.core.api.Assertions.tuple(2, "Java Silver勉強", true));
     verify(repository, times(1)).findAllByIsFinished(true);
   }
 
@@ -73,10 +90,12 @@ class ProjectServiceTest {
     when(repository.findAllByIsFinished(false)).thenReturn(expected);
 
     // Act
-    List<Project> actual = sut.findAllByCondition(false);
+    List<ProjectResponse> actual = sut.findAllByCondition(false);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual)
+        .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getIsFinished)
+        .containsExactly(org.assertj.core.api.Assertions.tuple(1, "タスク管理アプリ開発", false));
     verify(repository, times(1)).findAllByIsFinished(false);
   }
 
@@ -89,10 +108,14 @@ class ProjectServiceTest {
     when(repository.findById(id)).thenReturn(expected);
 
     // Act
-    Project actual = sut.findById(id);
+    ProjectResponse actual = sut.findById(id);
 
     // Assert
-    assertThat(actual).isEqualTo(expected);
+    assertThat(actual.getId()).isEqualTo(expected.getId());
+    assertThat(actual.getTitle()).isEqualTo(expected.getTitle());
+    assertThat(actual.getDescription()).isEqualTo(expected.getDescription());
+    assertThat(actual.getIsFinished()).isEqualTo(expected.getIsFinished());
+    assertThat(actual.getMemos()).isEmpty();
     verify(repository, times(1)).findById(id);
   }
 
@@ -109,78 +132,104 @@ class ProjectServiceTest {
   }
 
   @Test
-  void 登録成功_プロジェクトを登録し同一インスタンスを返すこと() {
+  void 登録成功_リクエストの内容でプロジェクトを登録し登録したインスタンスを返すこと() {
     // Arrange
-    // ※サービスではINSERT時にidが自動採番されて引数インスタンスに自動でバインドされる挙動を再現できない
-    //   かつ、その挙動はリポジトリのテストで検証するので、サービス層のテストでは初めからidを持っておく
-    Project project = new Project(3, "Spring Boot学習", "REST APIを作る", null);
+    ProjectCreateRequest request = new ProjectCreateRequest();
+    request.setTitle("Spring Boot学習");
+    request.setDescription("REST APIを作る");
+    doAnswer(invocation -> {
+      Project project = invocation.getArgument(0);
+      project.setId(10);
+      return null;
+    }).when(repository).insert(any(Project.class));
 
     // Act
-    Project actual = sut.register(project);
+    ProjectResponse actual = sut.register(request);
 
     // Assert
-    assertThat(actual).isSameAs(project);
-    verify(repository, times(1)).insert(same(project));
+    assertThat(actual.getTitle()).isEqualTo("Spring Boot学習");
+    assertThat(actual.getDescription()).isEqualTo("REST APIを作る");
+    assertThat(actual.getMemos()).isEmpty();
+    ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
+    verify(repository, times(1)).insert(captor.capture());
+    assertThat(captor.getValue().getTitle()).isEqualTo("Spring Boot学習");
+    assertThat(captor.getValue().getDescription()).isEqualTo("REST APIを作る");
   }
 
   @Test
   void 登録失敗_DB制約違反の例外をそのまま送出すること() {
     // Arrange
-    Project project = new Project();
-    project.setTitle(null);
-    project.setDescription("説明");
+    ProjectCreateRequest request = new ProjectCreateRequest();
+    request.setTitle(null);
+    request.setDescription("説明");
 
     doThrow(new DataIntegrityViolationException("db constraint violation"))
-        .when(repository).insert(same(project));
+        .when(repository).insert(any(Project.class));
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.register(project))
+    assertThatThrownBy(() -> sut.register(request))
         .isInstanceOf(DataIntegrityViolationException.class);
 
-    verify(repository, times(1)).insert(same(project));
+    verify(repository, times(1)).insert(any(Project.class));
   }
 
   @Test
   void 更新成功_既存プロジェクトを更新できること() {
     // Arrange
-    Project project = new Project(1, "タスク管理アプリ開発", "A社から受託した開発", true);
+    int id = 1;
+    ProjectUpdateRequest request = new ProjectUpdateRequest();
+    request.setTitle("タスク管理アプリ開発");
+    request.setDescription("A社から受託した開発");
+    request.setIsFinished(true);
 
-    when(repository.update(project)).thenReturn(1);
+    when(repository.update(any(Project.class))).thenReturn(1);
 
     // Act
-    sut.update(project);
+    sut.update(id, request);
 
     // Assert
-    verify(repository, times(1)).update(same(project));
+    ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
+    verify(repository, times(1)).update(captor.capture());
+    assertThat(captor.getValue().getId()).isEqualTo(id);
+    assertThat(captor.getValue().getTitle()).isEqualTo("タスク管理アプリ開発");
+    assertThat(captor.getValue().getIsFinished()).isTrue();
   }
 
   @Test
   void 更新失敗_DB制約違反の例外をそのまま送出すること() {
     // Arrange
-    Project project = new Project(1, null, "説明更新", true);
+    int id = 1;
+    ProjectUpdateRequest request = new ProjectUpdateRequest();
+    request.setTitle(null);
+    request.setDescription("説明更新");
+    request.setIsFinished(true);
 
-    when(repository.update(project))
+    when(repository.update(any(Project.class)))
         .thenThrow(new DataIntegrityViolationException("db constraint violation"));
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(project))
+    assertThatThrownBy(() -> sut.update(id, request))
         .isInstanceOf(DataIntegrityViolationException.class);
 
-    verify(repository, times(1)).update(same(project));
+    verify(repository, times(1)).update(any(Project.class));
   }
 
   @Test
   void 更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
-    Project project = new Project(999, "更新されないタイトル", "更新されない説明", true);
+    int id = 999;
+    ProjectUpdateRequest request = new ProjectUpdateRequest();
+    request.setTitle("更新されないタイトル");
+    request.setDescription("更新されない説明");
+    request.setIsFinished(true);
 
-    when(repository.update(project)).thenReturn(0);
+    when(repository.update(any(Project.class))).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(project))
+    assertThatThrownBy(() -> sut.update(id, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(repository, times(1)).update(same(project));
+    verify(repository, times(1)).update(any(Project.class));
   }
 
 

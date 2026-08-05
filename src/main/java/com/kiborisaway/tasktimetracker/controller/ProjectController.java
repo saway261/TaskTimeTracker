@@ -1,10 +1,10 @@
 package com.kiborisaway.tasktimetracker.controller;
 
-import com.kiborisaway.tasktimetracker.data.Project;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.service.ProjectService;
-import com.kiborisaway.tasktimetracker.validation.CreateGroup;
-import com.kiborisaway.tasktimetracker.validation.UpdateGroup;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -52,7 +52,7 @@ public class ProjectController {
               description = "検索成功",
               content = @Content(
                   mediaType = "application/json",
-                  array = @ArraySchema(schema = @Schema(implementation = Project.class))
+                  array = @ArraySchema(schema = @Schema(implementation = ProjectResponse.class))
               )
           ),
           @ApiResponse(
@@ -66,7 +66,7 @@ public class ProjectController {
       }
   )
   @GetMapping
-  public List<Project> getAll(@RequestParam(required = false) Boolean isFinished) {
+  public List<ProjectResponse> getAll(@RequestParam(required = false) Boolean isFinished) {
     return service.findAllByCondition(isFinished);
   }
 
@@ -87,7 +87,7 @@ public class ProjectController {
               responseCode = "200", description = "ok",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = Project.class)
+                  schema = @Schema(implementation = ProjectResponse.class)
               )),
           @ApiResponse(
               responseCode = "404", description = "指定されたプロジェクトIDが存在しなかったときのエラー",
@@ -104,7 +104,7 @@ public class ProjectController {
       }
   )
   @GetMapping("/{id}")
-  public Project getById(@PathVariable @Positive int id) {
+  public ProjectResponse getById(@PathVariable @Positive int id) {
     return service.findById(id);
   }
 
@@ -115,7 +115,7 @@ public class ProjectController {
           description = "新規に登録したいプロジェクトの詳細",
           required = true,
           content = @Content(
-              schema = @Schema(implementation = Project.class)
+              schema = @Schema(implementation = ProjectCreateRequest.class)
           )
       ),
       responses = {
@@ -123,21 +123,21 @@ public class ProjectController {
               responseCode = "201", description = "ok",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = Project.class)
+                  schema = @Schema(implementation = ProjectResponse.class)
               )
           ),
           @ApiResponse(
               responseCode = "400", description = "入力値のバリデーションエラー",
               content = @Content(
                   mediaType = "application/json",
-                  schema = @Schema(implementation = Project.class))
+                  schema = @Schema(implementation = ErrorResponse.class))
           )
       }
   )
   @PostMapping
-  public ResponseEntity<Project> create(
-      @RequestBody @Validated(CreateGroup.class) Project request) {
-    Project response = service.register(request);
+  public ResponseEntity<ProjectResponse> create(
+      @RequestBody @Validated ProjectCreateRequest request) {
+    ProjectResponse response = service.register(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -148,15 +148,15 @@ public class ProjectController {
           description = "更新したいプロジェクト",
           required = true,
           content = @Content(
-              schema = @Schema(implementation = Project.class)
+              schema = @Schema(implementation = ProjectUpdateRequest.class)
           )
       ),
       responses = {
           @ApiResponse(
               responseCode = "200", description = "更新成功",
               content = @Content(
-                  mediaType = "application/json",
-                  schema = @Schema(implementation = Project.class)
+                  mediaType = "text/plain",
+                  schema = @Schema(type = "string", example = "更新成功")
               )
           ),
           @ApiResponse(
@@ -166,7 +166,7 @@ public class ProjectController {
                   schema = @Schema(implementation = ErrorResponse.class))
           ),
           @ApiResponse(
-              responseCode = "404", description = "指定された受講生IDが存在しないときのエラー",
+              responseCode = "404", description = "指定されたプロジェクトIDが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
@@ -176,9 +176,8 @@ public class ProjectController {
   @PutMapping("/{id}")
   public ResponseEntity<String> update(
       @PathVariable @Positive int id,
-      @RequestBody @Validated(UpdateGroup.class) Project request) {
-    request.setId(id);
-    service.update(request);
+      @RequestBody @Validated ProjectUpdateRequest request) {
+    service.update(id, request);
     return ResponseEntity.ok("更新成功");
   }
 }
