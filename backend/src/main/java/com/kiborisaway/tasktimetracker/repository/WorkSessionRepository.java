@@ -207,4 +207,13 @@ public interface WorkSessionRepository {
   @Delete("DELETE FROM work_sessions WHERE id = #{id}")
   int deleteById(int id);
 
+  /**
+   * 指定したタスクに紐づく作業セッションをすべて削除します。
+   *
+   * @param taskId タスクのID
+   * @return 削除を実行した件数
+   */
+  @Delete("DELETE FROM work_sessions WHERE task_id = #{taskId}")
+  int deleteAllByTaskId(int taskId);
+
 }

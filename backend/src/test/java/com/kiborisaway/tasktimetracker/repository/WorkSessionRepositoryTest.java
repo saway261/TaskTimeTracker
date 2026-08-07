@@ -367,4 +367,28 @@ class WorkSessionRepositoryTest {
     assertThat(actual).isZero();
   }
 
+  @Test
+  void タスク配下削除成功_指定したタスクの作業セッションをすべて削除できること() {
+    // Arrange
+    assertThat(sut.findAllByTaskId(4)).hasSize(2);
+    assertThat(sut.findAllByTaskId(1)).hasSize(1);
+
+    // Act
+    int actual = sut.deleteAllByTaskId(4);
+
+    // Assert
+    assertThat(actual).isEqualTo(2);
+    assertThat(sut.findAllByTaskId(4)).isEmpty();
+    assertThat(sut.findAllByTaskId(1)).hasSize(1);
+  }
+
+  @Test
+  void タスク配下削除失敗_存在しないタスクIDの場合は削除されず0件となること() {
+    // Act
+    int actual = sut.deleteAllByTaskId(999);
+
+    // Assert
+    assertThat(actual).isZero();
+  }
+
 }

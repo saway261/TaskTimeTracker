@@ -768,7 +768,8 @@ class TaskServiceTest {
     sut.deleteById(id);
 
     // Assert
-    InOrder inOrder = org.mockito.Mockito.inOrder(memoRepository, tsRepository);
+    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, tsRepository);
+    inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
     inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
     inOrder.verify(tsRepository, times(1)).deleteById(id);
   }
@@ -784,8 +785,10 @@ class TaskServiceTest {
     assertThatThrownBy(() -> sut.deleteById(id))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(memoRepository, times(1)).deleteAllInTask(id);
-    verify(tsRepository, times(1)).deleteById(id);
+    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, tsRepository);
+    inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
+    inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
+    inOrder.verify(tsRepository, times(1)).deleteById(id);
   }
 
 }

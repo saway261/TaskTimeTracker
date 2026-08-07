@@ -256,6 +256,7 @@ public class TaskService {
    */
   @Transactional
   public void deleteById(int id) {
+    wsRepository.deleteAllByTaskId(id);
     memoRepository.deleteAllInTask(id);
     int deleted = tsRepository.deleteById(id);
     if (deleted == 0) {
