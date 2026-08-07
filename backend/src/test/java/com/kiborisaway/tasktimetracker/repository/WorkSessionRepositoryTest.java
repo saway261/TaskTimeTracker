@@ -237,6 +237,15 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
+  void 終了可否判定_終了済みの作業セッションならfalseを返すこと() {
+    // Act
+    boolean actual = sut.canSetEnd(2);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
   void 終了可否判定_存在しない作業セッションならfalseを返すこと() {
     // Act
     boolean actual = sut.canSetEnd(999);
@@ -272,6 +281,22 @@ class WorkSessionRepositoryTest {
 
     // Assert
     assertThat(actual).isZero();
+  }
+
+  @Test
+  void 終了更新失敗_終了済みの作業セッションは上書きされず0件となること() {
+    // Arrange
+    WorkSession before = sut.findById(2);
+
+    // Act
+    int actual = sut.setEnd(2);
+
+    // Assert
+    assertThat(actual).isZero();
+    WorkSession after = sut.findById(2);
+    assertThat(after.getEndedAt()).isEqualTo(before.getEndedAt());
+    assertThat(after.getMinutes()).isEqualTo(before.getMinutes());
+    assertThat(after.getUpdatedAt()).isEqualTo(before.getUpdatedAt());
   }
 
   @Test

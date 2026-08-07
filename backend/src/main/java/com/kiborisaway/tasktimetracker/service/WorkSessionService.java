@@ -108,6 +108,9 @@ public class WorkSessionService {
    */
   @Transactional
   public WorkSession setEnd(int wsId) {
+    int taskId = findTaskIdByWorkSessionId(wsId);
+    validateTaskIsNotFinished(taskId);
+
     if (!wsRepository.canSetEnd(wsId)) {
       throw new WorkSessionEndNotAllowedException("workSession.id",
           "指定した作業セッションは終了できません");
@@ -115,8 +118,8 @@ public class WorkSessionService {
 
     int updated = wsRepository.setEnd(wsId);
     if (updated == 0) {
-      throw new TargetNotFoundException("workSession.id",
-          "終了対象の作業セッションが見つかりませんでした");
+      throw new WorkSessionEndNotAllowedException("workSession.id",
+          "指定した作業セッションは既に終了しています");
     }
     return get(wsId);
   }
@@ -170,7 +173,7 @@ public class WorkSessionService {
   private void validateTaskIsNotFinished(int taskId) {
     if (tsRepository.isFinished(taskId)) {
       throw new WorkSessionOperationNotAllowedException("task.id",
-          "完了済みタスクの作業セッションは追加・更新・削除できません");
+          "完了済みタスクの作業セッションは追加・終了・更新・削除できません");
     }
   }
 

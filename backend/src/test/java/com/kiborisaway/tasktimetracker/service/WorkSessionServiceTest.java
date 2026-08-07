@@ -207,6 +207,9 @@ class WorkSessionServiceTest {
   void 終了成功_終了可能ならリポジトリの終了更新処理を呼び出すこと() {
     // Arrange
     int wsId = 1;
+    int taskId = 1;
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(false);
     when(repository.canSetEnd(wsId)).thenReturn(true);
     when(repository.setEnd(wsId)).thenReturn(1);
     WorkSession ended = new WorkSession();
@@ -218,36 +221,82 @@ class WorkSessionServiceTest {
     WorkSession actual = sut.setEnd(wsId);
 
     // Assert
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, times(1)).canSetEnd(wsId);
     verify(repository, times(1)).setEnd(wsId);
     assertThat(actual).isSameAs(ended);
   }
 
   @Test
-  void 終了失敗_終了可能でない場合は例外を投げて終了更新処理を呼び出さないこと() {
+  void 終了失敗_終了済みの場合は例外を投げて終了更新処理を呼び出さないこと() {
     // Arrange
     int wsId = 1;
+    int taskId = 1;
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(false);
     when(repository.canSetEnd(wsId)).thenReturn(false);
 
     // Act & Assert
     assertThatThrownBy(() -> sut.setEnd(wsId))
         .isInstanceOf(WorkSessionEndNotAllowedException.class);
 
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, times(1)).canSetEnd(wsId);
     verify(repository, never()).setEnd(anyInt());
   }
 
   @Test
-  void 終了失敗_終了更新件数が0件のときTargetNotFoundExceptionを投げること() {
+  void 終了失敗_作業セッションが存在しないなら404用例外を投げること() {
     // Arrange
     int wsId = 999;
-    when(repository.canSetEnd(wsId)).thenReturn(true);
-    when(repository.setEnd(wsId)).thenReturn(0);
+    when(repository.findTaskIdById(wsId)).thenReturn(null);
 
     // Act & Assert
     assertThatThrownBy(() -> sut.setEnd(wsId))
         .isInstanceOf(TargetNotFoundException.class);
 
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, never()).isFinished(anyInt());
+    verify(repository, never()).canSetEnd(anyInt());
+    verify(repository, never()).setEnd(anyInt());
+  }
+
+  @Test
+  void 終了失敗_親タスクが完了済みなら例外を投げて終了可否判定を呼び出さないこと() {
+    // Arrange
+    int wsId = 1;
+    int taskId = 3;
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.setEnd(wsId))
+        .isInstanceOf(WorkSessionOperationNotAllowedException.class);
+
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
+    verify(repository, never()).canSetEnd(anyInt());
+    verify(repository, never()).setEnd(anyInt());
+  }
+
+  @Test
+  void 終了失敗_終了更新件数が0件なら終了不可例外を投げること() {
+    // Arrange
+    int wsId = 1;
+    int taskId = 1;
+    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId)).thenReturn(false);
+    when(repository.canSetEnd(wsId)).thenReturn(true);
+    when(repository.setEnd(wsId)).thenReturn(0);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.setEnd(wsId))
+        .isInstanceOf(WorkSessionEndNotAllowedException.class);
+
+    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, times(1)).canSetEnd(wsId);
     verify(repository, times(1)).setEnd(wsId);
   }

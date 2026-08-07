@@ -267,6 +267,20 @@ class WorkSessionControllerTest {
   }
 
   @Test
+  void 作業セッション終了失敗_親タスクが完了済みなら400を返すこと() throws Exception {
+    // Arrange
+    int wsId = 1;
+    doThrow(new WorkSessionOperationNotAllowedException("task.id", "cannot end"))
+        .when(service).setEnd(wsId);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.post("/work-sessions/{wsId}/end", wsId))
+        .andExpect(status().isBadRequest());
+
+    verify(service).setEnd(wsId);
+  }
+
+  @Test
   void 作業セッション更新成功_200とメッセージを返しサービスを呼び出すこと() throws Exception {
     // Arrange
     int wsId = 1;

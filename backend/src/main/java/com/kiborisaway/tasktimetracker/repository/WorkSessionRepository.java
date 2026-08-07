@@ -155,6 +155,7 @@ public interface WorkSessionRepository {
         WHERE id = #{wsId}
           AND type = 'TIMER'
           AND started_at IS NOT NULL
+          AND ended_at IS NULL
       )
       """)
   boolean canSetEnd(int wsId);
@@ -172,6 +173,9 @@ public interface WorkSessionRepository {
               AS INTEGER),
           updated_at = LOCALTIMESTAMP
       WHERE id = #{wsId}
+        AND type = 'TIMER'
+        AND started_at IS NOT NULL
+        AND ended_at IS NULL
       """)
   int setEnd(int wsId);
 
