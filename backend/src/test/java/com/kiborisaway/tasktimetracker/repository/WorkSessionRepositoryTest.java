@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
@@ -11,6 +12,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @MybatisTest
 class WorkSessionRepositoryTest {
@@ -342,6 +344,20 @@ class WorkSessionRepositoryTest {
 
     // Assert
     assertThat(actual).isZero();
+  }
+
+  @Test
+  void 更新失敗_終了日時が開始日時より前ならCHECK制約違反になること() {
+    // Arrange
+    WorkSession workSession = new WorkSession();
+    workSession.setId(2);
+    workSession.setMinutes(60);
+    workSession.setStartedAt(LocalDateTime.of(2026, 1, 3, 10, 0));
+    workSession.setEndedAt(LocalDateTime.of(2026, 1, 3, 9, 0));
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.update(workSession))
+        .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   @Test

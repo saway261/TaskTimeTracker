@@ -80,6 +80,37 @@ class WorkSessionUpdateRequestTest {
   }
 
   @Test
+  void endedAtがstartedAtより前のときバリデーション違反になること() {
+    // Arrange
+    WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setType(WorkSessionType.TIMER);
+    request.setStartedAt(LocalDateTime.of(2026, 1, 1, 10, 0));
+    request.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
+
+    // Act
+    Set<ConstraintViolation<WorkSessionUpdateRequest>> violations = validator.validate(request);
+
+    // Assert
+    assertThat(violations)
+        .anyMatch(v -> v.getPropertyPath().toString().equals("validTimeOrder"));
+  }
+
+  @Test
+  void endedAtがstartedAtと同じときバリデーション違反にならないこと() {
+    // Arrange
+    WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setType(WorkSessionType.TIMER);
+    request.setStartedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
+    request.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
+
+    // Act
+    Set<ConstraintViolation<WorkSessionUpdateRequest>> violations = validator.validate(request);
+
+    // Assert
+    assertThat(violations).isEmpty();
+  }
+
+  @Test
   void MANUALでminutesがnullのときバリデーション違反になること() {
     // Arrange
     WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();

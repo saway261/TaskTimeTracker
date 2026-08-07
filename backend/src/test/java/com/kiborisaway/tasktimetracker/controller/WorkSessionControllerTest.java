@@ -18,10 +18,12 @@ import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedExcepti
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
+import java.sql.SQLException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -353,6 +355,52 @@ class WorkSessionControllerTest {
         .andExpect(status().isBadRequest());
 
     verifyNoInteractions(service);
+  }
+
+  @Test
+  void 作業セッション更新失敗_終了日時が開始日時より前なら400を返すこと() throws Exception {
+    // Arrange
+    int wsId = 1;
+    String invalidRequest = """
+        {
+          "type": "TIMER",
+          "startedAt": "2026-01-01T10:00:00",
+          "endedAt": "2026-01-01T09:00:00"
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void 作業セッション更新失敗_未知のDB制約違反なら詳細を公開せず500を返すこと() throws Exception {
+    // Arrange
+    int wsId = 1;
+    String validRequest = """
+        {
+          "type": "MANUAL",
+          "minutes": 45
+        }
+        """;
+    SQLException cause = new SQLException("sensitive database detail", "23514");
+    doThrow(new DataIntegrityViolationException("database operation failed", cause))
+        .when(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.message").value("internal server error"))
+        .andExpect(jsonPath("$.errors").isEmpty())
+        .andExpect(content().string(org.hamcrest.Matchers.not(
+            org.hamcrest.Matchers.containsString("sensitive database detail"))));
   }
 
   @Test

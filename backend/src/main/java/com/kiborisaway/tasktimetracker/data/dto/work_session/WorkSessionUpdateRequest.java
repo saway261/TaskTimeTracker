@@ -37,6 +37,13 @@ public class WorkSessionUpdateRequest {
   }
 
   @JsonIgnore
+  @AssertTrue(message = "endedAtはstartedAt以降の日時を指定してください")
+  public boolean isValidTimeOrder() {
+    return endedAt == null
+        || (startedAt != null && !endedAt.isBefore(startedAt));
+  }
+
+  @JsonIgnore
   @AssertTrue(message = "MANUALの場合、更新時はminutesが必須です")
   public boolean isValidManual() {
     if (type == null || type != WorkSessionType.MANUAL) {
