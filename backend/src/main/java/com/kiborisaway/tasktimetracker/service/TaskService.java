@@ -209,7 +209,7 @@ public class TaskService {
   }
 
   /**
-   * タスクIDを指定して見積もり作業時間を更新します。 紐づく作業セッションが存在する場合は更新できません。
+   * タスクIDを指定して見積もり作業時間を更新します。 紐づく作業セッションが存在する場合、またはタスクが完了済みの場合は更新できません。
    *
    * @param id      タスクID
    * @param request 更新する見積作業時間のリクエスト
@@ -219,6 +219,10 @@ public class TaskService {
     if (wsRepository.existsByTaskId(id)) {
       throw new EstimateMinutesUpdateNotAllowedException("task.id",
           "作業セッションが存在するタスクの見積もり作業時間は変更できません");
+    }
+    if (tsRepository.isFinished(id)) {
+      throw new EstimateMinutesUpdateNotAllowedException("task.id",
+          "完了済みタスクの見積もり作業時間は変更できません");
     }
     int updated = tsRepository.updateEstimateMinutes(id, request.getEstimatedMinutes());
     if (updated == 0) {

@@ -281,7 +281,10 @@ public class TaskController {
 
   @Operation(
       summary = "見積作業時間の更新",
-      description = "タスクの見積作業時間（分）を更新します。タスクIDが存在しない場合はエラーを返します。",
+      description = """
+          タスクの見積作業時間（分）を更新します。
+          作業セッションが存在する場合、タスクが完了済みの場合、またはタスクIDが存在しない場合はエラーを返します。
+          """,
       parameters = {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
@@ -299,7 +302,8 @@ public class TaskController {
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = TaskResponse.class))
           ),
-          @ApiResponse(responseCode = "400", description = "入力値のバリデーションエラー",
+          @ApiResponse(responseCode = "400",
+              description = "入力値が不正、作業セッションが存在する、またはタスクが完了済みの場合",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           ),

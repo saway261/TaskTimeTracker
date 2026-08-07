@@ -98,7 +98,7 @@ public class GlobalExceptionHandler {
   }
 
   /**
-   * 作業セッションが存在するタスクの見積もり作業時間を変更できないことをクライアントに返します。
+   * 作業セッションが存在する、または完了済みのタスクの見積もり作業時間を変更できないことをクライアントに返します。
    *
    * @param ex EstimateMinutesUpdateNotAllowedException
    * @return HTTPステータス(BAD REQUEST), エラー詳細

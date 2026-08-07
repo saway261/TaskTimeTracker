@@ -637,6 +637,7 @@ class TaskServiceTest {
     request.setEstimatedMinutes(estimatedMinutes);
 
     when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
+    when(tsRepository.isFinished(taskId)).thenReturn(false);
     when(tsRepository.updateEstimateMinutes(taskId, estimatedMinutes)).thenReturn(1);
     Task updated = new Task(taskId, 1, null, "タスク１", "説明", estimatedMinutes,
         null, null, null, null, null);
@@ -647,6 +648,7 @@ class TaskServiceTest {
 
     // Assert
     verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, times(1)).isFinished(taskId);
     verify(tsRepository, times(1)).updateEstimateMinutes(taskId, estimatedMinutes);
   }
 
@@ -665,6 +667,27 @@ class TaskServiceTest {
         .isInstanceOf(EstimateMinutesUpdateNotAllowedException.class);
 
     verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, never()).isFinished(anyInt());
+    verify(tsRepository, never()).updateEstimateMinutes(anyInt(), anyInt());
+  }
+
+  @Test
+  void 見積もり作業時間更新失敗_完了済みの場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int taskId = 3;
+    int estimatedMinutes = 120;
+    TaskUpdateEstimatedMinutesRequest request = new TaskUpdateEstimatedMinutesRequest();
+    request.setEstimatedMinutes(estimatedMinutes);
+
+    when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
+    when(tsRepository.isFinished(taskId)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateEstimateMinutes(taskId, request))
+        .isInstanceOf(EstimateMinutesUpdateNotAllowedException.class);
+
+    verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, times(1)).isFinished(taskId);
     verify(tsRepository, never()).updateEstimateMinutes(anyInt(), anyInt());
   }
 
@@ -677,6 +700,7 @@ class TaskServiceTest {
     request.setEstimatedMinutes(estimatedMinutes);
 
     when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
+    when(tsRepository.isFinished(taskId)).thenReturn(false);
     when(tsRepository.updateEstimateMinutes(taskId, estimatedMinutes)).thenReturn(0);
 
     // Act & Assert
@@ -684,6 +708,7 @@ class TaskServiceTest {
         .isInstanceOf(TargetNotFoundException.class);
 
     verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, times(1)).isFinished(taskId);
     verify(tsRepository, times(1)).updateEstimateMinutes(taskId, estimatedMinutes);
   }
 

@@ -358,6 +358,28 @@ class TaskControllerTest {
   }
 
   @Test
+  void 見積もり作業時間更新失敗_タスクが完了済みなら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 3;
+    String validRequest = """
+        {
+          "estimatedMinutes": 120
+        }
+        """;
+    doThrow(new EstimateMinutesUpdateNotAllowedException("task.id",
+        "完了済みタスクの見積もり作業時間は変更できません"))
+        .when(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
+
+    verify(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
+  }
+
+  @Test
   void 見積もり作業時間更新失敗_対象が存在しないなら404を返すこと() throws Exception {
     // Arrange
     int taskId = 999;
