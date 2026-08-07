@@ -26,7 +26,7 @@ public interface MemoRepository {
       INSERT INTO memos(project_id, task_group_id, task_id, comment)
       VALUES(#{projectId},#{taskGroupId},#{taskId},#{comment})
       """)
-  @Options(useGeneratedKeys = true, keyProperty = "id")
+  @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
   void insert(Memo memo);
 
   @Update("UPDATE memos SET comment = #{comment} WHERE id = #{id}")

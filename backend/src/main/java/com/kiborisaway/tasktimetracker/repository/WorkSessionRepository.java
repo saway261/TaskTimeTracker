@@ -139,7 +139,7 @@ public interface WorkSessionRepository {
         NOW()
       )
       """)
-  @Options(useGeneratedKeys = true, keyProperty = "id")
+  @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
   void insert(WorkSession workSession);
 
   /**
@@ -167,9 +167,10 @@ public interface WorkSessionRepository {
    */
   @Update("""
       UPDATE work_sessions
-      SET ended_at = NOW(),
-          minutes = TIMESTAMPDIFF(MINUTE, started_at, NOW()),
-          updated_at = NOW()
+      SET ended_at = LOCALTIMESTAMP,
+          minutes = CAST(FLOOR(EXTRACT(EPOCH FROM (LOCALTIMESTAMP - started_at)) / 60)
+              AS INTEGER),
+          updated_at = LOCALTIMESTAMP
       WHERE id = #{wsId}
       """)
   int setEnd(int wsId);
@@ -184,13 +185,15 @@ public interface WorkSessionRepository {
       UPDATE work_sessions
       SET minutes = CASE
               WHEN #{startedAt} IS NOT NULL AND #{endedAt} IS NOT NULL THEN
-                TIMESTAMPDIFF(MINUTE, #{startedAt}, #{endedAt})
+                CAST(FLOOR(EXTRACT(EPOCH FROM (
+                    CAST(#{endedAt} AS TIMESTAMP) - CAST(#{startedAt} AS TIMESTAMP)
+                )) / 60) AS INTEGER)
               ELSE
                 #{minutes}
           END,
           started_at = #{startedAt},
           ended_at = #{endedAt},
-          updated_at = NOW()
+          updated_at = LOCALTIMESTAMP
       WHERE id = #{id}
       """)
   int update(WorkSession workSession);

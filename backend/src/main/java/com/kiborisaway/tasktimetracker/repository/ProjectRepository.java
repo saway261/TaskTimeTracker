@@ -58,7 +58,7 @@ public interface ProjectRepository {
    * @param project プロジェクト
    */
   @Insert("INSERT INTO projects(title, description, is_finished) VALUES(#{title}, #{description}, false)")
-  @Options(useGeneratedKeys = true, keyProperty = "id")
+  @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
   void insert(Project project);
 
   /**
