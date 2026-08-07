@@ -352,6 +352,29 @@ class WorkSessionControllerTest {
   }
 
   @Test
+  void 作業セッション更新失敗_DB登録済みのtypeと異なるなら400を返すこと() throws Exception {
+    // Arrange
+    int wsId = 1;
+    String validRequest = """
+        {
+          "type": "MANUAL",
+          "minutes": 45
+        }
+        """;
+    doThrow(new WorkSessionOperationNotAllowedException("workSession.type",
+        "作業セッションの記録タイプは変更できません"))
+        .when(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
+
+    verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+  }
+
+  @Test
   void 作業セッション更新失敗_不正なリクエストボディなら400を返すこと() throws Exception {
     // Arrange
     int wsId = 1;

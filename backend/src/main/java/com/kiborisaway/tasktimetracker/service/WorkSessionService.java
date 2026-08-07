@@ -132,8 +132,12 @@ public class WorkSessionService {
    */
   @Transactional
   public WorkSession update(int wsId, WorkSessionUpdateRequest request) {
-    int taskId = findTaskIdByWorkSessionId(wsId);
-    validateTaskIsNotFinished(taskId);
+    WorkSession current = get(wsId);
+    validateTaskIsNotFinished(current.getTaskId());
+    if (current.getType() != request.getType()) {
+      throw new WorkSessionOperationNotAllowedException("workSession.type",
+          "作業セッションの記録タイプは変更できません");
+    }
 
     WorkSession workSession = toEntity(wsId, request);
     int updated = wsRepository.update(workSession);

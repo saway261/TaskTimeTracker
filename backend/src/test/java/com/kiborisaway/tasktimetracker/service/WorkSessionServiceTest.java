@@ -307,24 +307,29 @@ class WorkSessionServiceTest {
     int wsId = 1;
     int taskId = 1;
     WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setType(WorkSessionType.MANUAL);
     request.setMinutes(30);
     request.setStartedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
     request.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 30));
 
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    WorkSession current = new WorkSession();
+    current.setId(wsId);
+    current.setTaskId(taskId);
+    current.setType(WorkSessionType.MANUAL);
     when(taskRepository.isFinished(taskId)).thenReturn(false);
     when(repository.update(any(WorkSession.class))).thenReturn(1);
     WorkSession updated = new WorkSession();
     updated.setId(wsId);
     updated.setTaskId(taskId);
     updated.setMinutes(30);
-    when(repository.findById(wsId)).thenReturn(updated);
+    updated.setType(WorkSessionType.MANUAL);
+    when(repository.findById(wsId)).thenReturn(current, updated);
 
     // Act
     WorkSession actual = sut.update(wsId, request);
 
     // Assert
-    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(repository, times(2)).findById(wsId);
     verify(taskRepository, times(1)).isFinished(taskId);
     ArgumentCaptor<WorkSession> captor = ArgumentCaptor.forClass(WorkSession.class);
     verify(repository, times(1)).update(captor.capture());
@@ -339,9 +344,14 @@ class WorkSessionServiceTest {
     int wsId = 999;
     int taskId = 1;
     WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setType(WorkSessionType.MANUAL);
     request.setMinutes(30);
 
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    WorkSession current = new WorkSession();
+    current.setId(wsId);
+    current.setTaskId(taskId);
+    current.setType(WorkSessionType.MANUAL);
+    when(repository.findById(wsId)).thenReturn(current);
     when(taskRepository.isFinished(taskId)).thenReturn(false);
     when(repository.update(any(WorkSession.class))).thenReturn(0);
 
@@ -349,7 +359,7 @@ class WorkSessionServiceTest {
     assertThatThrownBy(() -> sut.update(wsId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(repository, times(1)).findById(wsId);
     verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, times(1)).update(any(WorkSession.class));
   }
@@ -359,15 +369,16 @@ class WorkSessionServiceTest {
     // Arrange
     int wsId = 999;
     WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setType(WorkSessionType.MANUAL);
     request.setMinutes(30);
 
-    when(repository.findTaskIdById(wsId)).thenReturn(null);
+    when(repository.findById(wsId)).thenReturn(null);
 
     // Act & Assert
     assertThatThrownBy(() -> sut.update(wsId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(repository, times(1)).findById(wsId);
     verify(taskRepository, never()).isFinished(anyInt());
     verify(repository, never()).update(any(WorkSession.class));
   }
@@ -378,16 +389,46 @@ class WorkSessionServiceTest {
     int wsId = 1;
     int taskId = 3;
     WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setType(WorkSessionType.MANUAL);
     request.setMinutes(30);
 
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
+    WorkSession current = new WorkSession();
+    current.setId(wsId);
+    current.setTaskId(taskId);
+    current.setType(WorkSessionType.MANUAL);
+    when(repository.findById(wsId)).thenReturn(current);
     when(taskRepository.isFinished(taskId)).thenReturn(true);
 
     // Act & Assert
     assertThatThrownBy(() -> sut.update(wsId, request))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
+    verify(repository, times(1)).findById(wsId);
+    verify(taskRepository, times(1)).isFinished(taskId);
+    verify(repository, never()).update(any(WorkSession.class));
+  }
+
+  @Test
+  void 更新失敗_DB登録済みのtypeと異なる場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int wsId = 1;
+    int taskId = 1;
+    WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
+    request.setType(WorkSessionType.MANUAL);
+    request.setMinutes(30);
+
+    WorkSession current = new WorkSession();
+    current.setId(wsId);
+    current.setTaskId(taskId);
+    current.setType(WorkSessionType.TIMER);
+    when(repository.findById(wsId)).thenReturn(current);
+    when(taskRepository.isFinished(taskId)).thenReturn(false);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.update(wsId, request))
+        .isInstanceOf(WorkSessionOperationNotAllowedException.class);
+
+    verify(repository, times(1)).findById(wsId);
     verify(taskRepository, times(1)).isFinished(taskId);
     verify(repository, never()).update(any(WorkSession.class));
   }
