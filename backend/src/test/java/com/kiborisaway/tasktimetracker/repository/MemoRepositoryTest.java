@@ -51,6 +51,56 @@ class MemoRepositoryTest {
   }
 
   @Test
+  void プロジェクト内メモ一括検索_複数プロジェクトのメモを親IDとメモID順で取得できること() {
+    sut.insert(new Memo(null, 2, null, null, "プロジェクト2のメモ"));
+    sut.insert(new Memo(null, 1, null, null, "プロジェクト1の追加メモ"));
+
+    List<Memo> actual = sut.findAllInProjects(List.of(2, 1));
+
+    assertThat(actual)
+        .extracting(Memo::getProjectId, Memo::getComment)
+        .containsExactly(
+            tuple(1, "プロジェクト方針を確認する"),
+            tuple(1, "プロジェクト1の追加メモ"),
+            tuple(2, "プロジェクト2のメモ"));
+  }
+
+  @Test
+  void タスクグループ内メモ一括検索_複数タスクグループのメモを取得できること() {
+    sut.insert(new Memo(null, null, 2, null, "タスクグループ2のメモ"));
+
+    List<Memo> actual = sut.findAllInTaskGroups(List.of(1, 2));
+
+    assertThat(actual)
+        .extracting(Memo::getTaskGroupId, Memo::getComment)
+        .containsExactly(
+            tuple(1, "バックエンド優先で進める"),
+            tuple(2, "タスクグループ2のメモ"));
+  }
+
+  @Test
+  void タスク内メモ一括検索_複数タスクのメモを取得できること() {
+    sut.insert(new Memo(null, null, null, 2, "タスク2のメモ"));
+
+    List<Memo> actual = sut.findAllInTasks(List.of(1, 2));
+
+    assertThat(actual)
+        .extracting(Memo::getTaskId, Memo::getComment)
+        .containsExactly(
+            tuple(1, "例外メッセージを見直す"),
+            tuple(2, "タスク2のメモ"));
+  }
+
+  @Test
+  void ID検索_指定したメモを取得できること() {
+    Memo actual = sut.findById(1);
+
+    assertThat(actual.getId()).isEqualTo(1);
+    assertThat(actual.getProjectId()).isEqualTo(1);
+    assertThat(actual.getComment()).isEqualTo("プロジェクト方針を確認する");
+  }
+
+  @Test
   void 登録成功_プロジェクトIDのみを指定したメモを登録でき採番されたidが設定されること() {
     // Arrange
     Memo memo = new Memo(null, 1, null, null, "追加メモ");

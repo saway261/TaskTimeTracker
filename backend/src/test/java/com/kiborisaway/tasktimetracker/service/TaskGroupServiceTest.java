@@ -16,6 +16,7 @@ import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateReques
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
+import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
@@ -57,6 +58,9 @@ class TaskGroupServiceTest {
 
     when(prRepository.existsById(pId)).thenReturn(true);
     when(tgRepository.findAllInProject(pId)).thenReturn(expected);
+    when(memoRepository.findAllInTaskGroups(List.of(1, 2))).thenReturn(List.of(
+        new Memo(1, null, 1, null, "タスクグループ1メモ"),
+        new Memo(2, null, 2, null, "タスクグループ2メモ")));
 
     // Act
     List<TaskGroupResponse> actual = sut.findAllByCondition(pId, null);
@@ -73,6 +77,9 @@ class TaskGroupServiceTest {
     verify(prRepository, times(1)).existsById(pId);
     verify(tgRepository, times(1)).findAllInProject(pId);
     verify(tgRepository, never()).findAllInProjectByIsFinished(anyInt(), anyBoolean());
+    verify(memoRepository, times(1)).findAllInTaskGroups(List.of(1, 2));
+    verify(memoRepository, never()).findAllInTaskGroup(anyInt());
+    assertThat(actual).allSatisfy(response -> assertThat(response.getMemos()).hasSize(1));
   }
 
   @ParameterizedTest(name = "[{index}]タスクグループ一覧検索_第2引数に{0}を指定すると完了フラグ指定検索用のリポジトリのメソッドに{0}を指定して呼び出すこと")
@@ -113,6 +120,18 @@ class TaskGroupServiceTest {
     verify(prRepository, times(1)).existsById(pId);
     verify(tgRepository, never()).findAllInProject(anyInt());
     verify(tgRepository, never()).findAllInProjectByIsFinished(anyInt(), anyBoolean());
+  }
+
+  @Test
+  void タスクグループ一覧検索成功_検索結果が空ならメモ検索を実行しないこと() {
+    int pId = 1;
+    when(prRepository.existsById(pId)).thenReturn(true);
+    when(tgRepository.findAllInProject(pId)).thenReturn(List.of());
+
+    List<TaskGroupResponse> actual = sut.findAllByCondition(pId, null);
+
+    assertThat(actual).isEmpty();
+    verify(memoRepository, never()).findAllInTaskGroups(any());
   }
 
   @Test
@@ -161,6 +180,8 @@ class TaskGroupServiceTest {
       taskGroup.setId(10);
       return null;
     }).when(tgRepository).insert(any(TaskGroup.class));
+    TaskGroup registered = new TaskGroup(10, pId, "タスクグループ２", null, false);
+    when(tgRepository.findById(10)).thenReturn(registered);
 
     // Act
     TaskGroupResponse actual = sut.register(pId, request);
@@ -222,15 +243,18 @@ class TaskGroupServiceTest {
     request.setIsFinished(false);
 
     when(tgRepository.update(any(TaskGroup.class))).thenReturn(1);
+    TaskGroup updated = new TaskGroup(id, 1, "DB更新後", "DB更新後説明", false);
+    when(tgRepository.findById(id)).thenReturn(updated);
 
     // Act
-    sut.update(id, request);
+    TaskGroupResponse actual = sut.update(id, request);
 
     // Assert
     ArgumentCaptor<TaskGroup> captor = ArgumentCaptor.forClass(TaskGroup.class);
     verify(tgRepository, times(1)).update(captor.capture());
     assertThat(captor.getValue().getId()).isEqualTo(id);
     assertThat(captor.getValue().getTitle()).isEqualTo("タスクグループ１");
+    assertThat(actual.getTitle()).isEqualTo("DB更新後");
   }
 
   @Test
@@ -250,6 +274,7 @@ class TaskGroupServiceTest {
         .isInstanceOf(DataIntegrityViolationException.class);
 
     verify(tgRepository, times(1)).update(any(TaskGroup.class));
+    verify(tgRepository, never()).findById(id);
   }
 
   @Test

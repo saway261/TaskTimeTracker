@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -21,6 +22,48 @@ public interface MemoRepository {
 
   @Select("SELECT * FROM memos WHERE task_id = #{taskId}")
   List<Memo> findAllInTask(int taskId);
+
+  @Select("""
+      <script>
+      SELECT *
+      FROM memos
+      WHERE project_id IN
+      <foreach collection="projectIds" item="id" open="(" separator="," close=")">
+        #{id}
+      </foreach>
+      ORDER BY project_id, id
+      </script>
+      """)
+  List<Memo> findAllInProjects(@Param("projectIds") List<Integer> projectIds);
+
+  @Select("""
+      <script>
+      SELECT *
+      FROM memos
+      WHERE task_group_id IN
+      <foreach collection="taskGroupIds" item="id" open="(" separator="," close=")">
+        #{id}
+      </foreach>
+      ORDER BY task_group_id, id
+      </script>
+      """)
+  List<Memo> findAllInTaskGroups(@Param("taskGroupIds") List<Integer> taskGroupIds);
+
+  @Select("""
+      <script>
+      SELECT *
+      FROM memos
+      WHERE task_id IN
+      <foreach collection="taskIds" item="id" open="(" separator="," close=")">
+        #{id}
+      </foreach>
+      ORDER BY task_id, id
+      </script>
+      """)
+  List<Memo> findAllInTasks(@Param("taskIds") List<Integer> taskIds);
+
+  @Select("SELECT * FROM memos WHERE id = #{id}")
+  Memo findById(int id);
 
   @Insert("""
       INSERT INTO memos(project_id, task_group_id, task_id, comment)

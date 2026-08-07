@@ -259,8 +259,8 @@ public class TaskController {
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
-              content = @Content(mediaType = "text/plain",
-                  schema = @Schema(type = "string", example = "タスク名と説明を更新しました"))
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = TaskResponse.class))
           ),
           @ApiResponse(responseCode = "400", description = "入力値のバリデーションエラー",
               content = @Content(mediaType = "application/json",
@@ -273,11 +273,10 @@ public class TaskController {
       }
   )
   @PatchMapping("/tasks/{taskId}")
-  public ResponseEntity<String> updateProperty(
+  public ResponseEntity<TaskResponse> updateProperty(
       @PathVariable @Positive int taskId,
       @RequestBody @Validated TaskUpdatePropertyRequest request) {
-    service.updateProperty(taskId, request);
-    return ResponseEntity.ok("タスク名と説明を更新しました");
+    return ResponseEntity.ok(service.updateProperty(taskId, request));
   }
 
   @Operation(
@@ -297,8 +296,8 @@ public class TaskController {
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
-              content = @Content(mediaType = "text/plain",
-                  schema = @Schema(type = "string", example = "見積作業時間を更新しました"))
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = TaskResponse.class))
           ),
           @ApiResponse(responseCode = "400", description = "入力値のバリデーションエラー",
               content = @Content(mediaType = "application/json",
@@ -311,11 +310,10 @@ public class TaskController {
       }
   )
   @PatchMapping("/tasks/{taskId}/estimated-minutes")
-  public ResponseEntity<String> updateEstimatedMinutes(
+  public ResponseEntity<TaskResponse> updateEstimatedMinutes(
       @PathVariable @Positive int taskId,
       @RequestBody @Validated TaskUpdateEstimatedMinutesRequest request) {
-    service.updateEstimateMinutes(taskId, request);
-    return ResponseEntity.ok("見積作業時間を更新しました");
+    return ResponseEntity.ok(service.updateEstimateMinutes(taskId, request));
   }
 
   @Operation(
@@ -339,8 +337,8 @@ public class TaskController {
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
-              content = @Content(mediaType = "text/plain",
-                  schema = @Schema(type = "string", example = "タスクの所属を更新しました"))
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = TaskResponse.class))
           ),
           @ApiResponse(responseCode = "400", description = "入力値のバリデーションエラー",
               content = @Content(mediaType = "application/json",
@@ -353,11 +351,11 @@ public class TaskController {
       }
   )
   @PatchMapping("/tasks/{taskId}/parent")
-  public ResponseEntity<String> updateParent(
+  public ResponseEntity<TaskResponse> updateParent(
       @PathVariable @Positive int taskId,
       @RequestBody @Validated TaskUpdateParentRequest request) {
-    service.updateParent(taskId, request.projectId(), request.taskGroupId());
-    return ResponseEntity.ok("タスクの所属を更新しました");
+    return ResponseEntity.ok(
+        service.updateParent(taskId, request.projectId(), request.taskGroupId()));
   }
 
   @Operation(
@@ -377,8 +375,8 @@ public class TaskController {
       ),
       responses = {
           @ApiResponse(responseCode = "200", description = "更新成功",
-              content = @Content(mediaType = "text/plain",
-                  schema = @Schema(type = "string", example = "タスクの完了状態を更新しました"))
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = TaskResponse.class))
           ),
           @ApiResponse(responseCode = "400", description = "入力値のバリデーションエラー",
               content = @Content(mediaType = "application/json",
@@ -391,11 +389,10 @@ public class TaskController {
       }
   )
   @PatchMapping("/tasks/{taskId}/finished")
-  public ResponseEntity<String> updateFinished(
+  public ResponseEntity<TaskResponse> updateFinished(
       @PathVariable @Positive int taskId,
       @RequestBody @Validated TaskUpdateFinishedRequest request) {
-    service.updateFinished(taskId, request.isFinished());
-    return ResponseEntity.ok("タスクの完了状態を更新しました");
+    return ResponseEntity.ok(service.updateFinished(taskId, request.isFinished()));
   }
 
   @Operation(
@@ -409,10 +406,7 @@ public class TaskController {
           )
       },
       responses = {
-          @ApiResponse(responseCode = "200", description = "削除成功",
-              content = @Content(mediaType = "text/plain",
-                  schema = @Schema(type = "string", example = "タスクを削除しました"))
-          ),
+          @ApiResponse(responseCode = "204", description = "削除成功"),
           @ApiResponse(responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
@@ -424,8 +418,8 @@ public class TaskController {
       }
   )
   @DeleteMapping("/tasks/{taskId}")
-  public ResponseEntity<String> delete(@PathVariable @Positive int taskId) {
+  public ResponseEntity<Void> delete(@PathVariable @Positive int taskId) {
     service.deleteById(taskId);
-    return ResponseEntity.ok("タスクを削除しました");
+    return ResponseEntity.noContent().build();
   }
 }

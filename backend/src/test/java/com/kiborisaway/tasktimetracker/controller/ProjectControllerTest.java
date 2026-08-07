@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
@@ -172,14 +173,19 @@ class ProjectControllerTest {
         }
         """;
 
-    doNothing().when(service).update(eq(id), any(ProjectUpdateRequest.class));
+    Project updated = new Project(id, "タスク管理アプリ開発", "説明を更新", false);
+    when(service.update(eq(id), any(ProjectUpdateRequest.class)))
+        .thenReturn(new ProjectResponse(updated, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("更新成功"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.description").value("説明を更新"))
+        .andExpect(jsonPath("$.memos").isEmpty());
 
     verify(service).update(eq(id), any(ProjectUpdateRequest.class));
   }

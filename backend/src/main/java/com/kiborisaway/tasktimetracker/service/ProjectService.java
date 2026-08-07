@@ -10,6 +10,8 @@ import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +41,22 @@ public class ProjectService {
     } else {
       projects = repository.findAllByIsFinished(isFinished);
     }
-    return projects.stream().map(this::toResponse).toList();
+    if (projects.isEmpty()) {
+      return List.of();
+    }
+
+    List<Integer> projectIds = projects.stream().map(Project::getId).toList();
+    Map<Integer, List<MemoResponse>> memosByProjectId =
+        memoRepository.findAllInProjects(projectIds).stream()
+            .collect(Collectors.groupingBy(
+                Memo::getProjectId,
+                Collectors.mapping(MemoResponse::new, Collectors.toList())));
+
+    return projects.stream()
+        .map(project -> new ProjectResponse(
+            project,
+            memosByProjectId.getOrDefault(project.getId(), List.of())))
+        .toList();
   }
 
   /**
@@ -49,12 +66,7 @@ public class ProjectService {
    * @return プロジェクト
    */
   public ProjectResponse findById(int id) {
-    Project project = repository.findById(id);
-    if (project == null) {
-      throw new TargetNotFoundException("project.id",
-          "指定したIDのプロジェクトは見つかりませんでした");
-    }
-    return toResponse(project);
+    return toResponse(findProjectById(id));
   }
 
   /**
@@ -66,7 +78,8 @@ public class ProjectService {
   public ProjectResponse register(ProjectCreateRequest request) {
     Project project = toEntity(request);
     repository.insert(project);
-    return toResponse(project);
+    Project registeredProject = findProjectById(project.getId());
+    return new ProjectResponse(registeredProject, List.of());
   }
 
   /**
@@ -76,12 +89,13 @@ public class ProjectService {
    * @param request 更新するプロジェクトのリクエスト
    */
   @Transactional
-  public void update(int id, ProjectUpdateRequest request) {
+  public ProjectResponse update(int id, ProjectUpdateRequest request) {
     Project project = toEntity(id, request);
     int updated = repository.update(project);
     if (updated == 0) {
       throw new TargetNotFoundException("project", "更新対象のプロジェクトが見つかりませんでした");
     }
+    return toResponse(findProjectById(id));
   }
 
   private Project toEntity(ProjectCreateRequest request) {
@@ -98,5 +112,14 @@ public class ProjectService {
         (memos == null ? List.<Memo>of() : memos).stream()
             .map(MemoResponse::new)
             .toList());
+  }
+
+  private Project findProjectById(int id) {
+    Project project = repository.findById(id);
+    if (project == null) {
+      throw new TargetNotFoundException("project.id",
+          "指定したIDのプロジェクトは見つかりませんでした");
+    }
+    return project;
   }
 }

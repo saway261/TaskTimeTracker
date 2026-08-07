@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -139,6 +140,16 @@ class WorkSessionServiceTest {
     request.setMinutes(30);
 
     when(taskRepository.existsById(taskId)).thenReturn(true);
+    doAnswer(invocation -> {
+      invocation.<WorkSession>getArgument(0).setId(10);
+      return null;
+    }).when(repository).insert(any(WorkSession.class));
+    WorkSession registered = new WorkSession();
+    registered.setId(10);
+    registered.setTaskId(taskId);
+    registered.setMinutes(30);
+    registered.setType(WorkSessionType.MANUAL);
+    when(repository.findById(10)).thenReturn(registered);
 
     // Act
     WorkSession actual = sut.create(taskId, request);
@@ -150,7 +161,7 @@ class WorkSessionServiceTest {
     verify(taskRepository, times(1)).isFinished(taskId);
     ArgumentCaptor<WorkSession> captor = ArgumentCaptor.forClass(WorkSession.class);
     verify(repository, times(1)).insert(captor.capture());
-    assertThat(captor.getValue()).isSameAs(actual);
+    assertThat(captor.getValue()).isNotSameAs(actual);
   }
 
   @Test
@@ -198,13 +209,18 @@ class WorkSessionServiceTest {
     int wsId = 1;
     when(repository.canSetEnd(wsId)).thenReturn(true);
     when(repository.setEnd(wsId)).thenReturn(1);
+    WorkSession ended = new WorkSession();
+    ended.setId(wsId);
+    ended.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 30));
+    when(repository.findById(wsId)).thenReturn(ended);
 
     // Act
-    sut.setEnd(wsId);
+    WorkSession actual = sut.setEnd(wsId);
 
     // Assert
     verify(repository, times(1)).canSetEnd(wsId);
     verify(repository, times(1)).setEnd(wsId);
+    assertThat(actual).isSameAs(ended);
   }
 
   @Test
@@ -249,9 +265,14 @@ class WorkSessionServiceTest {
     when(repository.findTaskIdById(wsId)).thenReturn(taskId);
     when(taskRepository.isFinished(taskId)).thenReturn(false);
     when(repository.update(any(WorkSession.class))).thenReturn(1);
+    WorkSession updated = new WorkSession();
+    updated.setId(wsId);
+    updated.setTaskId(taskId);
+    updated.setMinutes(30);
+    when(repository.findById(wsId)).thenReturn(updated);
 
     // Act
-    sut.update(wsId, request);
+    WorkSession actual = sut.update(wsId, request);
 
     // Assert
     verify(repository, times(1)).findTaskIdById(wsId);
@@ -260,6 +281,7 @@ class WorkSessionServiceTest {
     verify(repository, times(1)).update(captor.capture());
     assertThat(captor.getValue().getId()).isEqualTo(wsId);
     assertThat(captor.getValue().getMinutes()).isEqualTo(30);
+    assertThat(actual).isSameAs(updated);
   }
 
   @Test

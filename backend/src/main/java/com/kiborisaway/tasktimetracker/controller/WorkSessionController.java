@@ -252,7 +252,7 @@ public class WorkSessionController {
           @ApiResponse(
               responseCode = "200", description = "終了処理成功",
               content = @Content(mediaType = "application/json",
-                  schema = @Schema(type = "string", example = "作業セッションを終了しました"))
+                  schema = @Schema(implementation = WorkSession.class))
           ),
           @ApiResponse(
               responseCode = "400", description = "作業セッションIDの形式が不正、またはTIMER以外のセッションへの操作など",
@@ -267,9 +267,8 @@ public class WorkSessionController {
       }
   )
   @PostMapping("/work-sessions/{wsId}/end")
-  public ResponseEntity<String> setEnd(@PathVariable @Positive int wsId) {
-    service.setEnd(wsId);
-    return ResponseEntity.ok("作業セッションを終了しました");
+  public ResponseEntity<WorkSession> setEnd(@PathVariable @Positive int wsId) {
+    return ResponseEntity.ok(service.setEnd(wsId));
   }
 
   @Operation(
@@ -295,7 +294,7 @@ public class WorkSessionController {
           @ApiResponse(
               responseCode = "200", description = "更新成功",
               content = @Content(mediaType = "application/json",
-                  schema = @Schema(type = "string", example = "作業セッションを更新しました"))
+                  schema = @Schema(implementation = WorkSession.class))
           ),
           @ApiResponse(
               responseCode = "400", description = "入力値のバリデーションエラー",
@@ -310,12 +309,11 @@ public class WorkSessionController {
       }
   )
   @PatchMapping("/work-sessions/{wsId}")
-  public ResponseEntity<String> update(
+  public ResponseEntity<WorkSession> update(
       @PathVariable @Positive int wsId,
       @RequestBody @Validated WorkSessionUpdateRequest request
   ) {
-    service.update(wsId, request);
-    return ResponseEntity.ok("作業セッションを更新しました");
+    return ResponseEntity.ok(service.update(wsId, request));
   }
 
   @Operation(
@@ -330,9 +328,7 @@ public class WorkSessionController {
       },
       responses = {
           @ApiResponse(
-              responseCode = "200", description = "削除成功",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(type = "string", example = "作業セッションを削除しました"))
+              responseCode = "204", description = "削除成功"
           ),
           @ApiResponse(
               responseCode = "400", description = "作業セッションIDの形式が不正であったときのエラー",
@@ -347,8 +343,8 @@ public class WorkSessionController {
       }
   )
   @DeleteMapping("/work-sessions/{workSessionId}")
-  public ResponseEntity<String> delete(@PathVariable("workSessionId") @Positive int wsId) {
+  public ResponseEntity<Void> delete(@PathVariable("workSessionId") @Positive int wsId) {
     service.delete(wsId);
-    return ResponseEntity.ok("作業セッションを削除しました");
+    return ResponseEntity.noContent().build();
   }
 }

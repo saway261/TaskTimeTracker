@@ -177,8 +177,8 @@ public class TaskGroupController {
           @ApiResponse(
               responseCode = "200", description = "更新成功",
               content = @Content(
-                  mediaType = "text/plain",
-                  schema = @Schema(type = "string", example = "更新成功")
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = TaskGroupResponse.class)
               )
           ),
           @ApiResponse(
@@ -198,10 +198,9 @@ public class TaskGroupController {
       }
   )
   @PutMapping("/task-groups/{tgId}")
-  public ResponseEntity<String> update(
+  public ResponseEntity<TaskGroupResponse> update(
       @PathVariable @Positive int tgId,
       @RequestBody @Validated TaskGroupUpdateRequest request) {
-    service.update(tgId, request);
-    return ResponseEntity.ok("更新成功");
+    return ResponseEntity.ok(service.update(tgId, request));
   }
 }

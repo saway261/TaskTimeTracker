@@ -155,8 +155,8 @@ public class ProjectController {
           @ApiResponse(
               responseCode = "200", description = "更新成功",
               content = @Content(
-                  mediaType = "text/plain",
-                  schema = @Schema(type = "string", example = "更新成功")
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ProjectResponse.class)
               )
           ),
           @ApiResponse(
@@ -174,10 +174,9 @@ public class ProjectController {
       }
   )
   @PutMapping("/{id}")
-  public ResponseEntity<String> update(
+  public ResponseEntity<ProjectResponse> update(
       @PathVariable @Positive int id,
       @RequestBody @Validated ProjectUpdateRequest request) {
-    service.update(id, request);
-    return ResponseEntity.ok("更新成功");
+    return ResponseEntity.ok(service.update(id, request));
   }
 }

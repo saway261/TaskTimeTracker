@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
@@ -234,11 +235,17 @@ class WorkSessionControllerTest {
   void 作業セッション終了成功_200とメッセージを返しサービスを呼び出すこと() throws Exception {
     // Arrange
     int wsId = 1;
+    WorkSession ended = new WorkSession();
+    ended.setId(wsId);
+    ended.setMinutes(30);
+    when(service.setEnd(wsId)).thenReturn(ended);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/work-sessions/{wsId}/end", wsId))
         .andExpect(status().isOk())
-        .andExpect(content().string("作業セッションを終了しました"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(wsId))
+        .andExpect(jsonPath("$.minutes").value(30));
 
     verify(service).setEnd(wsId);
   }
@@ -267,13 +274,19 @@ class WorkSessionControllerTest {
           "minutes": 45
         }
         """;
+    WorkSession updated = new WorkSession();
+    updated.setId(wsId);
+    updated.setMinutes(45);
+    when(service.update(eq(wsId), any(WorkSessionUpdateRequest.class))).thenReturn(updated);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("作業セッションを更新しました"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(wsId))
+        .andExpect(jsonPath("$.minutes").value(45));
 
     verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
   }
@@ -343,14 +356,14 @@ class WorkSessionControllerTest {
   }
 
   @Test
-  void 作業セッション削除成功_200とメッセージを返しサービスを呼び出すこと() throws Exception {
+  void 作業セッション削除成功_204と空のレスポンスボディを返しサービスを呼び出すこと() throws Exception {
     // Arrange
     int wsId = 1;
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.delete("/work-sessions/{wsId}", wsId))
-        .andExpect(status().isOk())
-        .andExpect(content().string("作業セッションを削除しました"));
+        .andExpect(status().isNoContent())
+        .andExpect(content().string(""));
 
     verify(service).delete(wsId);
   }

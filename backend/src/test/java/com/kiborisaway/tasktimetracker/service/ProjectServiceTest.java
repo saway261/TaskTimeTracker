@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -13,6 +14,7 @@ import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
+import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
@@ -46,6 +48,9 @@ class ProjectServiceTest {
     List<Project> expected = List.of(project1, project2);
 
     when(repository.findAll()).thenReturn(expected);
+    when(memoRepository.findAllInProjects(List.of(1, 2))).thenReturn(List.of(
+        new Memo(1, 1, null, null, "プロジェクト1メモ"),
+        new Memo(2, 2, null, null, "プロジェクト2メモ")));
 
     // Act
     List<ProjectResponse> actual = sut.findAllByCondition(null);
@@ -59,6 +64,9 @@ class ProjectServiceTest {
             org.assertj.core.api.Assertions.tuple(2, "Java Silver勉強", null, true)
         );
     verify(repository, times(1)).findAll();
+    verify(memoRepository, times(1)).findAllInProjects(List.of(1, 2));
+    verify(memoRepository, never()).findAllInProject(org.mockito.ArgumentMatchers.anyInt());
+    assertThat(actual).allSatisfy(response -> assertThat(response.getMemos()).hasSize(1));
   }
 
   @Test
@@ -78,6 +86,16 @@ class ProjectServiceTest {
         .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getIsFinished)
         .containsExactly(org.assertj.core.api.Assertions.tuple(2, "Java Silver勉強", true));
     verify(repository, times(1)).findAllByIsFinished(true);
+  }
+
+  @Test
+  void プロジェクト一覧検索_検索結果が空ならメモ検索を実行しないこと() {
+    when(repository.findAll()).thenReturn(List.of());
+
+    List<ProjectResponse> actual = sut.findAllByCondition(null);
+
+    assertThat(actual).isEmpty();
+    verify(memoRepository, never()).findAllInProjects(any());
   }
 
   @Test
@@ -142,6 +160,8 @@ class ProjectServiceTest {
       project.setId(10);
       return null;
     }).when(repository).insert(any(Project.class));
+    Project registered = new Project(10, "Spring Boot学習", "REST APIを作る", false);
+    when(repository.findById(10)).thenReturn(registered);
 
     // Act
     ProjectResponse actual = sut.register(request);
@@ -149,6 +169,7 @@ class ProjectServiceTest {
     // Assert
     assertThat(actual.getTitle()).isEqualTo("Spring Boot学習");
     assertThat(actual.getDescription()).isEqualTo("REST APIを作る");
+    assertThat(actual.getIsFinished()).isFalse();
     assertThat(actual.getMemos()).isEmpty();
     ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
     verify(repository, times(1)).insert(captor.capture());
@@ -183,9 +204,11 @@ class ProjectServiceTest {
     request.setIsFinished(true);
 
     when(repository.update(any(Project.class))).thenReturn(1);
+    Project updated = new Project(id, "DB更新後タイトル", "DB更新後説明", true);
+    when(repository.findById(id)).thenReturn(updated);
 
     // Act
-    sut.update(id, request);
+    ProjectResponse actual = sut.update(id, request);
 
     // Assert
     ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
@@ -193,6 +216,8 @@ class ProjectServiceTest {
     assertThat(captor.getValue().getId()).isEqualTo(id);
     assertThat(captor.getValue().getTitle()).isEqualTo("タスク管理アプリ開発");
     assertThat(captor.getValue().getIsFinished()).isTrue();
+    assertThat(actual.getTitle()).isEqualTo("DB更新後タイトル");
+    assertThat(actual.getDescription()).isEqualTo("DB更新後説明");
   }
 
   @Test
@@ -212,6 +237,7 @@ class ProjectServiceTest {
         .isInstanceOf(DataIntegrityViolationException.class);
 
     verify(repository, times(1)).update(any(Project.class));
+    verify(repository, never()).findById(id);
   }
 
   @Test

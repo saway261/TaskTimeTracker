@@ -98,7 +98,7 @@ public class WorkSessionService {
     WorkSession workSession = toEntity(request);
     workSession.setTaskId(taskId);
     wsRepository.insert(workSession);
-    return workSession;
+    return get(workSession.getId());
   }
 
   /**
@@ -107,7 +107,7 @@ public class WorkSessionService {
    * @param wsId 作業セッションID
    */
   @Transactional
-  public void setEnd(int wsId) {
+  public WorkSession setEnd(int wsId) {
     if (!wsRepository.canSetEnd(wsId)) {
       throw new WorkSessionEndNotAllowedException("workSession.id",
           "指定した作業セッションは終了できません");
@@ -118,6 +118,7 @@ public class WorkSessionService {
       throw new TargetNotFoundException("workSession.id",
           "終了対象の作業セッションが見つかりませんでした");
     }
+    return get(wsId);
   }
 
   /**
@@ -127,7 +128,7 @@ public class WorkSessionService {
    * @param request 更新する作業セッションのリクエスト
    */
   @Transactional
-  public void update(int wsId, WorkSessionUpdateRequest request) {
+  public WorkSession update(int wsId, WorkSessionUpdateRequest request) {
     int taskId = findTaskIdByWorkSessionId(wsId);
     validateTaskIsNotFinished(taskId);
 
@@ -137,6 +138,7 @@ public class WorkSessionService {
       throw new TargetNotFoundException("workSession.id",
           "更新対象の作業セッションが見つかりませんでした");
     }
+    return get(wsId);
   }
 
   /**

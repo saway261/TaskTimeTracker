@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
@@ -197,7 +198,6 @@ class TaskControllerTest {
           "estimatedMinutes": 180
         }
         """;
-
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/tasks", pId)
             .contentType(MediaType.APPLICATION_JSON)
@@ -270,13 +270,19 @@ class TaskControllerTest {
           "description": "更新説明"
         }
         """;
+    Task updated = new Task(taskId, 1, null, "更新タイトル", "更新説明", 60,
+        null, null, null, null, null);
+    when(service.updateProperty(eq(taskId), any(TaskUpdatePropertyRequest.class)))
+        .thenReturn(new TaskResponse(updated, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}", taskId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("タスク名と説明を更新しました"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(taskId))
+        .andExpect(jsonPath("$.title").value("更新タイトル"));
 
     verify(service).updateProperty(eq(taskId), any(TaskUpdatePropertyRequest.class));
   }
@@ -312,13 +318,19 @@ class TaskControllerTest {
           "estimatedMinutes": 120
         }
         """;
+    Task updated = new Task(taskId, 1, null, "タスク", "説明", 120,
+        null, null, null, null, null);
+    when(service.updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class)))
+        .thenReturn(new TaskResponse(updated, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("見積作業時間を更新しました"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(taskId))
+        .andExpect(jsonPath("$.estimatedMinutes").value(120));
 
     verify(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
   }
@@ -413,13 +425,19 @@ class TaskControllerTest {
           "taskGroupId": 2
         }
         """;
+    Task updated = new Task(taskId, null, taskGroupId, "タスク", "説明", 60,
+        null, null, null, null, null);
+    when(service.updateParent(taskId, null, taskGroupId))
+        .thenReturn(new TaskResponse(updated, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("タスクの所属を更新しました"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.taskGroupId").value(taskGroupId))
+        .andExpect(jsonPath("$.projectId").doesNotExist());
 
     verify(service).updateParent(taskId, null, taskGroupId);
   }
@@ -512,13 +530,19 @@ class TaskControllerTest {
           "projectId": 1
         }
         """;
+    Task updated = new Task(taskId, projectId, null, "タスク", "説明", 60,
+        null, null, null, null, null);
+    when(service.updateParent(taskId, projectId, null))
+        .thenReturn(new TaskResponse(updated, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("タスクの所属を更新しました"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.projectId").value(projectId))
+        .andExpect(jsonPath("$.taskGroupId").doesNotExist());
 
     verify(service).updateParent(taskId, projectId, null);
   }
@@ -612,13 +636,19 @@ class TaskControllerTest {
           "isFinished": true
         }
         """;
+    Task finished = new Task(taskId, 1, null, "タスク", "説明", 60,
+        null, java.time.LocalDateTime.of(2026, 1, 1, 10, 0), 70, 10, 16.666);
+    when(service.updateFinished(taskId, true))
+        .thenReturn(new TaskResponse(finished, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("タスクの完了状態を更新しました"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(taskId))
+        .andExpect(jsonPath("$.actualMinutesCached").value(70));
 
     verify(service).updateFinished(taskId, true);
   }
@@ -632,13 +662,19 @@ class TaskControllerTest {
           "isFinished": false
         }
         """;
+    Task unfinished = new Task(taskId, 1, null, "タスク", "説明", 60,
+        null, null, null, null, null);
+    when(service.updateFinished(taskId, false))
+        .thenReturn(new TaskResponse(unfinished, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("タスクの完了状態を更新しました"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(taskId))
+        .andExpect(jsonPath("$.finishedAt").doesNotExist());
 
     verify(service).updateFinished(taskId, false);
   }
@@ -723,14 +759,14 @@ class TaskControllerTest {
   }
 
   @Test
-  void 削除成功_200とメッセージを返すこと() throws Exception {
+  void 削除成功_204と空のレスポンスボディを返すこと() throws Exception {
     // Arrange
     int taskId = 1;
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.delete("/tasks/{taskId}", taskId))
-        .andExpect(status().isOk())
-        .andExpect(content().string("タスクを削除しました"));
+        .andExpect(status().isNoContent())
+        .andExpect(content().string(""));
 
     verify(service).deleteById(taskId);
   }
