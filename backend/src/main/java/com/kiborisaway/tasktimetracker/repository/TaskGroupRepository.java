@@ -59,7 +59,7 @@ public interface TaskGroupRepository {
    */
   @Insert("INSERT INTO task_groups(project_id, title, description, is_finished)"
       + " VALUES(#{projectId}, #{title}, #{description}, false)")
-  @Options(useGeneratedKeys = true, keyProperty = "id")
+  @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
   void insert(TaskGroup taskGroup);
 
   /**

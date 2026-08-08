@@ -98,7 +98,7 @@ public class WorkSessionService {
     WorkSession workSession = toEntity(request);
     workSession.setTaskId(taskId);
     wsRepository.insert(workSession);
-    return workSession;
+    return get(workSession.getId());
   }
 
   /**
@@ -107,7 +107,10 @@ public class WorkSessionService {
    * @param wsId 作業セッションID
    */
   @Transactional
-  public void setEnd(int wsId) {
+  public WorkSession setEnd(int wsId) {
+    int taskId = findTaskIdByWorkSessionId(wsId);
+    validateTaskIsNotFinished(taskId);
+
     if (!wsRepository.canSetEnd(wsId)) {
       throw new WorkSessionEndNotAllowedException("workSession.id",
           "指定した作業セッションは終了できません");
@@ -115,9 +118,10 @@ public class WorkSessionService {
 
     int updated = wsRepository.setEnd(wsId);
     if (updated == 0) {
-      throw new TargetNotFoundException("workSession.id",
-          "終了対象の作業セッションが見つかりませんでした");
+      throw new WorkSessionEndNotAllowedException("workSession.id",
+          "指定した作業セッションは既に終了しています");
     }
+    return get(wsId);
   }
 
   /**
@@ -127,9 +131,13 @@ public class WorkSessionService {
    * @param request 更新する作業セッションのリクエスト
    */
   @Transactional
-  public void update(int wsId, WorkSessionUpdateRequest request) {
-    int taskId = findTaskIdByWorkSessionId(wsId);
-    validateTaskIsNotFinished(taskId);
+  public WorkSession update(int wsId, WorkSessionUpdateRequest request) {
+    WorkSession current = get(wsId);
+    validateTaskIsNotFinished(current.getTaskId());
+    if (current.getType() != request.getType()) {
+      throw new WorkSessionOperationNotAllowedException("workSession.type",
+          "作業セッションの記録タイプは変更できません");
+    }
 
     WorkSession workSession = toEntity(wsId, request);
     int updated = wsRepository.update(workSession);
@@ -137,6 +145,7 @@ public class WorkSessionService {
       throw new TargetNotFoundException("workSession.id",
           "更新対象の作業セッションが見つかりませんでした");
     }
+    return get(wsId);
   }
 
   /**
@@ -168,7 +177,7 @@ public class WorkSessionService {
   private void validateTaskIsNotFinished(int taskId) {
     if (tsRepository.isFinished(taskId)) {
       throw new WorkSessionOperationNotAllowedException("task.id",
-          "完了済みタスクの作業セッションは追加・更新・削除できません");
+          "完了済みタスクの作業セッションは追加・終了・更新・削除できません");
     }
   }
 

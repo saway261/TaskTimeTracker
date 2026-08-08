@@ -6,7 +6,12 @@ import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
 import jakarta.validation.ConstraintViolationException;
+import java.sql.SQLException;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,6 +20,11 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+  private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+  private static final String FOREIGN_KEY_VIOLATION = "23503";
+  private static final String H2_PARENT_MISSING = "23506";
+  private static final String UNIQUE_VIOLATION = "23505";
 
   ErrorDetailsBuilder errorDetailsBuilder;
 
@@ -88,7 +98,7 @@ public class GlobalExceptionHandler {
   }
 
   /**
-   * 作業セッションが存在するタスクの見積もり作業時間を変更できないことをクライアントに返します。
+   * 作業セッションが存在する、または完了済みのタスクの見積もり作業時間を変更できないことをクライアントに返します。
    *
    * @param ex EstimateMinutesUpdateNotAllowedException
    * @return HTTPステータス(BAD REQUEST), エラー詳細
@@ -151,6 +161,50 @@ public class GlobalExceptionHandler {
         "task finish not allowed", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
 
+  }
+
+  /**
+   * DBの整合性制約違反をSQLSTATEに応じたレスポンスへ変換します。
+   *
+   * @param ex DBの整合性制約違反
+   * @return 外部キー・一意制約違反はCONFLICT、それ以外はINTERNAL_SERVER_ERROR
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
+      DataIntegrityViolationException ex) {
+    String sqlState = findSqlState(ex);
+
+    if (FOREIGN_KEY_VIOLATION.equals(sqlState) || H2_PARENT_MISSING.equals(sqlState)) {
+      return buildDatabaseErrorResponse(HttpStatus.CONFLICT, "foreign key constraint violation");
+    }
+    if (UNIQUE_VIOLATION.equals(sqlState)) {
+      return buildDatabaseErrorResponse(HttpStatus.CONFLICT, "unique constraint violation");
+    }
+
+    logger.error("Unhandled database integrity violation (SQLSTATE: {})", sqlState, ex);
+    return buildDatabaseErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+        "internal server error");
+  }
+
+  private ResponseEntity<ErrorResponse> buildDatabaseErrorResponse(HttpStatus status,
+      String message) {
+    ErrorResponse errorResponse = new ErrorResponse(status, message, List.of());
+    return ResponseEntity.status(status).body(errorResponse);
+  }
+
+  private String findSqlState(Throwable throwable) {
+    Throwable current = throwable;
+    while (current != null) {
+      if (current instanceof SQLException sqlException && sqlException.getSQLState() != null) {
+        return sqlException.getSQLState();
+      }
+      Throwable cause = current.getCause();
+      if (cause == current) {
+        break;
+      }
+      current = cause;
+    }
+    return null;
   }
 
 }

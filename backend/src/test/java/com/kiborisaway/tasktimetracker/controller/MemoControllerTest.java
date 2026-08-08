@@ -136,14 +136,17 @@ class MemoControllerTest {
   void メモ更新成功_200とメッセージを返すこと() throws Exception {
     // Arrange
     int id = 1;
-    doNothing().when(service).update(eq(id), any(MemoRequest.class));
+    org.mockito.Mockito.when(service.update(eq(id), any(MemoRequest.class)))
+        .thenReturn(new Memo(id, null, null, 1, "メモ"));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/memo/{id}", id)
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isOk())
-        .andExpect(content().string("メモコメントを更新しました"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.comment").value("メモ"));
 
     verify(service).update(eq(id), any(MemoRequest.class));
   }
@@ -165,15 +168,15 @@ class MemoControllerTest {
   }
 
   @Test
-  void メモ削除成功_200とメッセージを返すこと() throws Exception {
+  void メモ削除成功_204と空のレスポンスボディを返すこと() throws Exception {
     // Arrange
     int id = 1;
     doNothing().when(service).delete(id);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.delete("/memo/{id}", id))
-        .andExpect(status().isOk())
-        .andExpect(content().string("メモを削除しました"));
+        .andExpect(status().isNoContent())
+        .andExpect(content().string(""));
 
     verify(service).delete(id);
   }

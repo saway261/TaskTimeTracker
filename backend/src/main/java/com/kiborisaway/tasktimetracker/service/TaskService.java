@@ -17,6 +17,8 @@ import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,7 +66,7 @@ public class TaskService {
     } else {
       tasks = tsRepository.findAllInTaskGroupByCondition(tgId, isFinished);
     }
-    return tasks.stream().map(this::toResponse).toList();
+    return toResponses(tasks);
   }
 
   /**
@@ -86,7 +88,7 @@ public class TaskService {
     } else {
       tasks = tsRepository.findAllInProjectByCondition(pjId, isFinished);
     }
-    return tasks.stream().map(this::toResponse).toList();
+    return toResponses(tasks);
   }
 
   /**
@@ -96,12 +98,7 @@ public class TaskService {
    * @return タスクグループ
    */
   public TaskResponse findById(int id) {
-    Task task = tsRepository.findById(id);
-    if (task == null) {
-      throw new TargetNotFoundException("task.id",
-          "指定したIDのタスクは見つかりませんでした");
-    }
-    return toResponse(task);
+    return toResponse(findTaskById(id));
   }
 
   /**
@@ -133,7 +130,8 @@ public class TaskService {
     }
 
     tsRepository.insert(task);
-    return toResponse(task);
+    Task registeredTask = findTaskById(task.getId());
+    return new TaskResponse(registeredTask, List.of());
   }
 
   /**
@@ -143,13 +141,14 @@ public class TaskService {
    * @param request 更新するタスクのリクエスト
    */
   @Transactional
-  public void updateProperty(int id, TaskUpdatePropertyRequest request) {
+  public TaskResponse updateProperty(int id, TaskUpdatePropertyRequest request) {
     Task task = toEntity(id, request);
     int updated = tsRepository.updateProperty(task);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
           "更新対象のタスクが見つかりませんでした");
     }
+    return findById(id);
   }
 
   /**
@@ -160,7 +159,7 @@ public class TaskService {
    * @param taskGroupId 移動先タスクグループID
    */
   @Transactional
-  public void updateParent(int id, Integer projectId, Integer taskGroupId) {
+  public TaskResponse updateParent(int id, Integer projectId, Integer taskGroupId) {
     Task task = tsRepository.findById(id);
     if (task == null) {
       throw new TargetNotFoundException("task.id",
@@ -206,25 +205,31 @@ public class TaskService {
       throw new TargetNotFoundException("task.id",
           "所属変更対象のタスクが見つかりませんでした");
     }
+    return findById(id);
   }
 
   /**
-   * タスクIDを指定して見積もり作業時間を更新します。 紐づく作業セッションが存在する場合は更新できません。
+   * タスクIDを指定して見積もり作業時間を更新します。 紐づく作業セッションが存在する場合、またはタスクが完了済みの場合は更新できません。
    *
    * @param id      タスクID
    * @param request 更新する見積作業時間のリクエスト
    */
   @Transactional
-  public void updateEstimateMinutes(int id, TaskUpdateEstimatedMinutesRequest request) {
+  public TaskResponse updateEstimateMinutes(int id, TaskUpdateEstimatedMinutesRequest request) {
     if (wsRepository.existsByTaskId(id)) {
       throw new EstimateMinutesUpdateNotAllowedException("task.id",
           "作業セッションが存在するタスクの見積もり作業時間は変更できません");
+    }
+    if (tsRepository.isFinished(id)) {
+      throw new EstimateMinutesUpdateNotAllowedException("task.id",
+          "完了済みタスクの見積もり作業時間は変更できません");
     }
     int updated = tsRepository.updateEstimateMinutes(id, request.getEstimatedMinutes());
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
           "更新対象のタスクが見つかりませんでした");
     }
+    return findById(id);
   }
 
   /**
@@ -234,7 +239,7 @@ public class TaskService {
    * @param isFinished 完了状態
    */
   @Transactional
-  public void updateFinished(int id, boolean isFinished) {
+  public TaskResponse updateFinished(int id, boolean isFinished) {
     if (isFinished && wsRepository.existsUnfinishedByTaskId(id)) {
       throw new TaskFinishNotAllowedException("task.id",
           "未終了の作業セッションがあるタスクは完了状態にできません");
@@ -245,6 +250,7 @@ public class TaskService {
       throw new TargetNotFoundException("task.id",
           "完了状態更新対象のタスクが見つかりませんでした");
     }
+    return findById(id);
   }
 
   /**
@@ -254,6 +260,7 @@ public class TaskService {
    */
   @Transactional
   public void deleteById(int id) {
+    wsRepository.deleteAllByTaskId(id);
     memoRepository.deleteAllInTask(id);
     int deleted = tsRepository.deleteById(id);
     if (deleted == 0) {
@@ -276,5 +283,32 @@ public class TaskService {
         .map(MemoResponse::new)
         .toList();
     return new TaskResponse(task, memoResponses);
+  }
+
+  private Task findTaskById(int id) {
+    Task task = tsRepository.findById(id);
+    if (task == null) {
+      throw new TargetNotFoundException("task.id",
+          "指定したIDのタスクは見つかりませんでした");
+    }
+    return task;
+  }
+
+  private List<TaskResponse> toResponses(List<Task> tasks) {
+    if (tasks.isEmpty()) {
+      return List.of();
+    }
+
+    List<Integer> taskIds = tasks.stream().map(Task::getId).toList();
+    Map<Integer, List<MemoResponse>> memosByTaskId = memoRepository.findAllInTasks(taskIds).stream()
+        .collect(Collectors.groupingBy(
+            Memo::getTaskId,
+            Collectors.mapping(MemoResponse::new, Collectors.toList())));
+
+    return tasks.stream()
+        .map(task -> new TaskResponse(
+            task,
+            memosByTaskId.getOrDefault(task.getId(), List.of())))
+        .toList();
   }
 }

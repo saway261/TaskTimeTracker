@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateRequest;
@@ -220,14 +221,19 @@ class TaskGroupControllerTest {
         }
         """;
 
-    doNothing().when(service).update(eq(tgId), any(TaskGroupUpdateRequest.class));
+    TaskGroup updated = new TaskGroup(tgId, 1, "タスク管理アプリ開発", "説明を更新", true);
+    when(service.update(eq(tgId), any(TaskGroupUpdateRequest.class)))
+        .thenReturn(new TaskGroupResponse(updated, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}", tgId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(content().string("更新成功"));
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.id").value(tgId))
+        .andExpect(jsonPath("$.projectId").value(1))
+        .andExpect(jsonPath("$.isFinished").value(true));
 
     verify(service).update(eq(tgId), any(TaskGroupUpdateRequest.class));
   }

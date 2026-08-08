@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -53,6 +54,12 @@ class MemoServiceTest {
     int projectId = 1;
     MemoRequest request = request("プロジェクトメモ");
     when(projectRepository.existsById(projectId)).thenReturn(true);
+    doAnswer(invocation -> {
+      invocation.<Memo>getArgument(0).setId(10);
+      return null;
+    }).when(memoRepository).insert(any(Memo.class));
+    Memo registered = new Memo(10, projectId, null, null, "プロジェクトメモ");
+    when(memoRepository.findById(10)).thenReturn(registered);
 
     // Act
     Memo actual = sut.registerInProject(projectId, request);
@@ -65,7 +72,7 @@ class MemoServiceTest {
     verify(projectRepository, times(1)).existsById(projectId);
     verify(taskGroupRepository, never()).existsById(anyInt());
     verify(taskRepository, never()).existsById(anyInt());
-    verify(memoRepository, times(1)).insert(actual);
+    verify(memoRepository, times(1)).insert(any(Memo.class));
   }
 
   @Test
@@ -88,6 +95,12 @@ class MemoServiceTest {
     int taskGroupId = 1;
     MemoRequest request = request("タスクグループメモ");
     when(taskGroupRepository.existsById(taskGroupId)).thenReturn(true);
+    doAnswer(invocation -> {
+      invocation.<Memo>getArgument(0).setId(10);
+      return null;
+    }).when(memoRepository).insert(any(Memo.class));
+    Memo registered = new Memo(10, null, taskGroupId, null, "タスクグループメモ");
+    when(memoRepository.findById(10)).thenReturn(registered);
 
     // Act
     Memo actual = sut.registerInTaskGroup(taskGroupId, request);
@@ -100,7 +113,7 @@ class MemoServiceTest {
     verify(taskGroupRepository, times(1)).existsById(taskGroupId);
     verify(projectRepository, never()).existsById(anyInt());
     verify(taskRepository, never()).existsById(anyInt());
-    verify(memoRepository, times(1)).insert(actual);
+    verify(memoRepository, times(1)).insert(any(Memo.class));
   }
 
   @Test
@@ -123,6 +136,12 @@ class MemoServiceTest {
     int taskId = 1;
     MemoRequest request = request("タスクメモ");
     when(taskRepository.existsById(taskId)).thenReturn(true);
+    doAnswer(invocation -> {
+      invocation.<Memo>getArgument(0).setId(10);
+      return null;
+    }).when(memoRepository).insert(any(Memo.class));
+    Memo registered = new Memo(10, null, null, taskId, "タスクメモ");
+    when(memoRepository.findById(10)).thenReturn(registered);
 
     // Act
     Memo actual = sut.registerInTask(taskId, request);
@@ -135,7 +154,7 @@ class MemoServiceTest {
     verify(taskRepository, times(1)).existsById(taskId);
     verify(projectRepository, never()).existsById(anyInt());
     verify(taskGroupRepository, never()).existsById(anyInt());
-    verify(memoRepository, times(1)).insert(actual);
+    verify(memoRepository, times(1)).insert(any(Memo.class));
   }
 
   @Test
@@ -157,15 +176,18 @@ class MemoServiceTest {
     // Arrange
     int id = 1;
     when(memoRepository.update(any(Memo.class))).thenReturn(1);
+    Memo updated = new Memo(id, null, null, 1, "DB更新後メモ");
+    when(memoRepository.findById(id)).thenReturn(updated);
 
     // Act
-    sut.update(id, request("更新後メモ"));
+    Memo actual = sut.update(id, request("更新後メモ"));
 
     // Assert
     ArgumentCaptor<Memo> captor = ArgumentCaptor.forClass(Memo.class);
     verify(memoRepository, times(1)).update(captor.capture());
     assertThat(captor.getValue().getId()).isEqualTo(id);
     assertThat(captor.getValue().getComment()).isEqualTo("更新後メモ");
+    assertThat(actual.getComment()).isEqualTo("DB更新後メモ");
   }
 
   @Test

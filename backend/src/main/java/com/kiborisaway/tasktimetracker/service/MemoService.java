@@ -46,7 +46,7 @@ public class MemoService {
     }
     Memo memo = new Memo(null, projectId, null, null, request.getComment());
     memoRepository.insert(memo);
-    return memo;
+    return findById(memo.getId());
   }
 
   /**
@@ -64,7 +64,7 @@ public class MemoService {
     }
     Memo memo = new Memo(null, null, taskGroupId, null, request.getComment());
     memoRepository.insert(memo);
-    return memo;
+    return findById(memo.getId());
   }
 
   /**
@@ -82,7 +82,7 @@ public class MemoService {
     }
     Memo memo = new Memo(null, null, null, taskId, request.getComment());
     memoRepository.insert(memo);
-    return memo;
+    return findById(memo.getId());
   }
 
   /**
@@ -92,13 +92,14 @@ public class MemoService {
    * @param request メモ更新リクエスト
    */
   @Transactional
-  public void update(int id, MemoRequest request) {
+  public Memo update(int id, MemoRequest request) {
     Memo memo = new Memo(id, null, null, null, request.getComment());
     int updated = memoRepository.update(memo);
     if (updated == 0) {
       throw new TargetNotFoundException("memo.id",
           "更新対象のメモが見つかりませんでした");
     }
+    return findById(id);
   }
 
   /**
@@ -113,5 +114,14 @@ public class MemoService {
       throw new TargetNotFoundException("memo.id",
           "削除対象のメモが見つかりませんでした");
     }
+  }
+
+  private Memo findById(int id) {
+    Memo memo = memoRepository.findById(id);
+    if (memo == null) {
+      throw new TargetNotFoundException("memo.id",
+          "指定したIDのメモは見つかりませんでした");
+    }
+    return memo;
   }
 }

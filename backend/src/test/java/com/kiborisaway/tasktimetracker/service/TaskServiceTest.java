@@ -19,6 +19,7 @@ import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesR
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
+import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
@@ -71,6 +72,9 @@ class TaskServiceTest {
 
     when(tgRepository.existsById(tgId)).thenReturn(true);
     when(tsRepository.findAllInTaskGroup(tgId)).thenReturn(expected);
+    when(memoRepository.findAllInTasks(List.of(1, 2))).thenReturn(List.of(
+        new Memo(1, null, null, 1, "タスク1メモ"),
+        new Memo(2, null, null, 2, "タスク2メモ")));
 
     // Act
     List<TaskResponse> actual = sut.findAllInTaskGroupByCondition(tgId, null);
@@ -86,6 +90,9 @@ class TaskServiceTest {
     verify(tgRepository, times(1)).existsById(tgId);
     verify(tsRepository, times(1)).findAllInTaskGroup(tgId);
     verify(tsRepository, never()).findAllInTaskGroupByCondition(anyInt(), anyBoolean());
+    verify(memoRepository, times(1)).findAllInTasks(List.of(1, 2));
+    verify(memoRepository, never()).findAllInTask(anyInt());
+    assertThat(actual).allSatisfy(response -> assertThat(response.getMemos()).hasSize(1));
   }
 
   @ParameterizedTest(name = "[{index}]タスクグループ内タスク一覧検索_第2引数に{0}を指定すると完了フラグ指定検索用のリポジトリのメソッドに{0}を指定して呼び出すこと")
@@ -126,6 +133,18 @@ class TaskServiceTest {
     verify(tgRepository, times(1)).existsById(tgId);
     verify(tsRepository, never()).findAllInTaskGroup(anyInt());
     verify(tsRepository, never()).findAllInTaskGroupByCondition(anyInt(), anyBoolean());
+  }
+
+  @Test
+  void タスクグループ内タスク一覧検索成功_検索結果が空ならメモ検索を実行しないこと() {
+    int tgId = 1;
+    when(tgRepository.existsById(tgId)).thenReturn(true);
+    when(tsRepository.findAllInTaskGroup(tgId)).thenReturn(List.of());
+
+    List<TaskResponse> actual = sut.findAllInTaskGroupByCondition(tgId, null);
+
+    assertThat(actual).isEmpty();
+    verify(memoRepository, never()).findAllInTasks(any());
   }
 
   @Test
@@ -245,6 +264,9 @@ class TaskServiceTest {
       task.setId(10);
       return null;
     }).when(tsRepository).insert(any(Task.class));
+    Task registered = new Task(10, pId, null, "DB登録後タスク", "説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(10)).thenReturn(registered);
 
     // Act
     TaskResponse actual = sut.register(pId, null, request);
@@ -277,6 +299,9 @@ class TaskServiceTest {
       task.setId(10);
       return null;
     }).when(tsRepository).insert(any(Task.class));
+    Task registered = new Task(10, null, tgId, "DB登録後タスク", "説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(10)).thenReturn(registered);
 
     // Act
     TaskResponse actual = sut.register(null, tgId, request);
@@ -364,15 +389,19 @@ class TaskServiceTest {
     request.setDescription("説明更新");
 
     when(tsRepository.updateProperty(any(Task.class))).thenReturn(1);
+    Task updated = new Task(id, 1, null, "DB更新後タスク", "DB更新後説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(id)).thenReturn(updated);
 
     // Act
-    sut.updateProperty(id, request);
+    TaskResponse actual = sut.updateProperty(id, request);
 
     // Assert
     ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
     verify(tsRepository, times(1)).updateProperty(captor.capture());
     assertThat(captor.getValue().getId()).isEqualTo(id);
     assertThat(captor.getValue().getTitle()).isEqualTo("更新後タスク");
+    assertThat(actual.getTitle()).isEqualTo("DB更新後タスク");
   }
 
   @Test
@@ -420,7 +449,9 @@ class TaskServiceTest {
     targetTaskGroup.setId(taskGroupId);
     targetTaskGroup.setProjectId(1);
 
-    when(tsRepository.findById(taskId)).thenReturn(task);
+    Task updated = new Task(taskId, null, taskGroupId, "タスク１", "説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(taskId)).thenReturn(task, updated);
     when(tgRepository.findById(taskGroupId)).thenReturn(targetTaskGroup);
     when(tsRepository.updateTaskGroup(taskId, taskGroupId)).thenReturn(1);
 
@@ -428,7 +459,7 @@ class TaskServiceTest {
     sut.updateParent(taskId, null, taskGroupId);
 
     // Assert
-    verify(tsRepository, times(1)).findById(taskId);
+    verify(tsRepository, times(2)).findById(taskId);
     verify(tgRepository, times(1)).findById(taskGroupId);
     verify(tsRepository, times(1)).updateTaskGroup(taskId, taskGroupId);
   }
@@ -448,7 +479,9 @@ class TaskServiceTest {
     targetTaskGroup.setId(targetTaskGroupId);
     targetTaskGroup.setProjectId(1);
 
-    when(tsRepository.findById(taskId)).thenReturn(task);
+    Task updated = new Task(taskId, null, targetTaskGroupId, "タスク１", "説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(taskId)).thenReturn(task, updated);
     when(tgRepository.findById(targetTaskGroupId)).thenReturn(targetTaskGroup);
     when(tgRepository.findById(currentTaskGroupId)).thenReturn(currentTaskGroup);
     when(tsRepository.updateTaskGroup(taskId, targetTaskGroupId)).thenReturn(1);
@@ -457,7 +490,7 @@ class TaskServiceTest {
     sut.updateParent(taskId, null, targetTaskGroupId);
 
     // Assert
-    verify(tsRepository, times(1)).findById(taskId);
+    verify(tsRepository, times(2)).findById(taskId);
     verify(tgRepository, times(1)).findById(targetTaskGroupId);
     verify(tgRepository, times(1)).findById(currentTaskGroupId);
     verify(tsRepository, times(1)).updateTaskGroup(taskId, targetTaskGroupId);
@@ -533,7 +566,9 @@ class TaskServiceTest {
     currentTaskGroup.setId(currentTaskGroupId);
     currentTaskGroup.setProjectId(projectId);
 
-    when(tsRepository.findById(taskId)).thenReturn(task);
+    Task updated = new Task(taskId, projectId, null, "タスク１", "説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(taskId)).thenReturn(task, updated);
     when(pjRepository.existsById(projectId)).thenReturn(true);
     when(tgRepository.findById(currentTaskGroupId)).thenReturn(currentTaskGroup);
     when(tsRepository.updateProject(taskId, projectId)).thenReturn(1);
@@ -542,7 +577,7 @@ class TaskServiceTest {
     sut.updateParent(taskId, projectId, null);
 
     // Assert
-    verify(tsRepository, times(1)).findById(taskId);
+    verify(tsRepository, times(2)).findById(taskId);
     verify(pjRepository, times(1)).existsById(projectId);
     verify(tgRepository, times(1)).findById(currentTaskGroupId);
     verify(tsRepository, times(1)).updateProject(taskId, projectId);
@@ -602,13 +637,18 @@ class TaskServiceTest {
     request.setEstimatedMinutes(estimatedMinutes);
 
     when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
+    when(tsRepository.isFinished(taskId)).thenReturn(false);
     when(tsRepository.updateEstimateMinutes(taskId, estimatedMinutes)).thenReturn(1);
+    Task updated = new Task(taskId, 1, null, "タスク１", "説明", estimatedMinutes,
+        null, null, null, null, null);
+    when(tsRepository.findById(taskId)).thenReturn(updated);
 
     // Act
     sut.updateEstimateMinutes(taskId, request);
 
     // Assert
     verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, times(1)).isFinished(taskId);
     verify(tsRepository, times(1)).updateEstimateMinutes(taskId, estimatedMinutes);
   }
 
@@ -627,6 +667,27 @@ class TaskServiceTest {
         .isInstanceOf(EstimateMinutesUpdateNotAllowedException.class);
 
     verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, never()).isFinished(anyInt());
+    verify(tsRepository, never()).updateEstimateMinutes(anyInt(), anyInt());
+  }
+
+  @Test
+  void 見積もり作業時間更新失敗_完了済みの場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int taskId = 3;
+    int estimatedMinutes = 120;
+    TaskUpdateEstimatedMinutesRequest request = new TaskUpdateEstimatedMinutesRequest();
+    request.setEstimatedMinutes(estimatedMinutes);
+
+    when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
+    when(tsRepository.isFinished(taskId)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateEstimateMinutes(taskId, request))
+        .isInstanceOf(EstimateMinutesUpdateNotAllowedException.class);
+
+    verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, times(1)).isFinished(taskId);
     verify(tsRepository, never()).updateEstimateMinutes(anyInt(), anyInt());
   }
 
@@ -639,6 +700,7 @@ class TaskServiceTest {
     request.setEstimatedMinutes(estimatedMinutes);
 
     when(wsRepository.existsByTaskId(taskId)).thenReturn(false);
+    when(tsRepository.isFinished(taskId)).thenReturn(false);
     when(tsRepository.updateEstimateMinutes(taskId, estimatedMinutes)).thenReturn(0);
 
     // Act & Assert
@@ -646,6 +708,7 @@ class TaskServiceTest {
         .isInstanceOf(TargetNotFoundException.class);
 
     verify(wsRepository, times(1)).existsByTaskId(taskId);
+    verify(tsRepository, times(1)).isFinished(taskId);
     verify(tsRepository, times(1)).updateEstimateMinutes(taskId, estimatedMinutes);
   }
 
@@ -656,6 +719,9 @@ class TaskServiceTest {
     boolean isFinished = true;
 
     when(tsRepository.updateFinished(id, isFinished)).thenReturn(1);
+    Task updated = new Task(id, 1, null, "タスク１", "説明", 60,
+        null, java.time.LocalDateTime.of(2026, 1, 1, 10, 0), 70, 10, 16.666);
+    when(tsRepository.findById(id)).thenReturn(updated);
 
     // Act
     sut.updateFinished(id, isFinished);
@@ -672,6 +738,9 @@ class TaskServiceTest {
     boolean isFinished = false;
 
     when(tsRepository.updateFinished(id, isFinished)).thenReturn(1);
+    Task updated = new Task(id, 1, null, "タスク１", "説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(id)).thenReturn(updated);
 
     // Act
     sut.updateFinished(id, isFinished);
@@ -724,7 +793,8 @@ class TaskServiceTest {
     sut.deleteById(id);
 
     // Assert
-    InOrder inOrder = org.mockito.Mockito.inOrder(memoRepository, tsRepository);
+    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, tsRepository);
+    inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
     inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
     inOrder.verify(tsRepository, times(1)).deleteById(id);
   }
@@ -740,8 +810,10 @@ class TaskServiceTest {
     assertThatThrownBy(() -> sut.deleteById(id))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(memoRepository, times(1)).deleteAllInTask(id);
-    verify(tsRepository, times(1)).deleteById(id);
+    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, tsRepository);
+    inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
+    inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
+    inOrder.verify(tsRepository, times(1)).deleteById(id);
   }
 
 }

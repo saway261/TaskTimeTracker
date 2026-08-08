@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
@@ -11,6 +12,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @MybatisTest
 class WorkSessionRepositoryTest {
@@ -235,6 +237,15 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
+  void 終了可否判定_終了済みの作業セッションならfalseを返すこと() {
+    // Act
+    boolean actual = sut.canSetEnd(2);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
   void 終了可否判定_存在しない作業セッションならfalseを返すこと() {
     // Act
     boolean actual = sut.canSetEnd(999);
@@ -270,6 +281,22 @@ class WorkSessionRepositoryTest {
 
     // Assert
     assertThat(actual).isZero();
+  }
+
+  @Test
+  void 終了更新失敗_終了済みの作業セッションは上書きされず0件となること() {
+    // Arrange
+    WorkSession before = sut.findById(2);
+
+    // Act
+    int actual = sut.setEnd(2);
+
+    // Assert
+    assertThat(actual).isZero();
+    WorkSession after = sut.findById(2);
+    assertThat(after.getEndedAt()).isEqualTo(before.getEndedAt());
+    assertThat(after.getMinutes()).isEqualTo(before.getMinutes());
+    assertThat(after.getUpdatedAt()).isEqualTo(before.getUpdatedAt());
   }
 
   @Test
@@ -345,6 +372,20 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
+  void 更新失敗_終了日時が開始日時より前ならCHECK制約違反になること() {
+    // Arrange
+    WorkSession workSession = new WorkSession();
+    workSession.setId(2);
+    workSession.setMinutes(60);
+    workSession.setStartedAt(LocalDateTime.of(2026, 1, 3, 10, 0));
+    workSession.setEndedAt(LocalDateTime.of(2026, 1, 3, 9, 0));
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.update(workSession))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
   void 削除成功_指定した作業セッションを削除できること() {
     // Arrange
     List<WorkSession> before = sut.findAllByTaskId(4);
@@ -362,6 +403,30 @@ class WorkSessionRepositoryTest {
   void 削除失敗_存在しない作業セッションIDの場合は削除されず0件となること() {
     // Act
     int actual = sut.deleteById(999);
+
+    // Assert
+    assertThat(actual).isZero();
+  }
+
+  @Test
+  void タスク配下削除成功_指定したタスクの作業セッションをすべて削除できること() {
+    // Arrange
+    assertThat(sut.findAllByTaskId(4)).hasSize(2);
+    assertThat(sut.findAllByTaskId(1)).hasSize(1);
+
+    // Act
+    int actual = sut.deleteAllByTaskId(4);
+
+    // Assert
+    assertThat(actual).isEqualTo(2);
+    assertThat(sut.findAllByTaskId(4)).isEmpty();
+    assertThat(sut.findAllByTaskId(1)).hasSize(1);
+  }
+
+  @Test
+  void タスク配下削除失敗_存在しないタスクIDの場合は削除されず0件となること() {
+    // Act
+    int actual = sut.deleteAllByTaskId(999);
 
     // Assert
     assertThat(actual).isZero();

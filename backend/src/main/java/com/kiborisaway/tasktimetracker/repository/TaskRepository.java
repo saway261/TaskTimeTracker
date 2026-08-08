@@ -115,7 +115,7 @@ public interface TaskRepository {
       INSERT INTO tasks(project_id, task_group_id, title, description, estimated_minutes, created_at)
       VALUES(#{projectId}, #{taskGroupId}, #{title}, #{description}, #{estimatedMinutes}, NOW())
       """)
-  @Options(useGeneratedKeys = true, keyProperty = "id")
+  @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
   void insert(Task task);
 
   /**

@@ -11,6 +11,8 @@ import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,7 +53,22 @@ public class TaskGroupService {
     } else {
       taskGroups = tgRepository.findAllInProjectByIsFinished(pId, isFinished);
     }
-    return taskGroups.stream().map(this::toResponse).toList();
+    if (taskGroups.isEmpty()) {
+      return List.of();
+    }
+
+    List<Integer> taskGroupIds = taskGroups.stream().map(TaskGroup::getId).toList();
+    Map<Integer, List<MemoResponse>> memosByTaskGroupId =
+        memoRepository.findAllInTaskGroups(taskGroupIds).stream()
+            .collect(Collectors.groupingBy(
+                Memo::getTaskGroupId,
+                Collectors.mapping(MemoResponse::new, Collectors.toList())));
+
+    return taskGroups.stream()
+        .map(taskGroup -> new TaskGroupResponse(
+            taskGroup,
+            memosByTaskGroupId.getOrDefault(taskGroup.getId(), List.of())))
+        .toList();
   }
 
   /**
@@ -61,12 +78,7 @@ public class TaskGroupService {
    * @return タスクグループ
    */
   public TaskGroupResponse findById(int id) {
-    TaskGroup taskGroup = tgRepository.findById(id);
-    if (taskGroup == null) {
-      throw new TargetNotFoundException("taskGroup.id",
-          "指定したIDのタスクグループは見つかりませんでした");
-    }
-    return toResponse(taskGroup);
+    return toResponse(findTaskGroupById(id));
   }
 
   /**
@@ -83,7 +95,8 @@ public class TaskGroupService {
     TaskGroup tg = toEntity(request);
     tg.setProjectId(pId);
     tgRepository.insert(tg);
-    return toResponse(tg);
+    TaskGroup registeredTaskGroup = findTaskGroupById(tg.getId());
+    return new TaskGroupResponse(registeredTaskGroup, List.of());
   }
 
   /**
@@ -93,13 +106,14 @@ public class TaskGroupService {
    * @param request 更新するタスクグループのリクエスト
    */
   @Transactional
-  public void update(int id, TaskGroupUpdateRequest request) {
+  public TaskGroupResponse update(int id, TaskGroupUpdateRequest request) {
     TaskGroup tg = toEntity(id, request);
     int updated = tgRepository.update(tg);
     if (updated == 0) {
       throw new TargetNotFoundException("taskGroup",
           "更新対象のタスクグループが見つかりませんでした");
     }
+    return toResponse(findTaskGroupById(id));
   }
 
   private TaskGroup toEntity(TaskGroupCreateRequest request) {
@@ -116,5 +130,14 @@ public class TaskGroupService {
         .map(MemoResponse::new)
         .toList();
     return new TaskGroupResponse(taskGroup, memoResponses);
+  }
+
+  private TaskGroup findTaskGroupById(int id) {
+    TaskGroup taskGroup = tgRepository.findById(id);
+    if (taskGroup == null) {
+      throw new TargetNotFoundException("taskGroup.id",
+          "指定したIDのタスクグループは見つかりませんでした");
+    }
+    return taskGroup;
   }
 }

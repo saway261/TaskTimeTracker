@@ -80,28 +80,28 @@ public class MemoController {
    *
    * @param id      メモのID
    * @param request メモに書き込みたいコメント
-   * @return 更新成功メッセージ
+   * @return 更新後のメモ
    */
   @PatchMapping("/memo/{id}")
-  public ResponseEntity<String> update(
+  public ResponseEntity<MemoResponse> update(
       @PathVariable @Positive int id,
       @RequestBody @Validated MemoRequest request) {
 
-    service.update(id, request);
-    return ResponseEntity.ok("メモコメントを更新しました");
+    Memo memo = service.update(id, request);
+    return ResponseEntity.ok(new MemoResponse(memo));
   }
 
   /**
    * idを指定してメモを破棄します
    *
    * @param id メモのID
-   * @return 削除成功メッセージ
+   * @return レスポンスボディなし
    */
   @DeleteMapping("/memo/{id}")
-  public ResponseEntity<String> delete(@PathVariable @Positive int id) {
+  public ResponseEntity<Void> delete(@PathVariable @Positive int id) {
 
     service.delete(id);
-    return ResponseEntity.ok("メモを削除しました");
+    return ResponseEntity.noContent().build();
   }
 
 
