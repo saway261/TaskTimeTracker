@@ -11,8 +11,7 @@ RUN chmod +x gradlew
 COPY src ./src
 
 # Tests are expected to run in CI; the production image only needs the executable WAR.
-RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew bootWar --no-daemon -x test && \
+RUN ./gradlew bootWar --no-daemon -x test && \
     cp build/libs/*.war /workspace/app.war
 
 
