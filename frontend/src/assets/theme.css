@@ -11,6 +11,8 @@
   --color-danger: #c93c3c;
   --color-success: #2f7d4a;
   --color-focus: #e87500;
+  --color-memo-note-bg: #ffe08a;
+  --color-memo-note-text: #4a3900;
 }
 
 :root[data-theme='dark'] {
@@ -26,6 +28,8 @@
   --color-danger: #ff7373;
   --color-success: #69c587;
   --color-focus: #ff941f;
+  --color-memo-note-bg: #caa53d;
+  --color-memo-note-text: #2a2000;
 }
 
 * {

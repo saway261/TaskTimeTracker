@@ -1,5 +1,6 @@
 import type { AxiosError } from 'axios'
 import type { ErrorResponse, FieldError } from './errorResponse'
+import { translateMessage } from '@/utils/validationMessages'
 
 export type ApiErrorKind =
   'validation' | 'businessRule' | 'notFound' | 'methodNotAllowed' | 'server' | 'network' | 'unknown'
@@ -14,7 +15,12 @@ export interface ApiError {
 
 // クラスレベル検証の field 名。入力欄名と対応しないため formErrors 側へ回す。
 // docs/frontend-implementation-plan.md §0-3 実測分。
-const NON_FIELD_KEYS = new Set(['taskUpdateParentRequest', 'validManual', 'validTimer'])
+const NON_FIELD_KEYS = new Set([
+  'taskUpdateParentRequest',
+  'validManual',
+  'validTimer',
+  'validTimeOrder', // フェーズ3.5で新規確認: endedAt < startedAt の更新時に返る
+])
 
 // 業務ルール違反として画面上部の警告に出し分けるメッセージ。
 // docs/frontend-implementation-plan.md §0-3 実測分。
@@ -33,18 +39,20 @@ function buildFieldErrors(errors: FieldError[]): {
   const formErrors: string[] = []
 
   for (const { field, message } of errors) {
+    const translated = translateMessage(message)
+
     if (NON_FIELD_KEYS.has(field)) {
-      formErrors.push(message)
+      formErrors.push(translated)
       continue
     }
 
-    fieldErrors[field] = message
+    fieldErrors[field] = translated
 
     // "getById.id" のようなパスパラメータのネストは最終セグメントでも引けるようにする
     if (field.includes('.')) {
       const lastSegment = field.split('.').pop()
       if (lastSegment) {
-        fieldErrors[lastSegment] = message
+        fieldErrors[lastSegment] = translated
       }
     }
   }
@@ -105,7 +113,7 @@ export function normalizeError(error: unknown): ApiError {
   return {
     status,
     kind: resolveKind(status, data.message),
-    message: data.message,
+    message: translateMessage(data.message),
     fieldErrors,
     formErrors,
   }
