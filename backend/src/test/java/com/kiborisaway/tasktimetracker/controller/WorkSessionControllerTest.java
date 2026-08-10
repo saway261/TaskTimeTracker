@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,6 +54,20 @@ class WorkSessionControllerTest {
         .andExpect(status().isOk());
 
     verify(service).getTaskActualTotalTime(taskId);
+  }
+
+  @Test
+  void CORS許可済みオリジンからのリクエストなら許可ヘッダーを返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    when(service.getTaskActualTotalTime(taskId)).thenReturn(75);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}/work-sessions/total-minutes",
+                taskId)
+            .header("Origin", "http://localhost:5173"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
   }
 
   @Test
@@ -441,7 +456,8 @@ class WorkSessionControllerTest {
   }
 
   @Test
-  void 作業セッション削除成功_204と空のレスポンスボディを返しサービスを呼び出すこと() throws Exception {
+  void 作業セッション削除成功_204と空のレスポンスボディを返しサービスを呼び出すこと()
+      throws Exception {
     // Arrange
     int wsId = 1;
 
