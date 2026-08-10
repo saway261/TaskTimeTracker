@@ -38,16 +38,16 @@ public class WorkSession {
       """, example = "15")
   private Integer minutes;
 
-  @Schema(description = "作業セッション開始日時 typeがTIMERなら必ず値を持つ", example = "2026-01-01 09:00:00")
+  @Schema(description = "作業セッション開始日時 typeがTIMERなら必ず値を持つ", example = "2026-01-01T09:00:00+09:00")
   private LocalDateTime startedAt;
 
-  @Schema(description = "作業セッション終了日時 typeがTIMERで、作業中ならnullとなる", example = "2026-01-01 09:15:00")
+  @Schema(description = "作業セッション終了日時 typeがTIMERで、作業中ならnullとなる", example = "2026-01-01T09:15:00+09:00")
   private LocalDateTime endedAt;
 
-  @Schema(description = "作業セッション登録日時 DBにINSERTされる際に現在時刻がセットされる", example = "2026-01-01 09:00:00")
+  @Schema(description = "作業セッション登録日時 DBにINSERTされる際に現在時刻がセットされる", example = "2026-01-01T09:00:00+09:00")
   private LocalDateTime createdAt;
 
-  @Schema(description = "作業セッション更新日時 DBがUPDATEされる度に現在時刻がセットされる", example = "2026-01-01 09:00:00")
+  @Schema(description = "作業セッション更新日時 DBがUPDATEされる度に現在時刻がセットされる", example = "2026-01-01T09:00:00+09:00")
   private LocalDateTime updatedAt;
 
   @Schema(description = "作業セッションの記録タイプ", example = "TIMER")

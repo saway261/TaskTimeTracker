@@ -20,6 +20,7 @@ import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedE
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -255,6 +256,8 @@ class WorkSessionControllerTest {
     WorkSession ended = new WorkSession();
     ended.setId(wsId);
     ended.setMinutes(30);
+    ended.setStartedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
+    ended.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 30));
     when(service.setEnd(wsId)).thenReturn(ended);
 
     // Act & Assert
@@ -262,7 +265,9 @@ class WorkSessionControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id").value(wsId))
-        .andExpect(jsonPath("$.minutes").value(30));
+        .andExpect(jsonPath("$.minutes").value(30))
+        .andExpect(jsonPath("$.startedAt").value("2026-01-01T09:00:00+09:00"))
+        .andExpect(jsonPath("$.endedAt").value("2026-01-01T09:30:00+09:00"));
 
     verify(service).setEnd(wsId);
   }
