@@ -8,15 +8,18 @@ import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedE
 import jakarta.validation.ConstraintViolationException;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import tools.jackson.core.JacksonException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -46,6 +49,24 @@ public class GlobalExceptionHandler {
     ErrorResponse errorResponse =
         new ErrorResponse(HttpStatus.BAD_REQUEST, "payload validation error",
             errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+  }
+
+  /**
+   * JSONリクエストボディをDTOへ変換できなかったことをクライアントに返します。
+   *
+   * @param ex HttpMessageNotReadableException
+   * @return HTTPステータス(BAD REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
+      HttpMessageNotReadableException ex) {
+    String field = findUnreadableField(ex);
+    Map<String, String> error = Map.of(
+        "field", field,
+        "message", "JSONの形式または値が不正です");
+    ErrorResponse errorResponse = new ErrorResponse(
+        HttpStatus.BAD_REQUEST, "payload format error", List.of(error));
     return ResponseEntity.badRequest().body(errorResponse);
   }
 
@@ -205,6 +226,24 @@ public class GlobalExceptionHandler {
       current = cause;
     }
     return null;
+  }
+
+  private String findUnreadableField(Throwable throwable) {
+    Throwable current = throwable;
+    while (current != null) {
+      if (current instanceof JacksonException jacksonException) {
+        for (JacksonException.Reference reference : jacksonException.getPath()) {
+          if (reference.getPropertyName() != null) {
+            return reference.getPropertyName();
+          }
+        }
+      }
+      if (current.getCause() == current) {
+        break;
+      }
+      current = current.getCause();
+    }
+    return "requestBody";
   }
 
 }
