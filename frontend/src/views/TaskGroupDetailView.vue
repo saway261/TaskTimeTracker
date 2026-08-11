@@ -2,10 +2,12 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useTaskGroupStore } from '@/stores/taskGroupStore'
 import { useProjectStore } from '@/stores/projectStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
 import type { ApiError } from '@/types/apiError'
 import type { TaskGroupUpdateRequest } from '@/types/taskGroup'
+import type { TaskCreateRequest } from '@/types/task'
 import type { MemoRequest } from '@/types/memo'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
@@ -13,6 +15,8 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
 import TaskGroupForm from '@/components/taskGroup/TaskGroupForm.vue'
+import TaskListItem from '@/components/task/TaskListItem.vue'
+import TaskForm from '@/components/task/TaskForm.vue'
 import MemoList from '@/components/memo/MemoList.vue'
 
 const props = defineProps<{
@@ -22,6 +26,7 @@ const props = defineProps<{
 
 const taskGroupStore = useTaskGroupStore()
 const projectStore = useProjectStore()
+const taskStore = useTaskStore()
 const notification = useNotificationStore()
 
 const invalidId = ref(false)
@@ -54,10 +59,11 @@ async function load() {
   invalidId.value = false
   await taskGroupStore.fetchTaskGroup(id).catch(() => {})
 
-  // パンくずに実際のプロジェクト名を出すためのベストエフォート取得。失敗しても "#id" 表示にフォールバックする。
   const taskGroup = taskGroupStore.currentTaskGroup
   if (taskGroup) {
+    // パンくずに実際のプロジェクト名を出すためのベストエフォート取得。失敗しても "#id" 表示にフォールバックする。
     projectStore.fetchProject(taskGroup.projectId).catch(() => {})
+    taskStore.fetchTasksInTaskGroup(id).catch(() => {})
   }
 }
 
@@ -96,6 +102,35 @@ function handleMemoCreate(req: MemoRequest) {
   }
   return taskGroupStore.createTaskGroupMemo(id, req)
 }
+
+const showCreateTaskModal = ref(false)
+const creatingTask = ref(false)
+const createTaskError = ref<ApiError | null>(null)
+
+function openCreateTaskModal() {
+  createTaskError.value = null
+  showCreateTaskModal.value = true
+}
+
+async function handleCreateTask(payload: {
+  title: string
+  description: string | null
+  estimatedMinutes?: number
+}) {
+  const id = numericId.value
+  if (id === null) return
+  creatingTask.value = true
+  createTaskError.value = null
+  try {
+    await taskStore.createTaskInTaskGroup(id, payload as TaskCreateRequest)
+    notification.success('タスクを登録しました。')
+    showCreateTaskModal.value = false
+  } catch (e) {
+    createTaskError.value = e as ApiError
+  } finally {
+    creatingTask.value = false
+  }
+}
 </script>
 
 <template>
@@ -116,6 +151,10 @@ function handleMemoCreate(req: MemoRequest) {
         <BaseButton variant="secondary" @click="openEditModal">編集</BaseButton>
       </div>
 
+      <p v-if="taskGroupStore.currentTaskGroup.description">
+        {{ taskGroupStore.currentTaskGroup.description }}
+      </p>
+
       <MemoList
         :memos="taskGroupStore.currentTaskGroup.memos"
         :on-create="handleMemoCreate"
@@ -123,11 +162,24 @@ function handleMemoCreate(req: MemoRequest) {
         @deleted="taskGroupStore.syncMemoRemoved"
       />
 
-      <p v-if="taskGroupStore.currentTaskGroup.description">
-        {{ taskGroupStore.currentTaskGroup.description }}
-      </p>
+      <section class="task-list-section">
+        <div class="section-header">
+          <h2>タスク</h2>
+          <BaseButton variant="secondary" @click="openCreateTaskModal">＋ 新規タスク</BaseButton>
+        </div>
 
-      <p class="hint">タスク一覧はフェーズ4で追加する。</p>
+        <LoadingIndicator v-if="taskStore.loading" />
+        <ErrorMessage v-else-if="taskStore.error" :error="taskStore.error" />
+        <p v-else-if="taskStore.tasks.length === 0" class="empty">タスクがまだありません。</p>
+        <div v-else class="entity-rows">
+          <TaskListItem
+            v-for="task in taskStore.tasks"
+            :key="task.id"
+            :task="task"
+            :to="`/projects/${taskGroupStore.currentTaskGroup.projectId}/task-groups/${numericId}/tasks/${task.id}`"
+          />
+        </div>
+      </section>
     </template>
 
     <BaseModal
@@ -141,6 +193,15 @@ function handleMemoCreate(req: MemoRequest) {
         :error="updateError"
         @submit="handleUpdate"
         @cancel="showEditModal = false"
+      />
+    </BaseModal>
+
+    <BaseModal v-model="showCreateTaskModal" title="新規タスク">
+      <TaskForm
+        :submitting="creatingTask"
+        :error="createTaskError"
+        @submit="handleCreateTask"
+        @cancel="showCreateTaskModal = false"
       />
     </BaseModal>
   </div>
@@ -175,6 +236,36 @@ function handleMemoCreate(req: MemoRequest) {
 }
 
 .hint {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  flex-wrap: wrap;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.task-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8em;
+}
+
+.entity-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.empty {
   color: var(--color-text-muted);
   font-size: 0.9rem;
 }

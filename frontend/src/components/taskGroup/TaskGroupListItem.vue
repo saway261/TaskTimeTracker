@@ -1,16 +1,60 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useTaskStore } from '@/stores/taskStore'
+import { useNotificationStore } from '@/stores/notificationStore'
 import type { TaskGroupResponse } from '@/types/taskGroup'
+import type { TaskCreateRequest } from '@/types/task'
+import type { ApiError } from '@/types/apiError'
+import BaseButton from '@/components/common/BaseButton.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
+import TaskForm from '@/components/task/TaskForm.vue'
+import TaskListItem from '@/components/task/TaskListItem.vue'
 
-defineProps<{
+const props = defineProps<{
   taskGroup: TaskGroupResponse
 }>()
+
+const taskStore = useTaskStore()
+const notification = useNotificationStore()
 
 const isOpen = ref(false)
 
 function toggle() {
   isOpen.value = !isOpen.value
+}
+
+// 呼び出し元（ProjectDetailView）が taskStore.fetchTasksInProject() で配下タスクグループ分も
+// 含めて取得済みであることを前提に、このタスクグループに属するタスクだけを絞り込む。
+const childTasks = computed(() =>
+  taskStore.tasks.filter((t) => t.taskGroupId === props.taskGroup.id),
+)
+
+const showCreateTaskModal = ref(false)
+const creatingTask = ref(false)
+const createTaskError = ref<ApiError | null>(null)
+
+function openCreateTaskModal() {
+  createTaskError.value = null
+  showCreateTaskModal.value = true
+}
+
+async function handleCreateTask(payload: {
+  title: string
+  description: string | null
+  estimatedMinutes?: number
+}) {
+  creatingTask.value = true
+  createTaskError.value = null
+  try {
+    await taskStore.createTaskInTaskGroup(props.taskGroup.id, payload as TaskCreateRequest)
+    notification.success('タスクを登録しました。')
+    showCreateTaskModal.value = false
+  } catch (e) {
+    createTaskError.value = e as ApiError
+  } finally {
+    creatingTask.value = false
+  }
 }
 </script>
 
@@ -27,14 +71,36 @@ function toggle() {
 
     <div v-if="isOpen" class="row-body">
       <p v-if="taskGroup.description" class="description">{{ taskGroup.description }}</p>
-      <p class="hint">タスク一覧はフェーズ4で追加する。</p>
-      <RouterLink
-        :to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}`"
-        class="detail-link"
-      >
-        タスクグループの詳細・編集・メモへ →
-      </RouterLink>
+
+      <div class="child-tasks">
+        <p v-if="childTasks.length === 0" class="empty">タスクがまだありません。</p>
+        <TaskListItem
+          v-for="task in childTasks"
+          :key="task.id"
+          :task="task"
+          :to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}/tasks/${task.id}`"
+        />
+      </div>
+
+      <div class="row-body-actions">
+        <RouterLink
+          :to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}`"
+          class="detail-link"
+        >
+          タスクグループの詳細・編集・メモへ →
+        </RouterLink>
+        <BaseButton variant="secondary" @click="openCreateTaskModal">＋ タスク追加</BaseButton>
+      </div>
     </div>
+
+    <BaseModal v-model="showCreateTaskModal" title="新規タスク">
+      <TaskForm
+        :submitting="creatingTask"
+        :error="createTaskError"
+        @submit="handleCreateTask"
+        @cancel="showCreateTaskModal = false"
+      />
+    </BaseModal>
   </div>
 </template>
 
@@ -121,14 +187,27 @@ function toggle() {
   font-size: 0.9rem;
 }
 
-.hint {
+.child-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.empty {
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
+.row-body-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8em;
+  flex-wrap: wrap;
+}
+
 .detail-link {
-  align-self: flex-start;
   color: var(--color-accent);
   font-size: 0.9rem;
   text-decoration: none;

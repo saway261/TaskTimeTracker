@@ -9,6 +9,10 @@ export function createMemoInTaskGroup(taskGroupId: number, req: MemoRequest) {
   return httpClient.post<MemoResponse>(`/task-groups/${taskGroupId}/memo`, req)
 }
 
+export function createMemoInTask(taskId: number, req: MemoRequest) {
+  return httpClient.post<MemoResponse>(`/tasks/${taskId}/memo`, req)
+}
+
 export function updateMemo(id: number, req: MemoRequest) {
   return httpClient.patch<MemoResponse>(`/memo/${id}`, req)
 }

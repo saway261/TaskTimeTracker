@@ -2,11 +2,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskGroupStore } from '@/stores/taskGroupStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
 import type { ApiError } from '@/types/apiError'
 import type { ProjectUpdateRequest } from '@/types/project'
 import type { TaskGroupCreateRequest } from '@/types/taskGroup'
+import type { TaskCreateRequest } from '@/types/task'
 import type { MemoRequest } from '@/types/memo'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
@@ -16,6 +18,8 @@ import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
 import ProjectForm from '@/components/project/ProjectForm.vue'
 import TaskGroupListItem from '@/components/taskGroup/TaskGroupListItem.vue'
 import TaskGroupForm from '@/components/taskGroup/TaskGroupForm.vue'
+import TaskListItem from '@/components/task/TaskListItem.vue'
+import TaskForm from '@/components/task/TaskForm.vue'
 import MemoList from '@/components/memo/MemoList.vue'
 
 const props = defineProps<{
@@ -24,6 +28,7 @@ const props = defineProps<{
 
 const projectStore = useProjectStore()
 const taskGroupStore = useTaskGroupStore()
+const taskStore = useTaskStore()
 const notification = useNotificationStore()
 
 const invalidId = ref(false)
@@ -39,6 +44,8 @@ const breadcrumbItems = computed(() => {
   return [{ label: 'プロジェクト一覧', to: '/projects' }, { label: project.title }]
 })
 
+const directTasks = computed(() => taskStore.tasks.filter((t) => t.projectId !== null))
+
 async function load() {
   const id = numericId.value
   if (id === null) {
@@ -48,7 +55,7 @@ async function load() {
   invalidId.value = false
   try {
     await projectStore.fetchProject(id)
-    await taskGroupStore.fetchTaskGroups(id)
+    await Promise.all([taskGroupStore.fetchTaskGroups(id), taskStore.fetchTasksInProject(id)])
   } catch {
     // エラーは各storeのerrorに保持済み
   }
@@ -114,6 +121,35 @@ async function handleCreateTaskGroup(payload: { title: string; description: stri
     creatingTaskGroup.value = false
   }
 }
+
+const showCreateTaskModal = ref(false)
+const creatingTask = ref(false)
+const createTaskError = ref<ApiError | null>(null)
+
+function openCreateTaskModal() {
+  createTaskError.value = null
+  showCreateTaskModal.value = true
+}
+
+async function handleCreateTask(payload: {
+  title: string
+  description: string | null
+  estimatedMinutes?: number
+}) {
+  const id = numericId.value
+  if (id === null) return
+  creatingTask.value = true
+  createTaskError.value = null
+  try {
+    await taskStore.createTaskInProject(id, payload as TaskCreateRequest)
+    notification.success('タスクを登録しました。')
+    showCreateTaskModal.value = false
+  } catch (e) {
+    createTaskError.value = e as ApiError
+  } finally {
+    creatingTask.value = false
+  }
+}
 </script>
 
 <template>
@@ -134,6 +170,10 @@ async function handleCreateTaskGroup(payload: { title: string; description: stri
         <BaseButton variant="secondary" @click="openEditModal">編集</BaseButton>
       </div>
 
+      <p v-if="projectStore.currentProject.description">
+        {{ projectStore.currentProject.description }}
+      </p>
+
       <MemoList
         :memos="projectStore.currentProject.memos"
         :on-create="handleMemoCreate"
@@ -141,33 +181,40 @@ async function handleCreateTaskGroup(payload: { title: string; description: stri
         @deleted="projectStore.syncMemoRemoved"
       />
 
-      <p v-if="projectStore.currentProject.description">
-        {{ projectStore.currentProject.description }}
-      </p>
-
       <section class="task-list-section">
         <div class="section-header">
           <h2>タスクグループ・タスク</h2>
-          <BaseButton variant="secondary" @click="openCreateTaskGroupModal">
-            ＋ 新規タスクグループ
-          </BaseButton>
+          <div class="section-header-actions">
+            <BaseButton variant="secondary" @click="openCreateTaskGroupModal">
+              ＋ 新規タスクグループ
+            </BaseButton>
+            <BaseButton variant="secondary" @click="openCreateTaskModal">
+              ＋ 新規タスク
+            </BaseButton>
+          </div>
         </div>
 
-        <LoadingIndicator v-if="taskGroupStore.loading" />
+        <LoadingIndicator v-if="taskGroupStore.loading || taskStore.loading" />
         <ErrorMessage v-else-if="taskGroupStore.error" :error="taskGroupStore.error" />
-        <p v-else-if="taskGroupStore.taskGroups.length === 0" class="empty">
-          タスクグループがまだありません。
+        <ErrorMessage v-else-if="taskStore.error" :error="taskStore.error" />
+        <p
+          v-else-if="taskGroupStore.taskGroups.length === 0 && directTasks.length === 0"
+          class="empty"
+        >
+          タスクグループ・タスクがまだありません。
         </p>
         <div v-else class="entity-rows">
           <TaskGroupListItem
             v-for="taskGroup in taskGroupStore.taskGroups"
-            :key="taskGroup.id"
+            :key="`tg-${taskGroup.id}`"
             :task-group="taskGroup"
           />
-        </div>
-
-        <div class="entity-row-placeholder">
-          プロジェクト直下タスク（どのタスクグループにも属さないタスク）はここに表示される。フェーズ4で追加する。
+          <TaskListItem
+            v-for="task in directTasks"
+            :key="`t-${task.id}`"
+            :task="task"
+            :to="`/projects/${numericId}/tasks/${task.id}`"
+          />
         </div>
       </section>
     </template>
@@ -192,6 +239,15 @@ async function handleCreateTaskGroup(payload: { title: string; description: stri
         :error="createTaskGroupError"
         @submit="handleCreateTaskGroup"
         @cancel="showCreateTaskGroupModal = false"
+      />
+    </BaseModal>
+
+    <BaseModal v-model="showCreateTaskModal" title="新規タスク">
+      <TaskForm
+        :submitting="creatingTask"
+        :error="createTaskError"
+        @submit="handleCreateTask"
+        @cancel="showCreateTaskModal = false"
       />
     </BaseModal>
   </div>
@@ -230,11 +286,18 @@ async function handleCreateTaskGroup(payload: { title: string; description: stri
   align-items: center;
   justify-content: space-between;
   gap: 1em;
+  flex-wrap: wrap;
 }
 
 .section-header h2 {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.section-header-actions {
+  display: flex;
+  gap: 0.6em;
+  flex-wrap: wrap;
 }
 
 .task-list-section {
@@ -247,14 +310,6 @@ async function handleCreateTaskGroup(payload: { title: string; description: stri
   display: flex;
   flex-direction: column;
   gap: 0.6em;
-}
-
-.entity-row-placeholder {
-  padding: 0.9em 1em;
-  border-radius: 8px;
-  border: 1px dashed var(--color-surface-muted);
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
 }
 
 .empty {
