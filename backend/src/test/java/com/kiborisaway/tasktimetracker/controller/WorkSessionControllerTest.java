@@ -1,12 +1,14 @@
 package com.kiborisaway.tasktimetracker.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -19,6 +21,7 @@ import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedE
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +56,20 @@ class WorkSessionControllerTest {
         .andExpect(status().isOk());
 
     verify(service).getTaskActualTotalTime(taskId);
+  }
+
+  @Test
+  void CORS許可済みオリジンからのリクエストなら許可ヘッダーを返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    when(service.getTaskActualTotalTime(taskId)).thenReturn(75);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}/work-sessions/total-minutes",
+                taskId)
+            .header("Origin", "http://localhost:5173"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
   }
 
   @Test
@@ -171,6 +188,31 @@ class WorkSessionControllerTest {
   }
 
   @Test
+  void 作業セッション登録成功_オフセットなし日時をLocalDateTimeとしてサービスに渡すこと()
+      throws Exception {
+    // Arrange
+    int taskId = 1;
+    WorkSession response = new WorkSession();
+    response.setId(10);
+    when(service.create(eq(taskId), any(WorkSessionCreateRequest.class))).thenReturn(response);
+    String validRequest = """
+        {
+          "type": "TIMER",
+          "startedAt": "2026-01-01T09:00:00"
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/work-sessions", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk());
+
+    verify(service).create(eq(taskId), argThat(request ->
+        LocalDateTime.of(2026, 1, 1, 9, 0).equals(request.getStartedAt())));
+  }
+
+  @Test
   void 作業セッション登録失敗_指定したタスクが存在しないなら404を返すこと() throws Exception {
     // Arrange
     int taskId = 999;
@@ -240,6 +282,8 @@ class WorkSessionControllerTest {
     WorkSession ended = new WorkSession();
     ended.setId(wsId);
     ended.setMinutes(30);
+    ended.setStartedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
+    ended.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 30));
     when(service.setEnd(wsId)).thenReturn(ended);
 
     // Act & Assert
@@ -247,7 +291,9 @@ class WorkSessionControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id").value(wsId))
-        .andExpect(jsonPath("$.minutes").value(30));
+        .andExpect(jsonPath("$.minutes").value(30))
+        .andExpect(jsonPath("$.startedAt").value("2026-01-01T09:00:00+09:00"))
+        .andExpect(jsonPath("$.endedAt").value("2026-01-01T09:30:00+09:00"));
 
     verify(service).setEnd(wsId);
   }
@@ -305,6 +351,68 @@ class WorkSessionControllerTest {
         .andExpect(jsonPath("$.minutes").value(45));
 
     verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+  }
+
+  @Test
+  void 作業セッション更新成功_レスポンスのオフセット付き日時をそのまま更新できること()
+      throws Exception {
+    // Arrange
+    int wsId = 1;
+    String validRequest = """
+        {
+          "type": "TIMER",
+          "startedAt": "2026-08-08T21:57:21.691905+09:00",
+          "endedAt": "2026-08-08T22:57:21.691905+09:00"
+        }
+        """;
+    WorkSession updated = new WorkSession();
+    updated.setId(wsId);
+    updated.setStartedAt(LocalDateTime.of(2026, 8, 8, 21, 57, 21, 691_905_000));
+    updated.setEndedAt(LocalDateTime.of(2026, 8, 8, 22, 57, 21, 691_905_000));
+    when(service.update(eq(wsId), any(WorkSessionUpdateRequest.class))).thenReturn(updated);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.startedAt")
+            .value("2026-08-08T21:57:21.691905+09:00"))
+        .andExpect(jsonPath("$.endedAt")
+            .value("2026-08-08T22:57:21.691905+09:00"));
+
+    verify(service).update(eq(wsId), argThat(request ->
+        LocalDateTime.of(2026, 8, 8, 21, 57, 21, 691_905_000)
+            .equals(request.getStartedAt())
+            && LocalDateTime.of(2026, 8, 8, 22, 57, 21, 691_905_000)
+            .equals(request.getEndedAt())));
+  }
+
+  @Test
+  void 作業セッション更新成功_異なるオフセットの日時をDBタイムゾーンへ正規化すること()
+      throws Exception {
+    // Arrange
+    int wsId = 1;
+    String validRequest = """
+        {
+          "type": "TIMER",
+          "startedAt": "2026-01-01T00:00:00Z",
+          "endedAt": "2026-01-01T01:00:00Z"
+        }
+        """;
+    WorkSession updated = new WorkSession();
+    updated.setId(wsId);
+    when(service.update(eq(wsId), any(WorkSessionUpdateRequest.class))).thenReturn(updated);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk());
+
+    verify(service).update(eq(wsId), argThat(request ->
+        LocalDateTime.of(2026, 1, 1, 9, 0).equals(request.getStartedAt())
+            && LocalDateTime.of(2026, 1, 1, 10, 0).equals(request.getEndedAt())));
   }
 
   @Test
@@ -416,6 +524,32 @@ class WorkSessionControllerTest {
   }
 
   @Test
+  void 作業セッション更新失敗_日時形式が不正なら独自エラーレスポンスを返すこと()
+      throws Exception {
+    // Arrange
+    int wsId = 1;
+    String invalidRequest = """
+        {
+          "type": "TIMER",
+          "startedAt": "invalid-date-time",
+          "endedAt": "2026-01-01T10:00:00+09:00"
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.message").value("payload format error"))
+        .andExpect(jsonPath("$.errors[0].field").value("startedAt"))
+        .andExpect(jsonPath("$.errors[0].message").value("JSONの形式または値が不正です"));
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
   void 作業セッション更新失敗_未知のDB制約違反なら詳細を公開せず500を返すこと() throws Exception {
     // Arrange
     int wsId = 1;
@@ -441,7 +575,8 @@ class WorkSessionControllerTest {
   }
 
   @Test
-  void 作業セッション削除成功_204と空のレスポンスボディを返しサービスを呼び出すこと() throws Exception {
+  void 作業セッション削除成功_204と空のレスポンスボディを返しサービスを呼び出すこと()
+      throws Exception {
     // Arrange
     int wsId = 1;
 
