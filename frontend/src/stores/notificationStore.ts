@@ -26,6 +26,9 @@ export const useNotificationStore = defineStore('notification', {
     success(message: string) {
       return this.push('success', message)
     },
+    info(message: string) {
+      return this.push('info', message)
+    },
     dismiss(id: number) {
       this.notifications = this.notifications.filter((n) => n.id !== id)
     },

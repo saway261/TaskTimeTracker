@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import * as tasksApi from '@/api/tasksApi'
 import * as memosApi from '@/api/memosApi'
-import * as workSessionsApi from '@/api/workSessionsApi'
 import type {
   TaskCreateRequest,
   TaskResponse,
@@ -13,16 +12,11 @@ import type {
 import type { MemoRequest, MemoResponse } from '@/types/memo'
 import type { ApiError } from '@/types/apiError'
 import { sortById } from '@/utils/sort'
-import { isFinished as isTaskFinished } from '@/utils/task'
 
 export const useTaskStore = defineStore('task', {
   state: () => ({
     tasks: [] as TaskResponse[],
     currentTask: null as TaskResponse | null,
-    // 未完了タスクの実績集計用（§4.5）。完了済みタスクは actualMinutesCached 等を使うため null のまま。
-    currentTaskActualMinutes: null as number | null,
-    // 見積編集の可否判定用（セッションが1件でもあると不可）。
-    currentTaskSessionCount: null as number | null,
     loading: false,
     error: null as ApiError | null,
   }),
@@ -58,30 +52,15 @@ export const useTaskStore = defineStore('task', {
     async fetchTask(id: number) {
       this.loading = true
       this.error = null
-      this.currentTaskActualMinutes = null
-      this.currentTaskSessionCount = null
       try {
         const res = await tasksApi.fetchById(id)
         this.currentTask = res.data
-        if (!isTaskFinished(res.data)) {
-          await this.loadEstimationContext(id)
-        }
       } catch (e) {
         this.error = e as ApiError
         throw e
       } finally {
         this.loading = false
       }
-    },
-
-    // 未完了タスクの「実績」（total-minutes）と、見積編集可否の判定に使うセッション件数を取得する。
-    async loadEstimationContext(taskId: number) {
-      const [totalRes, sessionsRes] = await Promise.all([
-        workSessionsApi.fetchTotalMinutes(taskId),
-        workSessionsApi.fetchAllInTask(taskId),
-      ])
-      this.currentTaskActualMinutes = totalRes.data
-      this.currentTaskSessionCount = sessionsRes.data.length
     },
 
     // 登録後オブジェクトをそのまま反映するため、再取得は不要。
@@ -112,14 +91,6 @@ export const useTaskStore = defineStore('task', {
     async updateFinished(id: number, req: TaskUpdateFinishedRequest) {
       const res = await tasksApi.updateFinished(id, req)
       this.applyUpdated(res.data)
-      if (this.currentTask?.id === id) {
-        if (isTaskFinished(res.data)) {
-          this.currentTaskActualMinutes = null
-          this.currentTaskSessionCount = null
-        } else {
-          await this.loadEstimationContext(id)
-        }
-      }
       return res.data
     },
 

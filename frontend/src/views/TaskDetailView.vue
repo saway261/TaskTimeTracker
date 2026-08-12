@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useTaskStore } from '@/stores/taskStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskGroupStore } from '@/stores/taskGroupStore'
+import { useWorkSessionStore } from '@/stores/workSessionStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
 import { isFinished as isTaskFinished } from '@/utils/task'
@@ -19,6 +20,9 @@ import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
 import EstimationSummary from '@/components/task/EstimationSummary.vue'
 import MemoList from '@/components/memo/MemoList.vue'
+import WorkSessionList from '@/components/workSession/WorkSessionList.vue'
+import ManualWorkSessionForm from '@/components/workSession/ManualWorkSessionForm.vue'
+import WorkTimer from '@/components/workSession/WorkTimer.vue'
 
 const props = defineProps<{
   projectId: string
@@ -30,6 +34,7 @@ const router = useRouter()
 const taskStore = useTaskStore()
 const projectStore = useProjectStore()
 const taskGroupStore = useTaskGroupStore()
+const workSessionStore = useWorkSessionStore()
 const notification = useNotificationStore()
 
 const invalidId = ref(false)
@@ -49,6 +54,9 @@ const backLink = computed(() =>
 const finished = computed(() =>
   taskStore.currentTask ? isTaskFinished(taskStore.currentTask) : false,
 )
+
+// タイマー稼働中は完了・削除・手動セッション登録・新規タイマー開始を無効化する（§6.5）。
+const hasActiveTimer = computed(() => workSessionStore.activeSession !== null)
 
 const breadcrumbItems = computed(() => {
   const task = taskStore.currentTask
@@ -88,6 +96,13 @@ async function load() {
   if (numericTaskGroupId.value !== null) {
     taskGroupStore.fetchTaskGroup(numericTaskGroupId.value).catch(() => {})
   }
+
+  // 一覧は完了済みタスクでも読み取り専用で表示する（Q5-A）。実績（total-minutes）は
+  // 未完了タスクのみ必要（完了済みは actualMinutesCached を使う。§4.5）。
+  await workSessionStore.fetchSessions(id).catch(() => {})
+  if (taskStore.currentTask && !isTaskFinished(taskStore.currentTask)) {
+    workSessionStore.fetchTotalMinutes(id).catch(() => {})
+  }
 }
 
 onMounted(load)
@@ -125,7 +140,7 @@ const estimateInput = ref('')
 const estimateUpdating = ref(false)
 const estimateError = ref<ApiError | null>(null)
 
-const canEditEstimate = computed(() => taskStore.currentTaskSessionCount === 0)
+const canEditEstimate = computed(() => workSessionStore.workSessions.length === 0)
 
 function openEstimateEditor() {
   estimateInput.value = taskStore.currentTask?.estimatedMinutes?.toString() ?? ''
@@ -190,6 +205,26 @@ async function handleDelete() {
   }
 }
 
+// --- 作業セッション（手動登録） ---
+const creatingSession = ref(false)
+const createSessionError = ref<ApiError | null>(null)
+
+async function handleCreateManualSession(minutes: number) {
+  const id = numericTaskId.value
+  if (id === null) return
+  creatingSession.value = true
+  createSessionError.value = null
+  try {
+    await workSessionStore.createManualSession(id, minutes)
+    await Promise.all([workSessionStore.fetchTotalMinutes(id), taskStore.fetchTask(id)])
+    notification.success('作業セッションを記録しました。')
+  } catch (e) {
+    createSessionError.value = e as ApiError
+  } finally {
+    creatingSession.value = false
+  }
+}
+
 // --- メモ ---
 function handleMemoCreate(req: MemoRequest) {
   const id = numericTaskId.value
@@ -215,10 +250,16 @@ function handleMemoCreate(req: MemoRequest) {
         </div>
         <div class="header-actions">
           <BaseButton variant="secondary" @click="openEditModal">編集</BaseButton>
-          <BaseButton variant="secondary" :disabled="finishing" @click="toggleFinished">
+          <BaseButton
+            variant="secondary"
+            :disabled="finishing || (!finished && hasActiveTimer)"
+            @click="toggleFinished"
+          >
             {{ finished ? '完了を解除する' : '完了にする' }}
           </BaseButton>
-          <BaseButton variant="danger" @click="handleDelete">削除</BaseButton>
+          <BaseButton variant="danger" :disabled="hasActiveTimer" @click="handleDelete">
+            削除
+          </BaseButton>
         </div>
       </div>
 
@@ -237,7 +278,7 @@ function handleMemoCreate(req: MemoRequest) {
         <h2>見積・実績</h2>
         <EstimationSummary
           :task="taskStore.currentTask"
-          :actual-minutes="taskStore.currentTaskActualMinutes"
+          :actual-minutes="workSessionStore.totalMinutes"
         />
 
         <template v-if="!finished">
@@ -274,9 +315,24 @@ function handleMemoCreate(req: MemoRequest) {
 
       <section class="work-section">
         <h2>作業セッション</h2>
-        <p class="hint">
-          作業セッション一覧・手動記録の登録はフェーズ5、タイマーはフェーズ6で追加する。
-        </p>
+
+        <WorkTimer v-if="!finished && numericTaskId !== null" :task-id="numericTaskId" />
+
+        <WorkSessionList
+          v-if="numericTaskId !== null"
+          :task-id="numericTaskId"
+          :task-finished="finished"
+        />
+
+        <template v-if="!finished">
+          <h3>手動で記録を追加</h3>
+          <ManualWorkSessionForm
+            :submitting="creatingSession"
+            :error="createSessionError"
+            :disabled="hasActiveTimer"
+            @submit="handleCreateManualSession"
+          />
+        </template>
       </section>
     </template>
 
