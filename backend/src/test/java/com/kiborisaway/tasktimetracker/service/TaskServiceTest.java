@@ -24,7 +24,9 @@ import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowed
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
+import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskGroupItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
@@ -57,6 +59,12 @@ class TaskServiceTest {
 
   @Mock
   private MemoRepository memoRepository;
+
+  @Mock
+  private ProjectItemOrderRepository pjItemOrderRepository;
+
+  @Mock
+  private TaskGroupItemOrderRepository tgItemOrderRepository;
 
   @InjectMocks
   private TaskService sut;
@@ -282,6 +290,8 @@ class TaskServiceTest {
     assertThat(captor.getValue().getProjectId()).isEqualTo(pId);
     assertThat(captor.getValue().getTaskGroupId()).isNull();
     assertThat(captor.getValue().getTitle()).isEqualTo("タスク１");
+    verify(pjItemOrderRepository, times(1)).insertAppendForTask(pId, 10);
+    verify(tgItemOrderRepository, never()).insertAppendForTask(anyInt(), anyInt());
   }
 
   @Test
@@ -317,6 +327,8 @@ class TaskServiceTest {
     assertThat(captor.getValue().getTaskGroupId()).isEqualTo(tgId);
     assertThat(captor.getValue().getProjectId()).isNull();
     assertThat(captor.getValue().getTitle()).isEqualTo("タスク１");
+    verify(tgItemOrderRepository, times(1)).insertAppendForTask(tgId, 10);
+    verify(pjItemOrderRepository, never()).insertAppendForTask(anyInt(), anyInt());
   }
 
   @Test
@@ -462,6 +474,9 @@ class TaskServiceTest {
     verify(tsRepository, times(2)).findById(taskId);
     verify(tgRepository, times(1)).findById(taskGroupId);
     verify(tsRepository, times(1)).updateTaskGroup(taskId, taskGroupId);
+    verify(pjItemOrderRepository, times(1)).deleteByTaskId(taskId);
+    verify(tgItemOrderRepository, times(1)).deleteByTaskId(taskId);
+    verify(tgItemOrderRepository, times(1)).insertAppendForTask(taskGroupId, taskId);
   }
 
   @Test
@@ -494,6 +509,9 @@ class TaskServiceTest {
     verify(tgRepository, times(1)).findById(targetTaskGroupId);
     verify(tgRepository, times(1)).findById(currentTaskGroupId);
     verify(tsRepository, times(1)).updateTaskGroup(taskId, targetTaskGroupId);
+    verify(pjItemOrderRepository, times(1)).deleteByTaskId(taskId);
+    verify(tgItemOrderRepository, times(1)).deleteByTaskId(taskId);
+    verify(tgItemOrderRepository, times(1)).insertAppendForTask(targetTaskGroupId, taskId);
   }
 
   @Test
@@ -581,6 +599,9 @@ class TaskServiceTest {
     verify(pjRepository, times(1)).existsById(projectId);
     verify(tgRepository, times(1)).findById(currentTaskGroupId);
     verify(tsRepository, times(1)).updateProject(taskId, projectId);
+    verify(pjItemOrderRepository, times(1)).deleteByTaskId(taskId);
+    verify(tgItemOrderRepository, times(1)).deleteByTaskId(taskId);
+    verify(pjItemOrderRepository, times(1)).insertAppendForTask(projectId, taskId);
   }
 
   @Test
@@ -793,9 +814,12 @@ class TaskServiceTest {
     sut.deleteById(id);
 
     // Assert
-    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, tsRepository);
+    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository,
+        pjItemOrderRepository, tgItemOrderRepository, tsRepository);
     inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
     inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
+    inOrder.verify(pjItemOrderRepository, times(1)).deleteByTaskId(id);
+    inOrder.verify(tgItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tsRepository, times(1)).deleteById(id);
   }
 
@@ -810,9 +834,12 @@ class TaskServiceTest {
     assertThatThrownBy(() -> sut.deleteById(id))
         .isInstanceOf(TargetNotFoundException.class);
 
-    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, tsRepository);
+    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository,
+        pjItemOrderRepository, tgItemOrderRepository, tsRepository);
     inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
     inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
+    inOrder.verify(pjItemOrderRepository, times(1)).deleteByTaskId(id);
+    inOrder.verify(tgItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tsRepository, times(1)).deleteById(id);
   }
 

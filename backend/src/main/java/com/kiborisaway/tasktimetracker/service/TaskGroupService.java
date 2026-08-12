@@ -8,6 +8,7 @@ import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
+import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import java.util.List;
@@ -23,15 +24,18 @@ public class TaskGroupService {
   private TaskGroupRepository tgRepository;
   private ProjectRepository prRepository;
   private MemoRepository memoRepository;
+  private ProjectItemOrderRepository pjItemOrderRepository;
 
   @Autowired
   public TaskGroupService(
       TaskGroupRepository tgRepository,
       ProjectRepository prRepository,
-      MemoRepository memoRepository) {
+      MemoRepository memoRepository,
+      ProjectItemOrderRepository pjItemOrderRepository) {
     this.tgRepository = tgRepository;
     this.prRepository = prRepository;
     this.memoRepository = memoRepository;
+    this.pjItemOrderRepository = pjItemOrderRepository;
   }
 
   /**
@@ -95,6 +99,7 @@ public class TaskGroupService {
     TaskGroup tg = toEntity(request);
     tg.setProjectId(pId);
     tgRepository.insert(tg);
+    pjItemOrderRepository.insertAppendForTaskGroup(pId, tg.getId());
     TaskGroup registeredTaskGroup = findTaskGroupById(tg.getId());
     return new TaskGroupResponse(registeredTaskGroup, List.of());
   }
