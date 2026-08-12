@@ -1,36 +1,150 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useItemOrderStore } from '@/stores/itemOrderStore'
 import type { TaskResponse } from '@/types/task'
+import type { TaskGroupResponse } from '@/types/taskGroup'
 import { isFinished } from '@/utils/task'
 import { formatMinutes } from '@/utils/duration'
+import TaskRowMenu from './TaskRowMenu.vue'
 
 const props = defineProps<{
   task: TaskResponse
   to: string
+  // 並べ替え・移動に必要な文脈（§7.4）。
+  projectId: number
+  containerKey: string // 'project:{pId}' | 'taskGroup:{tgId}'
+  taskGroups: TaskGroupResponse[]
+  canMoveUp: boolean
+  canMoveDown: boolean
 }>()
 
+const emit = defineEmits<{
+  'move-up': []
+  'move-down': []
+  'item-drop': []
+}>()
+
+const itemOrderStore = useItemOrderStore()
+
 const finished = computed(() => isFinished(props.task))
+const itemKey = computed(() => `TASK:${props.task.id}`)
+const isDragOverTarget = computed(
+  () =>
+    itemOrderStore.dragOverTarget?.container === props.containerKey &&
+    itemOrderStore.dragOverTarget?.beforeKey === itemKey.value,
+)
+
+function handleDragStart(e: DragEvent) {
+  itemOrderStore.startDrag({
+    kind: 'TASK',
+    id: props.task.id,
+    sourceContainer: props.containerKey,
+  })
+  e.dataTransfer?.setData('text/plain', itemKey.value)
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+
+function handleDragEnd() {
+  itemOrderStore.endDrag()
+}
+
+function handleDragOver(e: DragEvent) {
+  if (!itemOrderStore.draggedItem) return
+  e.preventDefault()
+  itemOrderStore.setDragOverTarget({ container: props.containerKey, beforeKey: itemKey.value })
+}
+
+function handleDrop(e: DragEvent) {
+  if (!itemOrderStore.draggedItem) return
+  e.preventDefault()
+  emit('item-drop')
+}
+
+const showMenu = ref(false)
 </script>
 
 <template>
-  <RouterLink :to="to" class="task-row" :class="{ finished }">
-    <span class="label">タスク</span>
-    <span class="title">{{ task.title }}</span>
-    <span v-if="task.estimatedMinutes !== null" class="estimate">
-      見積 {{ formatMinutes(task.estimatedMinutes) }}
+  <div
+    class="task-row-wrapper"
+    :class="{ 'drag-over': isDragOverTarget }"
+    @dragover="handleDragOver"
+    @drop="handleDrop"
+  >
+    <span
+      class="drag-handle"
+      draggable="true"
+      role="button"
+      tabindex="-1"
+      aria-label="ドラッグして並べ替え"
+      @dragstart="handleDragStart"
+      @dragend="handleDragEnd"
+      @click.prevent
+    >
+      ⠿
     </span>
-    <span class="status" :class="{ finished }">
-      {{ finished ? '完了' : '未完了' }}
-    </span>
-  </RouterLink>
+
+    <RouterLink :to="to" class="task-row" :class="{ finished }" draggable="false">
+      <span class="label">タスク</span>
+      <span class="title">{{ task.title }}</span>
+      <span v-if="task.estimatedMinutes !== null" class="estimate">
+        見積 {{ formatMinutes(task.estimatedMinutes) }}
+      </span>
+      <span class="status" :class="{ finished }">
+        {{ finished ? '完了' : '未完了' }}
+      </span>
+    </RouterLink>
+
+    <button type="button" class="menu-button" aria-label="タスクを操作" @click="showMenu = true">
+      ⋮
+    </button>
+
+    <TaskRowMenu
+      v-model="showMenu"
+      :task-id="task.id"
+      :project-id="projectId"
+      :container-key="containerKey"
+      :task-groups="taskGroups"
+      :can-move-up="canMoveUp"
+      :can-move-down="canMoveDown"
+      @move-up="emit('move-up')"
+      @move-down="emit('move-down')"
+    />
+  </div>
 </template>
 
 <style scoped>
+.task-row-wrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 0.3em;
+  border-top: 2px solid transparent;
+}
+
+.task-row-wrapper.drag-over {
+  border-top-color: var(--color-accent);
+}
+
+.drag-handle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 0.3em;
+  color: var(--color-text-muted);
+  cursor: grab;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
 .task-row {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 0.6em;
+  min-width: 0;
   padding: 0.8em 1em;
   border-radius: 8px;
   background-color: var(--color-surface);
@@ -84,5 +198,24 @@ const finished = computed(() => isFinished(props.task))
 
 .status.finished {
   color: var(--color-success);
+}
+
+.menu-button {
+  flex-shrink: 0;
+  width: 2.2em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
+}
+
+.menu-button:hover {
+  color: var(--color-text);
+}
+
+.menu-button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 </style>

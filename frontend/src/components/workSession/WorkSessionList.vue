@@ -8,6 +8,7 @@ import type { ApiError } from '@/types/apiError'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import WorkSessionListItem from './WorkSessionListItem.vue'
 import WorkSessionForm from './WorkSessionForm.vue'
 
@@ -56,8 +57,17 @@ async function handleUpdate(req: WorkSessionUpdateRequest) {
   }
 }
 
-async function handleDelete(session: WorkSession) {
-  if (!window.confirm('この作業セッションを削除しますか？')) return
+const pendingDeleteSession = ref<WorkSession | null>(null)
+const showDeleteConfirm = ref(false)
+
+function confirmDelete(session: WorkSession) {
+  pendingDeleteSession.value = session
+  showDeleteConfirm.value = true
+}
+
+async function handleDelete() {
+  const session = pendingDeleteSession.value
+  if (!session) return
   try {
     await workSessionStore.removeSession(session.id)
     await refreshAfterMutation()
@@ -82,7 +92,7 @@ async function handleDelete(session: WorkSession) {
         :session="session"
         :editable="!taskFinished"
         @edit="openEdit"
-        @delete="handleDelete"
+        @delete="confirmDelete"
       />
     </div>
 
@@ -96,6 +106,15 @@ async function handleDelete(session: WorkSession) {
         @cancel="showEditModal = false"
       />
     </BaseModal>
+
+    <ConfirmDialog
+      v-model="showDeleteConfirm"
+      title="作業セッションの削除"
+      message="この作業セッションを削除しますか？"
+      confirm-label="削除する"
+      danger
+      @confirm="handleDelete"
+    />
   </div>
 </template>
 

@@ -18,6 +18,8 @@ const EXACT_MATCHES: Record<string, string> = {
   'task finish not allowed': '未終了の作業セッションがあるため、完了にできません。',
   'work session operation not allowed': '完了済みのタスクでは作業セッションを操作できません。',
   'work session end not allowed': 'このセッションは終了できません。',
+  'invalid item order':
+    '他の場所で変更があったため、並び順を更新できませんでした。最新の状態を読み込み直します。',
 }
 
 // "size must be between 0 and 20" → 上限値だけ抜き出して組み立てる

@@ -6,6 +6,7 @@ import { useNotificationStore } from '@/stores/notificationStore'
 import type { ApiError } from '@/types/apiError'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const props = defineProps<{
   taskId: number
@@ -111,11 +112,11 @@ async function handleStart() {
 
 const stopping = ref(false)
 const stopError = ref<ApiError | null>(null)
+const showStopConfirm = ref(false)
 
 async function handleStop() {
   const session = workSessionStore.activeSession
   if (!session) return
-  if (!window.confirm('タイマーを停止しますか？')) return
   stopping.value = true
   stopError.value = null
   try {
@@ -159,7 +160,18 @@ async function handleStop() {
     <BaseButton v-if="!workSessionStore.activeSession" :disabled="starting" @click="handleStart">
       開始
     </BaseButton>
-    <BaseButton v-else variant="danger" :disabled="stopping" @click="handleStop"> 停止 </BaseButton>
+    <BaseButton v-else variant="danger" :disabled="stopping" @click="showStopConfirm = true">
+      停止
+    </BaseButton>
+
+    <ConfirmDialog
+      v-model="showStopConfirm"
+      title="タイマーの停止"
+      message="タイマーを停止しますか？"
+      confirm-label="停止する"
+      danger
+      @confirm="handleStop"
+    />
   </div>
 </template>
 

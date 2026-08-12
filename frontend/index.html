@@ -2,6 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Vueマウント前にdata-themeを設定し、初期表示のちらつきを防ぐ（フェーズ7 §7.1）。
+      // 決定順はsrc/theme.tsのgetInitialTheme()と同じにすること。
+      (function () {
+        var stored = localStorage.getItem('ttt-theme');
+        var theme =
+          stored === 'dark' || stored === 'light'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Task Time Tracker</title>

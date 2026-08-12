@@ -3,12 +3,16 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskGroupStore } from '@/stores/taskGroupStore'
 import { useTaskStore } from '@/stores/taskStore'
+import { projectContainerKey, useItemOrderStore } from '@/stores/itemOrderStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
+import { sortProjectItemsByOrder } from '@/utils/sort'
+import { insertStubAt } from '@/utils/dragReorder'
 import type { ApiError } from '@/types/apiError'
 import type { ProjectUpdateRequest } from '@/types/project'
-import type { TaskGroupCreateRequest } from '@/types/taskGroup'
-import type { TaskCreateRequest } from '@/types/task'
+import type { TaskGroupCreateRequest, TaskGroupResponse } from '@/types/taskGroup'
+import type { TaskCreateRequest, TaskResponse } from '@/types/task'
+import type { ItemType, ProjectItemOrderItemRequest } from '@/types/itemOrder'
 import type { MemoRequest } from '@/types/memo'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
@@ -29,6 +33,7 @@ const props = defineProps<{
 const projectStore = useProjectStore()
 const taskGroupStore = useTaskGroupStore()
 const taskStore = useTaskStore()
+const itemOrderStore = useItemOrderStore()
 const notification = useNotificationStore()
 
 const invalidId = ref(false)
@@ -37,6 +42,8 @@ const updating = ref(false)
 const updateError = ref<ApiError | null>(null)
 
 const numericId = computed(() => toPositiveInt(props.projectId))
+// currentProjectが読み込まれた時点でnumericIdは必ず有効なため、テンプレート内の型絞り込み用に用意する。
+const currentProjectId = computed(() => projectStore.currentProject?.id ?? numericId.value ?? 0)
 
 const breadcrumbItems = computed(() => {
   const project = projectStore.currentProject
@@ -45,6 +52,23 @@ const breadcrumbItems = computed(() => {
 })
 
 const directTasks = computed(() => taskStore.tasks.filter((t) => t.projectId !== null))
+
+type OrderedItem =
+  | { kind: 'TASK_GROUP'; id: number; taskGroup: TaskGroupResponse }
+  | { kind: 'TASK'; id: number; task: TaskResponse }
+
+const mergedRawItems = computed<OrderedItem[]>(() => [
+  ...taskGroupStore.taskGroups.map((tg) => ({
+    kind: 'TASK_GROUP' as const,
+    id: tg.id,
+    taskGroup: tg,
+  })),
+  ...directTasks.value.map((t) => ({ kind: 'TASK' as const, id: t.id, task: t })),
+])
+
+const orderedItems = computed(() =>
+  sortProjectItemsByOrder(mergedRawItems.value, itemOrderStore.projectItemOrder),
+)
 
 async function load() {
   const id = numericId.value
@@ -59,6 +83,8 @@ async function load() {
   } catch {
     // エラーは各storeのerrorに保持済み
   }
+  // 並び順は無ければid昇順にフォールバックして表示できるため、失敗してもページ全体は止めない。
+  itemOrderStore.fetchProjectItemOrder(id).catch(() => {})
 }
 
 onMounted(load)
@@ -112,7 +138,8 @@ async function handleCreateTaskGroup(payload: { title: string; description: stri
   creatingTaskGroup.value = true
   createTaskGroupError.value = null
   try {
-    await taskGroupStore.createTaskGroup(id, payload as TaskGroupCreateRequest)
+    const taskGroup = await taskGroupStore.createTaskGroup(id, payload as TaskGroupCreateRequest)
+    itemOrderStore.appendToContainerOrder(projectContainerKey(id), 'TASK_GROUP', taskGroup.id)
     notification.success('タスクグループを登録しました。')
     showCreateTaskGroupModal.value = false
   } catch (e) {
@@ -141,13 +168,90 @@ async function handleCreateTask(payload: {
   creatingTask.value = true
   createTaskError.value = null
   try {
-    await taskStore.createTaskInProject(id, payload as TaskCreateRequest)
+    const task = await taskStore.createTaskInProject(id, payload as TaskCreateRequest)
+    itemOrderStore.appendToContainerOrder(projectContainerKey(id), 'TASK', task.id)
     notification.success('タスクを登録しました。')
     showCreateTaskModal.value = false
   } catch (e) {
     createTaskError.value = e as ApiError
   } finally {
     creatingTask.value = false
+  }
+}
+
+// --- 並べ替え・移動（§7.3・§7.4） ---
+
+async function handleMoveUp(index: number) {
+  if (index <= 0) return
+  const items = orderedItems.value.map((it) => ({ type: it.kind, id: it.id }))
+  ;[items[index - 1], items[index]] = [items[index], items[index - 1]]
+  try {
+    await itemOrderStore.reorderProjectItems(currentProjectId.value, items)
+  } catch (e) {
+    notification.error((e as ApiError).message)
+  }
+}
+
+async function handleMoveDown(index: number) {
+  if (index >= orderedItems.value.length - 1) return
+  const items = orderedItems.value.map((it) => ({ type: it.kind, id: it.id }))
+  ;[items[index], items[index + 1]] = [items[index + 1], items[index]]
+  try {
+    await itemOrderStore.reorderProjectItems(currentProjectId.value, items)
+  } catch (e) {
+    notification.error((e as ApiError).message)
+  }
+}
+
+function handleEndDragOver() {
+  if (!itemOrderStore.draggedItem) return
+  itemOrderStore.setDragOverTarget({
+    container: projectContainerKey(currentProjectId.value),
+    beforeKey: null,
+  })
+}
+
+async function handleItemDrop() {
+  const containerKey = projectContainerKey(currentProjectId.value)
+  const dragged = itemOrderStore.draggedItem
+  const target = itemOrderStore.dragOverTarget
+  if (!dragged || !target || target.container !== containerKey) return
+
+  const draggedStub = { key: `${dragged.kind}:${dragged.id}` }
+  const currentStubs = orderedItems.value.map((it) => ({ key: `${it.kind}:${it.id}` }))
+  const newStubs = insertStubAt(currentStubs, draggedStub, target.beforeKey)
+  const items: ProjectItemOrderItemRequest[] = newStubs.map((s) => {
+    const [type, idStr] = s.key.split(':')
+    return { type: type as ItemType, id: Number(idStr) }
+  })
+
+  if (dragged.sourceContainer === containerKey) {
+    try {
+      await itemOrderStore.reorderProjectItems(currentProjectId.value, items)
+    } catch (e) {
+      notification.error((e as ApiError).message)
+    }
+    return
+  }
+
+  // クロスコンテナは常にタスクグループ配下からの移動（タスクグループ自体はProject直下にしか存在しない）。
+  if (dragged.kind !== 'TASK') return
+  try {
+    const result = await itemOrderStore.moveTaskAcrossContainer({
+      taskId: dragged.id,
+      parentReq: { projectId: currentProjectId.value, taskGroupId: null },
+      sourceContainer: dragged.sourceContainer,
+      target: { type: 'project', projectId: currentProjectId.value, items },
+    })
+    if (result.reorderFailed) {
+      notification.info(
+        'タスクを移動しましたが、並べ替えには失敗しました。最新の状態を読み込み直してください。',
+      )
+    } else {
+      notification.success('タスクを移動しました。')
+    }
+  } catch (e) {
+    notification.error((e as ApiError).message)
   }
 }
 </script>
@@ -197,23 +301,39 @@ async function handleCreateTask(payload: {
         <LoadingIndicator v-if="taskGroupStore.loading || taskStore.loading" />
         <ErrorMessage v-else-if="taskGroupStore.error" :error="taskGroupStore.error" />
         <ErrorMessage v-else-if="taskStore.error" :error="taskStore.error" />
-        <p
-          v-else-if="taskGroupStore.taskGroups.length === 0 && directTasks.length === 0"
-          class="empty"
-        >
+        <p v-else-if="orderedItems.length === 0" class="empty">
           タスクグループ・タスクがまだありません。
         </p>
         <div v-else class="entity-rows">
-          <TaskGroupListItem
-            v-for="taskGroup in taskGroupStore.taskGroups"
-            :key="`tg-${taskGroup.id}`"
-            :task-group="taskGroup"
-          />
-          <TaskListItem
-            v-for="task in directTasks"
-            :key="`t-${task.id}`"
-            :task="task"
-            :to="`/projects/${numericId}/tasks/${task.id}`"
+          <template v-for="(item, index) in orderedItems" :key="`${item.kind}-${item.id}`">
+            <TaskGroupListItem
+              v-if="item.kind === 'TASK_GROUP'"
+              :task-group="item.taskGroup"
+              :task-groups="taskGroupStore.taskGroups"
+              :can-move-up="index > 0"
+              :can-move-down="index < orderedItems.length - 1"
+              @move-up="handleMoveUp(index)"
+              @move-down="handleMoveDown(index)"
+              @item-drop="handleItemDrop"
+            />
+            <TaskListItem
+              v-else
+              :task="item.task"
+              :to="`/projects/${currentProjectId}/tasks/${item.task.id}`"
+              :project-id="currentProjectId"
+              :container-key="`project:${currentProjectId}`"
+              :task-groups="taskGroupStore.taskGroups"
+              :can-move-up="index > 0"
+              :can-move-down="index < orderedItems.length - 1"
+              @move-up="handleMoveUp(index)"
+              @move-down="handleMoveDown(index)"
+              @item-drop="handleItemDrop"
+            />
+          </template>
+          <div
+            class="end-drop-zone"
+            @dragover.prevent="handleEndDragOver"
+            @drop.prevent="handleItemDrop"
           />
         </div>
       </section>
@@ -310,6 +430,10 @@ async function handleCreateTask(payload: {
   display: flex;
   flex-direction: column;
   gap: 0.6em;
+}
+
+.end-drop-zone {
+  min-height: 1.2em;
 }
 
 .empty {

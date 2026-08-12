@@ -6,6 +6,7 @@ import type { ApiError } from '@/types/apiError'
 import { useNotificationStore } from '@/stores/notificationStore'
 import MemoForm from './MemoForm.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const PREVIEW_LENGTH = 18
 
@@ -70,9 +71,10 @@ async function handleUpdate(req: MemoRequest) {
   }
 }
 
+const showDeleteConfirm = ref(false)
+
 async function handleDelete() {
   if (!editingMemo.value) return
-  if (!window.confirm('このメモを削除しますか？')) return
   editError.value = null
   try {
     await memosApi.deleteMemo(editingMemo.value.id)
@@ -111,8 +113,19 @@ async function handleDelete() {
         @submit="handleUpdate"
         @cancel="showEditModal = false"
       />
-      <button type="button" class="delete-memo" @click="handleDelete">このメモを削除する</button>
+      <button type="button" class="delete-memo" @click="showDeleteConfirm = true">
+        このメモを削除する
+      </button>
     </BaseModal>
+
+    <ConfirmDialog
+      v-model="showDeleteConfirm"
+      title="メモの削除"
+      message="このメモを削除しますか？"
+      confirm-label="削除する"
+      danger
+      @confirm="handleDelete"
+    />
   </section>
 </template>
 
