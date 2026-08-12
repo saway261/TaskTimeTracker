@@ -9,12 +9,14 @@ const props = withDefaults(
     maxlength?: number
     required?: boolean
     type?: string
+    step?: string | number
   }>(),
   {
     error: undefined,
     maxlength: undefined,
     required: false,
     type: 'text',
+    step: undefined,
   },
 )
 
@@ -40,6 +42,7 @@ const remaining = computed(() =>
       :type="type"
       :value="modelValue"
       :maxlength="maxlength"
+      :step="step"
       :aria-invalid="!!error"
       :aria-describedby="error ? `${inputId}-error` : undefined"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"

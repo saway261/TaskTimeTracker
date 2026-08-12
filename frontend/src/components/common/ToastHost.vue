@@ -47,6 +47,11 @@ const store = useNotificationStore()
   color: var(--color-success);
 }
 
+.toast.info {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 .toast button {
   background: none;
   border: none;
