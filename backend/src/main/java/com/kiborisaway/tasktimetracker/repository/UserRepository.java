@@ -15,6 +15,9 @@ public interface UserRepository {
   @Select("SELECT * FROM app_users WHERE email = #{email}")
   AppUser findByEmail(String email);
 
+  @Select("SELECT * FROM app_users WHERE id = #{id}")
+  AppUser findById(int id);
+
   @Select("SELECT EXISTS(SELECT 1 FROM app_users WHERE email = #{email})")
   boolean existsByEmail(String email);
 

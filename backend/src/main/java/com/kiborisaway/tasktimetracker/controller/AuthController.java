@@ -3,10 +3,12 @@ package com.kiborisaway.tasktimetracker.controller;
 import com.kiborisaway.tasktimetracker.data.dto.auth.AuthenticatedUserResponse;
 import com.kiborisaway.tasktimetracker.data.dto.auth.CsrfTokenResponse;
 import com.kiborisaway.tasktimetracker.data.dto.auth.LoginRequest;
+import com.kiborisaway.tasktimetracker.data.dto.auth.PasswordChangeRequest;
 import com.kiborisaway.tasktimetracker.data.dto.auth.RegisterRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.UserService;
+import com.kiborisaway.tasktimetracker.service.PasswordChangeService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -24,6 +26,7 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,14 +38,17 @@ public class AuthController {
   private final UserService userService;
   private final AuthenticationManager authenticationManager;
   private final SecurityContextRepository securityContextRepository;
+  private final PasswordChangeService passwordChangeService;
 
   public AuthController(
       UserService userService,
       AuthenticationManager authenticationManager,
-      SecurityContextRepository securityContextRepository) {
+      SecurityContextRepository securityContextRepository,
+      PasswordChangeService passwordChangeService) {
     this.userService = userService;
     this.authenticationManager = authenticationManager;
     this.securityContextRepository = securityContextRepository;
+    this.passwordChangeService = passwordChangeService;
   }
 
   @GetMapping("/csrf")
@@ -85,6 +91,20 @@ public class AuthController {
   @GetMapping("/me")
   public AuthenticatedUserResponse me(@AuthenticationPrincipal AuthenticatedUser user) {
     return new AuthenticatedUserResponse(user);
+  }
+
+  @PutMapping("/password")
+  public ResponseEntity<Void> changePassword(
+      @AuthenticationPrincipal AuthenticatedUser user,
+      @RequestBody @Valid PasswordChangeRequest requestBody,
+      HttpServletRequest request,
+      HttpServletResponse response) {
+    passwordChangeService.changePassword(user.getUserId(), requestBody);
+    SecurityContextHolder.clearContext();
+    if (request.getSession(false) != null) {
+      request.getSession(false).invalidate();
+    }
+    return ResponseEntity.noContent().build();
   }
 
   private void saveAuthentication(

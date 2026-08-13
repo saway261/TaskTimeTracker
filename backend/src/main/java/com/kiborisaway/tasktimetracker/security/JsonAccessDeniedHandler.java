@@ -27,10 +27,16 @@ public class JsonAccessDeniedHandler implements AccessDeniedHandler {
       HttpServletRequest request,
       HttpServletResponse response,
       AccessDeniedException accessDeniedException) throws IOException {
+    Object denialReason = request.getAttribute(
+        PasswordChangeRequiredAuthorizationManager.DENIAL_REASON_ATTRIBUTE);
+    String message = PasswordChangeRequiredAuthorizationManager.PASSWORD_CHANGE_REQUIRED
+        .equals(denialReason)
+        ? PasswordChangeRequiredAuthorizationManager.PASSWORD_CHANGE_REQUIRED
+        : "forbidden";
     response.setStatus(HttpStatus.FORBIDDEN.value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding(StandardCharsets.UTF_8.name());
     objectMapper.writeValue(response.getOutputStream(),
-        new ErrorResponse(HttpStatus.FORBIDDEN, "forbidden", List.of()));
+        new ErrorResponse(HttpStatus.FORBIDDEN, message, List.of()));
   }
 }

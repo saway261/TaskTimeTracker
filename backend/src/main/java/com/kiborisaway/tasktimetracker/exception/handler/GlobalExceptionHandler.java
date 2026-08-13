@@ -4,6 +4,7 @@ import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowed
 import com.kiborisaway.tasktimetracker.exception.EmailUnavailableException;
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationException;
+import com.kiborisaway.tasktimetracker.exception.PasswordChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -216,6 +217,14 @@ public class GlobalExceptionHandler {
     return ResponseEntity.badRequest()
         .body(new ErrorResponse(HttpStatus.BAD_REQUEST, "payload validation error", List.of(
             Map.of("field", "password", "message", "パスワードが要件を満たしていません"))));
+  }
+
+  @org.springframework.web.bind.annotation.ExceptionHandler(
+      PasswordChangeNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handlePasswordChangeNotAllowedException(
+      PasswordChangeNotAllowedException ex) {
+    return ResponseEntity.badRequest()
+        .body(new ErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), List.of()));
   }
 
   /**

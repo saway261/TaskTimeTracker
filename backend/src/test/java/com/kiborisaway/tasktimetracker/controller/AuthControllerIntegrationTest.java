@@ -10,12 +10,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kiborisaway.tasktimetracker.data.entity.AppUser;
 import com.kiborisaway.tasktimetracker.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -62,7 +62,7 @@ class AuthControllerIntegrationTest {
     assertThat(saved.getPasswordHash()).doesNotContain("register-passphrase");
     assertThat(passwordEncoder.matches("register-passphrase", saved.getPasswordHash())).isTrue();
 
-    mockMvc.perform(get("/auth/me").session((MockHttpSession) result.getRequest().getSession()))
+    mockMvc.perform(get("/auth/me").cookie(result.getResponse().getCookie("JSESSIONID")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(saved.getId()))
         .andExpect(jsonPath("$.email").value("new-user@example.com"));
@@ -94,10 +94,12 @@ class AuthControllerIntegrationTest {
 
   @Test
   void ログイン成功_セッションへ認証を保存してmeを取得できること() throws Exception {
-    MockHttpSession session = new MockHttpSession();
-    String sessionIdBeforeLogin = session.getId();
+    MvcResult csrfResult = mockMvc.perform(get("/auth/csrf"))
+        .andExpect(status().isOk())
+        .andReturn();
+    Cookie anonymousCookie = csrfResult.getResponse().getCookie("JSESSIONID");
     MvcResult login = mockMvc.perform(post("/auth/login")
-            .session(session)
+            .cookie(anonymousCookie)
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
@@ -108,9 +110,9 @@ class AuthControllerIntegrationTest {
         .andExpect(jsonPath("$.email").value("user-a@example.com"))
         .andReturn();
 
-    session = (MockHttpSession) login.getRequest().getSession();
-    assertThat(session.getId()).isNotEqualTo(sessionIdBeforeLogin);
-    mockMvc.perform(get("/auth/me").session(session))
+    Cookie authenticatedCookie = login.getResponse().getCookie("JSESSIONID");
+    assertThat(authenticatedCookie.getValue()).isNotEqualTo(anonymousCookie.getValue());
+    mockMvc.perform(get("/auth/me").cookie(authenticatedCookie))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1));
   }
@@ -158,12 +160,12 @@ class AuthControllerIntegrationTest {
                 """))
         .andExpect(status().isOk())
         .andReturn();
-    MockHttpSession session = (MockHttpSession) login.getRequest().getSession();
+    Cookie sessionCookie = login.getResponse().getCookie("JSESSIONID");
 
-    mockMvc.perform(post("/auth/logout").session(session).with(csrf()))
+    mockMvc.perform(post("/auth/logout").cookie(sessionCookie).with(csrf()))
         .andExpect(status().isNoContent())
         .andExpect(cookie().maxAge("JSESSIONID", 0));
-
-    assertThat(session.isInvalid()).isTrue();
+    mockMvc.perform(get("/auth/me").cookie(sessionCookie))
+        .andExpect(status().isUnauthorized());
   }
 }

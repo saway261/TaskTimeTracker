@@ -35,8 +35,8 @@ dependencies {
     // 認証・認可
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
-    // セッションのDB永続化
-    implementation 'org.springframework.session:spring-session-jdbc'
+    // セッションのDB永続化とBoot自動構成
+    implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
 
     // OpenAPI Generator
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'

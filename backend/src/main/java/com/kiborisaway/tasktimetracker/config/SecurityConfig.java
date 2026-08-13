@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.config;
 
 import com.kiborisaway.tasktimetracker.security.JsonAccessDeniedHandler;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
+import com.kiborisaway.tasktimetracker.security.PasswordChangeRequiredAuthorizationManager;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,6 +21,8 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
+import org.springframework.session.web.http.CookieSerializer;
+import org.springframework.session.web.http.DefaultCookieSerializer;
 
 @Configuration
 public class SecurityConfig {
@@ -31,7 +34,9 @@ public class SecurityConfig {
       HttpSecurity http,
       JsonAuthenticationEntryPoint authenticationEntryPoint,
       JsonAccessDeniedHandler accessDeniedHandler,
-      SecurityContextRepository securityContextRepository) throws Exception {
+      SecurityContextRepository securityContextRepository,
+      PasswordChangeRequiredAuthorizationManager passwordChangeRequiredAuthorizationManager)
+      throws Exception {
     HttpSessionCsrfTokenRepository csrfTokenRepository = new HttpSessionCsrfTokenRepository();
     CsrfTokenRequestAttributeHandler csrfTokenRequestHandler =
         new CsrfTokenRequestAttributeHandler();
@@ -45,8 +50,15 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/auth/csrf").permitAll()
-            .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
-            .anyRequest().authenticated())
+            .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login")
+            .access(passwordChangeRequiredAuthorizationManager
+                ::authorizePublicAuthenticationEndpoint)
+            .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
+            .requestMatchers(HttpMethod.PUT, "/auth/password").authenticated()
+            .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
+            // パスワード変更成功時に全セッションを失効させるため、古いPrincipalの
+            // passwordChangeRequiredが変更後も残り続けることはありません。
+            .anyRequest().access(passwordChangeRequiredAuthorizationManager))
         .exceptionHandling(exceptions -> exceptions
             .authenticationEntryPoint(authenticationEntryPoint)
             .accessDeniedHandler(accessDeniedHandler))
@@ -93,6 +105,15 @@ public class SecurityConfig {
   @Bean
   Clock clock() {
     return Clock.systemDefaultZone();
+  }
+
+  @Bean
+  CookieSerializer cookieSerializer() {
+    DefaultCookieSerializer cookieSerializer = new DefaultCookieSerializer();
+    cookieSerializer.setCookieName("JSESSIONID");
+    cookieSerializer.setCookiePath("/api");
+    cookieSerializer.setSameSite("Lax");
+    return cookieSerializer;
   }
 
 }
