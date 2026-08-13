@@ -19,6 +19,7 @@ import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
+import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import java.util.List;
@@ -43,6 +44,9 @@ class TaskGroupServiceTest {
 
   @Mock
   private MemoRepository memoRepository;
+
+  @Mock
+  private ProjectItemOrderRepository pjItemOrderRepository;
 
   @InjectMocks
   private TaskGroupService sut;
@@ -195,6 +199,7 @@ class TaskGroupServiceTest {
     verify(tgRepository, times(1)).insert(captor.capture());
     assertThat(captor.getValue().getProjectId()).isEqualTo(pId);
     assertThat(captor.getValue().getTitle()).isEqualTo("タスクグループ２");
+    verify(pjItemOrderRepository, times(1)).insertAppendForTaskGroup(pId, 10);
   }
 
   @Test

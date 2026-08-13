@@ -20,6 +20,7 @@ const NON_FIELD_KEYS = new Set([
   'validManual',
   'validTimer',
   'validTimeOrder', // フェーズ3.5で新規確認: endedAt < startedAt の更新時に返る
+  'items', // フェーズ7 §7.4.6: 並べ替えリクエストの項目が現在の並び順と不一致
 ])
 
 // 業務ルール違反として画面上部の警告に出し分けるメッセージ。
@@ -29,6 +30,7 @@ const BUSINESS_RULE_MESSAGES = new Set([
   'task finish not allowed',
   'work session operation not allowed',
   'work session end not allowed',
+  'invalid item order', // フェーズ7 §7.4.6: 送った項目集合がサーバの現在の項目と不一致
 ])
 
 function buildFieldErrors(errors: FieldError[]): {

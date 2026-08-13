@@ -12,7 +12,9 @@ import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowed
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
+import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskGroupItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
@@ -31,6 +33,8 @@ public class TaskService {
   private TaskGroupRepository tgRepository;
   private ProjectRepository pjRepository;
   private MemoRepository memoRepository;
+  private ProjectItemOrderRepository pjItemOrderRepository;
+  private TaskGroupItemOrderRepository tgItemOrderRepository;
 
   @Autowired
   public TaskService(
@@ -38,13 +42,17 @@ public class TaskService {
       WorkSessionRepository wsRepository,
       TaskGroupRepository tgRepository,
       ProjectRepository pjRepository,
-      MemoRepository memoRepository
+      MemoRepository memoRepository,
+      ProjectItemOrderRepository pjItemOrderRepository,
+      TaskGroupItemOrderRepository tgItemOrderRepository
   ) {
     this.tsRepository = tsRepository;
     this.wsRepository = wsRepository;
     this.tgRepository = tgRepository;
     this.pjRepository = pjRepository;
     this.memoRepository = memoRepository;
+    this.pjItemOrderRepository = pjItemOrderRepository;
+    this.tgItemOrderRepository = tgItemOrderRepository;
   }
 
   /**
@@ -130,6 +138,11 @@ public class TaskService {
     }
 
     tsRepository.insert(task);
+    if (task.getTaskGroupId() != null) {
+      tgItemOrderRepository.insertAppendForTask(task.getTaskGroupId(), task.getId());
+    } else {
+      pjItemOrderRepository.insertAppendForTask(task.getProjectId(), task.getId());
+    }
     Task registeredTask = findTaskById(task.getId());
     return new TaskResponse(registeredTask, List.of());
   }
@@ -205,6 +218,16 @@ public class TaskService {
       throw new TargetNotFoundException("task.id",
           "所属変更対象のタスクが見つかりませんでした");
     }
+
+    // 移動元がプロジェクト直下・タスクグループ直下のどちらでも、該当する方にのみ行が存在するため両方削除して問題ない
+    pjItemOrderRepository.deleteByTaskId(id);
+    tgItemOrderRepository.deleteByTaskId(id);
+    if (taskGroupId != null) {
+      tgItemOrderRepository.insertAppendForTask(taskGroupId, id);
+    } else {
+      pjItemOrderRepository.insertAppendForTask(projectId, id);
+    }
+
     return findById(id);
   }
 
@@ -262,6 +285,8 @@ public class TaskService {
   public void deleteById(int id) {
     wsRepository.deleteAllByTaskId(id);
     memoRepository.deleteAllInTask(id);
+    pjItemOrderRepository.deleteByTaskId(id);
+    tgItemOrderRepository.deleteByTaskId(id);
     int deleted = tsRepository.deleteById(id);
     if (deleted == 0) {
       throw new TargetNotFoundException("task.id",

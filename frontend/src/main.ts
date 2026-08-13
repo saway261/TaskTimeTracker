@@ -3,8 +3,7 @@ import { createPinia } from 'pinia'
 import './assets/theme.css'
 import App from './App.vue'
 import { router } from './router'
-import { applyStoredTheme } from './theme'
 
-applyStoredTheme()
+// data-themeの初期適用は index.html のインラインスクリプトが済ませている（§7.1）。
 
 createApp(App).use(createPinia()).use(router).mount('#app')

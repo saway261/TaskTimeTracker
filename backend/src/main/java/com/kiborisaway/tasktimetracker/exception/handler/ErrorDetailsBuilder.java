@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -155,6 +156,23 @@ public class ErrorDetailsBuilder {
    * @return エラー発生個所とエラーメッセージ
    */
   public List<Map<String, String>> buildErrorDetails(TaskFinishNotAllowedException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * InvalidItemOrderExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex InvalidItemOrderException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(InvalidItemOrderException ex) {
     List<Map<String, String>> errors = new ArrayList<>();
 
     Map<String, String> error = new HashMap<>();

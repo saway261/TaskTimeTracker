@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -180,6 +181,22 @@ public class GlobalExceptionHandler {
 
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
         "task finish not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+
+  }
+
+  /**
+   * 並び替えリクエストの項目が現在の並び順と過不足・重複していることをクライアントに返します。
+   *
+   * @param ex InvalidItemOrderException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(InvalidItemOrderException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidItemOrderException(
+      InvalidItemOrderException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "invalid item order", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
 
   }

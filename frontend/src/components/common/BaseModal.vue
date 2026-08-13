@@ -70,24 +70,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
   <Teleport to="body">
-    <div v-if="modelValue" class="base-modal-backdrop" @mousedown.self="close">
-      <div
-        ref="dialogRef"
-        class="base-modal"
-        role="dialog"
-        aria-modal="true"
-        :aria-label="title"
-        tabindex="-1"
-      >
-        <header class="base-modal-header">
-          <h2>{{ title }}</h2>
-          <button type="button" class="close-button" aria-label="閉じる" @click="close">×</button>
-        </header>
-        <div class="base-modal-body">
-          <slot />
+    <Transition name="base-modal">
+      <div v-if="modelValue" class="base-modal-backdrop" @mousedown.self="close">
+        <div
+          ref="dialogRef"
+          class="base-modal"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="title"
+          tabindex="-1"
+        >
+          <header class="base-modal-header">
+            <h2>{{ title }}</h2>
+            <button type="button" class="close-button" aria-label="閉じる" @click="close">×</button>
+          </header>
+          <div class="base-modal-body">
+            <slot />
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -115,6 +117,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .base-modal:focus-visible {
   outline: none;
+}
+
+/* モバイルは下からのシート、PCは中央（§7.2） */
+@media (max-width: 640px) {
+  .base-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .base-modal {
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: 12px 12px 0 0;
+  }
 }
 
 .base-modal-header {
@@ -148,5 +164,42 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .base-modal-body {
   padding: 1.2em;
+}
+
+/* 開閉アニメーション150〜200ms（§7.2）。prefers-reduced-motionで無効化する。 */
+.base-modal-enter-active,
+.base-modal-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.base-modal-enter-active .base-modal,
+.base-modal-leave-active .base-modal {
+  transition: transform 0.18s ease;
+}
+
+.base-modal-enter-from,
+.base-modal-leave-to {
+  opacity: 0;
+}
+
+.base-modal-enter-from .base-modal,
+.base-modal-leave-to .base-modal {
+  transform: translateY(12px) scale(0.98);
+}
+
+@media (max-width: 640px) {
+  .base-modal-enter-from .base-modal,
+  .base-modal-leave-to .base-modal {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .base-modal-enter-active,
+  .base-modal-leave-active,
+  .base-modal-enter-active .base-modal,
+  .base-modal-leave-active .base-modal {
+    transition: none;
+  }
 }
 </style>

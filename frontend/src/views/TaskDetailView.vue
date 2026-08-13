@@ -16,6 +16,7 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
 import EstimationSummary from '@/components/task/EstimationSummary.vue'
@@ -191,10 +192,11 @@ async function toggleFinished() {
   }
 }
 
+const showDeleteConfirm = ref(false)
+
 async function handleDelete() {
   const id = numericTaskId.value
   if (id === null) return
-  if (!window.confirm('このタスクを削除しますか？作業セッションも全て削除されます。')) return
   actionError.value = null
   try {
     await taskStore.removeTask(id)
@@ -257,7 +259,7 @@ function handleMemoCreate(req: MemoRequest) {
           >
             {{ finished ? '完了を解除する' : '完了にする' }}
           </BaseButton>
-          <BaseButton variant="danger" :disabled="hasActiveTimer" @click="handleDelete">
+          <BaseButton variant="danger" :disabled="hasActiveTimer" @click="showDeleteConfirm = true">
             削除
           </BaseButton>
         </div>
@@ -345,6 +347,15 @@ function handleMemoCreate(req: MemoRequest) {
         @cancel="showEditModal = false"
       />
     </BaseModal>
+
+    <ConfirmDialog
+      v-model="showDeleteConfirm"
+      title="タスクの削除"
+      message="このタスクを削除しますか？作業セッションも全て削除されます。"
+      confirm-label="削除する"
+      danger
+      @confirm="handleDelete"
+    />
   </div>
 </template>
 
