@@ -56,7 +56,7 @@ class SecurityConfigTest {
   @Test
   void 公開POST_正しいCSRFトークンがあれば認可を通過すること() throws Exception {
     mockMvc.perform(post("/auth/login").with(csrf()))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isBadRequest());
   }
 
   @Test

@@ -1,7 +1,9 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.EmailUnavailableException;
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
+import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -199,6 +201,21 @@ public class GlobalExceptionHandler {
         "invalid item order", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
 
+  }
+
+  @org.springframework.web.bind.annotation.ExceptionHandler(EmailUnavailableException.class)
+  public ResponseEntity<ErrorResponse> handleEmailUnavailableException(
+      EmailUnavailableException ex) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(new ErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), List.of()));
+  }
+
+  @org.springframework.web.bind.annotation.ExceptionHandler(PasswordPolicyViolationException.class)
+  public ResponseEntity<ErrorResponse> handlePasswordPolicyViolationException(
+      PasswordPolicyViolationException ex) {
+    return ResponseEntity.badRequest()
+        .body(new ErrorResponse(HttpStatus.BAD_REQUEST, "payload validation error", List.of(
+            Map.of("field", "password", "message", "パスワードが要件を満たしていません"))));
   }
 
   /**
