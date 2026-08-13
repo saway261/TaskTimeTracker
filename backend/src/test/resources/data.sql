@@ -1,6 +1,23 @@
-INSERT INTO projects(title, description, is_finished) VALUES ('タスク管理アプリ開発','A社から受託した開発', false);
-INSERT INTO projects(title, description, is_finished) VALUES ('Java Silver勉強',null, false);
-INSERT INTO projects(title, description, is_finished) VALUES ('プロジェクトX','社外秘', true);
+INSERT INTO app_users(
+  email, password_hash, is_enabled, password_change_required,
+  temporary_password_expires_at, created_at, updated_at
+) VALUES (
+  'user-a@example.com',
+  '{bcrypt}$2a$12$eXVmZkrzhJ4W18gvvloeBOtdTxZafS3hoF0JPQgGeoaJn4100Ss7u',
+  TRUE, FALSE, NULL, '2026-08-13 00:00:00', '2026-08-13 00:00:00'
+);
+INSERT INTO app_users(
+  email, password_hash, is_enabled, password_change_required,
+  temporary_password_expires_at, created_at, updated_at
+) VALUES (
+  'user-b@example.com',
+  '{bcrypt}$2a$12$CcqglFlqf6yLLjmvKVE05uZ7XiphBYiNIw7eQ3Nr.H2ne0ehZSS0W',
+  TRUE, FALSE, NULL, '2026-08-13 00:00:00', '2026-08-13 00:00:00'
+);
+
+INSERT INTO projects(user_id, title, description, is_finished) VALUES (1, 'タスク管理アプリ開発','A社から受託した開発', false);
+INSERT INTO projects(user_id, title, description, is_finished) VALUES (1, 'Java Silver勉強',null, false);
+INSERT INTO projects(user_id, title, description, is_finished) VALUES (2, 'プロジェクトX','社外秘', true);
 
 INSERT INTO task_groups(project_id, title, description, is_finished) VALUES (1,'バックエンド開発',null,true);
 INSERT INTO task_groups(project_id, title, description, is_finished) VALUES (1,'フロントエンド開発','Reactで',false);
