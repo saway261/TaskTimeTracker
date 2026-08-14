@@ -5,23 +5,30 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.data.entity.AppUser;
 import com.kiborisaway.tasktimetracker.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.security.rate-limit.login.maximum-failures=2")
 @AutoConfigureMockMvc
 @Transactional
 class AuthControllerIntegrationTest {
@@ -34,6 +41,9 @@ class AuthControllerIntegrationTest {
 
   @Autowired
   private PasswordEncoder passwordEncoder;
+
+  @Autowired
+  private SessionRepository<? extends Session> sessionRepository;
 
   @Test
   void CSRF取得_トークンとヘッダー名を返すこと() throws Exception {
@@ -112,6 +122,17 @@ class AuthControllerIntegrationTest {
 
     Cookie authenticatedCookie = login.getResponse().getCookie("JSESSIONID");
     assertThat(authenticatedCookie.getValue()).isNotEqualTo(anonymousCookie.getValue());
+    String sessionId = new String(
+        Base64.getDecoder().decode(authenticatedCookie.getValue()),
+        StandardCharsets.UTF_8);
+    Session authenticatedSession = sessionRepository.findById(sessionId);
+    assertThat(authenticatedSession).isNotNull();
+    assertThat(authenticatedSession.getMaxInactiveInterval())
+        .isEqualTo(java.time.Duration.ofDays(30));
+    Object authenticatedAt = authenticatedSession.getAttribute(
+        com.kiborisaway.tasktimetracker.security.AbsoluteSessionTimeoutFilter
+            .AUTHENTICATED_AT_SESSION_ATTRIBUTE);
+    assertThat(authenticatedAt).isInstanceOf(Instant.class);
     mockMvc.perform(get("/auth/me").cookie(authenticatedCookie))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1));
@@ -141,6 +162,36 @@ class AuthControllerIntegrationTest {
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.message").value("email or password is incorrect"))
         .andExpect(jsonPath("$.errors").isEmpty());
+  }
+
+  @Test
+  void ログイン失敗_上限へ到達すると429を返すこと() throws Exception {
+    String body = """
+        {"email":"rate-limit@example.com","password":"wrong-password"}
+        """;
+    mockMvc.perform(post("/auth/login")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(body))
+        .andExpect(status().isUnauthorized());
+
+    mockMvc.perform(post("/auth/login")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(body))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.message").value("too many failed attempts"));
+  }
+
+  @Test
+  void セッションCookie_永続期間と安全な属性を設定すること() throws Exception {
+    mockMvc.perform(get("/auth/csrf"))
+        .andExpect(status().isOk())
+        .andExpect(cookie().httpOnly("JSESSIONID", true))
+        .andExpect(cookie().path("JSESSIONID", "/api"))
+        .andExpect(cookie().maxAge("JSESSIONID", 30 * 24 * 60 * 60))
+        .andExpect(header().string(HttpHeaders.SET_COOKIE,
+            org.hamcrest.Matchers.containsString("SameSite=Lax")));
   }
 
   @Test
