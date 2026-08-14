@@ -20,18 +20,26 @@ import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowed
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
+import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.TaskService;
+import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
+import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 @WebMvcTest(TaskController.class)
+@WithMockAuthenticatedUser
+@Import({WebMvcTestSecuritySupportConfig.class, JsonAuthenticationEntryPoint.class})
 class TaskControllerTest {
+
+  private static final int USER_ID = 1;
 
   @Autowired
   private MockMvc mockMvc;
@@ -50,7 +58,7 @@ class TaskControllerTest {
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/tasks", pId))
         .andExpect(status().isOk());
 
-    verify(service).findAllInProjectByCondition(pId, null);
+    verify(service).findAllInProjectByCondition(USER_ID, pId,null);
   }
 
   @Test
@@ -62,7 +70,7 @@ class TaskControllerTest {
             .param("isFinished", "true"))
         .andExpect(status().isOk());
 
-    verify(service).findAllInProjectByCondition(pId, true);
+    verify(service).findAllInProjectByCondition(USER_ID, pId,true);
   }
 
   @Test
@@ -81,7 +89,7 @@ class TaskControllerTest {
       throws Exception {
     // Arrange
     int pId = 999;
-    when(service.findAllInProjectByCondition(eq(pId), any())).thenThrow(
+    when(service.findAllInProjectByCondition(eq(USER_ID), eq(pId), any())).thenThrow(
         new TargetNotFoundException("project.id",
             "指定したIDのプロジェクトは見つかりませんでした"));
 
@@ -98,7 +106,7 @@ class TaskControllerTest {
     mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/tasks", tgId))
         .andExpect(status().isOk());
 
-    verify(service).findAllInTaskGroupByCondition(tgId, null);
+    verify(service).findAllInTaskGroupByCondition(USER_ID, tgId,null);
   }
 
   @Test
@@ -110,7 +118,7 @@ class TaskControllerTest {
             .param("isFinished", "false"))
         .andExpect(status().isOk());
 
-    verify(service).findAllInTaskGroupByCondition(tgId, false);
+    verify(service).findAllInTaskGroupByCondition(USER_ID, tgId,false);
   }
 
   @Test
@@ -129,7 +137,7 @@ class TaskControllerTest {
       throws Exception {
     // Arrange
     int tgId = 999;
-    when(service.findAllInTaskGroupByCondition(eq(tgId), any())).thenThrow(
+    when(service.findAllInTaskGroupByCondition(eq(USER_ID), eq(tgId), any())).thenThrow(
         new TargetNotFoundException("taskGroup.id",
             "指定したIDのタスクグループは見つかりませんでした"));
 
@@ -144,13 +152,13 @@ class TaskControllerTest {
     int taskId = 1;
     Task task = new Task();
     task.setId(taskId);
-    when(service.findById(taskId)).thenReturn(new TaskResponse(task, List.of()));
+    when(service.findById(USER_ID, taskId)).thenReturn(new TaskResponse(task, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}", taskId))
         .andExpect(status().isOk());
 
-    verify(service).findById(taskId);
+    verify(service).findById(USER_ID, taskId);
   }
 
   @Test
@@ -163,14 +171,14 @@ class TaskControllerTest {
   @Test
   void タスク単体取得失敗_対象が存在しないなら404を返すこと() throws Exception {
     // Arrange
-    when(service.findById(999)).thenThrow(
+    when(service.findById(USER_ID, 999)).thenThrow(
         new TargetNotFoundException("task.id", "task not found"));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/tasks/999"))
         .andExpect(status().isNotFound());
 
-    verify(service).findById(999);
+    verify(service).findById(USER_ID, 999);
   }
 
   @Test
@@ -188,7 +196,7 @@ class TaskControllerTest {
     Task response = new Task();
     response.setId(10);
     response.setProjectId(pId);
-    when(service.register(eq(pId), isNull(), any(TaskCreateRequest.class)))
+    when(service.register(eq(USER_ID), eq(pId), isNull(), any(TaskCreateRequest.class)))
         .thenReturn(new TaskResponse(response, List.of()));
     String validRequest = """
         {
@@ -204,7 +212,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isCreated());
 
-    verify(service).register(eq(pId), isNull(), any(TaskCreateRequest.class));
+    verify(service).register(eq(USER_ID), eq(pId), isNull(), any(TaskCreateRequest.class));
   }
 
   @Test
@@ -215,7 +223,7 @@ class TaskControllerTest {
     Task response = new Task();
     response.setId(10);
     response.setTaskGroupId(tgId);
-    when(service.register(isNull(), eq(tgId), any(TaskCreateRequest.class)))
+    when(service.register(eq(USER_ID), isNull(), eq(tgId), any(TaskCreateRequest.class)))
         .thenReturn(new TaskResponse(response, List.of()));
     String validRequest = """
         {
@@ -232,7 +240,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isCreated());
 
-    verify(service).register(isNull(), eq(tgId), any(TaskCreateRequest.class));
+    verify(service).register(eq(USER_ID), isNull(), eq(tgId), any(TaskCreateRequest.class));
   }
 
   @Test
@@ -246,7 +254,7 @@ class TaskControllerTest {
           "estimatedMinutes": 60
         }
         """;
-    when(service.register(eq(pId), isNull(), any(TaskCreateRequest.class))).thenThrow(
+    when(service.register(eq(USER_ID), eq(pId), isNull(), any(TaskCreateRequest.class))).thenThrow(
         new TargetNotFoundException("project.id",
             "指定したIDの親項目は見つかりませんでした"));
 
@@ -256,7 +264,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).register(eq(pId), isNull(), any(TaskCreateRequest.class));
+    verify(service).register(eq(USER_ID), eq(pId), isNull(), any(TaskCreateRequest.class));
   }
 
   @Test
@@ -272,7 +280,7 @@ class TaskControllerTest {
         """;
     Task updated = new Task(taskId, 1, null, "更新タイトル", "更新説明", 60,
         null, null, null, null, null);
-    when(service.updateProperty(eq(taskId), any(TaskUpdatePropertyRequest.class)))
+    when(service.updateProperty(eq(USER_ID), eq(taskId), any(TaskUpdatePropertyRequest.class)))
         .thenReturn(new TaskResponse(updated, List.of()));
 
     // Act & Assert
@@ -284,7 +292,7 @@ class TaskControllerTest {
         .andExpect(jsonPath("$.id").value(taskId))
         .andExpect(jsonPath("$.title").value("更新タイトル"));
 
-    verify(service).updateProperty(eq(taskId), any(TaskUpdatePropertyRequest.class));
+    verify(service).updateProperty(eq(USER_ID), eq(taskId), any(TaskUpdatePropertyRequest.class));
   }
 
   @Test
@@ -298,7 +306,7 @@ class TaskControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("task.id", "task not found"))
-        .when(service).updateProperty(eq(taskId), any(TaskUpdatePropertyRequest.class));
+        .when(service).updateProperty(eq(USER_ID), eq(taskId), any(TaskUpdatePropertyRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}", taskId)
@@ -306,7 +314,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).updateProperty(eq(taskId), any(TaskUpdatePropertyRequest.class));
+    verify(service).updateProperty(eq(USER_ID), eq(taskId), any(TaskUpdatePropertyRequest.class));
   }
 
   @Test
@@ -320,7 +328,7 @@ class TaskControllerTest {
         """;
     Task updated = new Task(taskId, 1, null, "タスク", "説明", 120,
         null, null, null, null, null);
-    when(service.updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class)))
+    when(service.updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class)))
         .thenReturn(new TaskResponse(updated, List.of()));
 
     // Act & Assert
@@ -332,7 +340,7 @@ class TaskControllerTest {
         .andExpect(jsonPath("$.id").value(taskId))
         .andExpect(jsonPath("$.estimatedMinutes").value(120));
 
-    verify(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
+    verify(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
   }
 
   @Test
@@ -346,7 +354,7 @@ class TaskControllerTest {
         """;
     doThrow(new EstimateMinutesUpdateNotAllowedException("task.id",
         "作業セッションが存在するタスクの見積もり作業時間は変更できません"))
-        .when(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
+        .when(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
@@ -354,7 +362,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isBadRequest());
 
-    verify(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
+    verify(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
   }
 
   @Test
@@ -368,7 +376,7 @@ class TaskControllerTest {
         """;
     doThrow(new EstimateMinutesUpdateNotAllowedException("task.id",
         "完了済みタスクの見積もり作業時間は変更できません"))
-        .when(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
+        .when(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
@@ -376,7 +384,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isBadRequest());
 
-    verify(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
+    verify(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
   }
 
   @Test
@@ -389,7 +397,7 @@ class TaskControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("task.id", "task not found"))
-        .when(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
+        .when(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
@@ -397,7 +405,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).updateEstimateMinutes(eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
+    verify(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
   }
 
   @Test
@@ -449,7 +457,7 @@ class TaskControllerTest {
         """;
     Task updated = new Task(taskId, null, taskGroupId, "タスク", "説明", 60,
         null, null, null, null, null);
-    when(service.updateParent(taskId, null, taskGroupId))
+    when(service.updateParent(USER_ID, taskId, null, taskGroupId))
         .thenReturn(new TaskResponse(updated, List.of()));
 
     // Act & Assert
@@ -461,7 +469,7 @@ class TaskControllerTest {
         .andExpect(jsonPath("$.taskGroupId").value(taskGroupId))
         .andExpect(jsonPath("$.projectId").doesNotExist());
 
-    verify(service).updateParent(taskId, null, taskGroupId);
+    verify(service).updateParent(USER_ID, taskId, null, taskGroupId);
   }
 
   @Test
@@ -475,7 +483,7 @@ class TaskControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("task.id", "task not found"))
-        .when(service).updateParent(taskId, null, taskGroupId);
+        .when(service).updateParent(USER_ID, taskId, null, taskGroupId);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
@@ -483,7 +491,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).updateParent(taskId, null, taskGroupId);
+    verify(service).updateParent(USER_ID, taskId, null, taskGroupId);
   }
 
   @Test
@@ -554,7 +562,7 @@ class TaskControllerTest {
         """;
     Task updated = new Task(taskId, projectId, null, "タスク", "説明", 60,
         null, null, null, null, null);
-    when(service.updateParent(taskId, projectId, null))
+    when(service.updateParent(USER_ID, taskId, projectId, null))
         .thenReturn(new TaskResponse(updated, List.of()));
 
     // Act & Assert
@@ -566,7 +574,7 @@ class TaskControllerTest {
         .andExpect(jsonPath("$.projectId").value(projectId))
         .andExpect(jsonPath("$.taskGroupId").doesNotExist());
 
-    verify(service).updateParent(taskId, projectId, null);
+    verify(service).updateParent(USER_ID, taskId, projectId, null);
   }
 
   @Test
@@ -580,7 +588,7 @@ class TaskControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("task.id", "task not found"))
-        .when(service).updateParent(taskId, projectId, null);
+        .when(service).updateParent(USER_ID, taskId, projectId, null);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
@@ -588,7 +596,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).updateParent(taskId, projectId, null);
+    verify(service).updateParent(USER_ID, taskId, projectId, null);
   }
 
   @Test
@@ -660,7 +668,7 @@ class TaskControllerTest {
         """;
     Task finished = new Task(taskId, 1, null, "タスク", "説明", 60,
         null, java.time.LocalDateTime.of(2026, 1, 1, 10, 0), 70, 10, 16.666);
-    when(service.updateFinished(taskId, true))
+    when(service.updateFinished(USER_ID, taskId, true))
         .thenReturn(new TaskResponse(finished, List.of()));
 
     // Act & Assert
@@ -672,7 +680,7 @@ class TaskControllerTest {
         .andExpect(jsonPath("$.id").value(taskId))
         .andExpect(jsonPath("$.actualMinutesCached").value(70));
 
-    verify(service).updateFinished(taskId, true);
+    verify(service).updateFinished(USER_ID, taskId, true);
   }
 
   @Test
@@ -686,7 +694,7 @@ class TaskControllerTest {
         """;
     Task unfinished = new Task(taskId, 1, null, "タスク", "説明", 60,
         null, null, null, null, null);
-    when(service.updateFinished(taskId, false))
+    when(service.updateFinished(USER_ID, taskId, false))
         .thenReturn(new TaskResponse(unfinished, List.of()));
 
     // Act & Assert
@@ -698,7 +706,7 @@ class TaskControllerTest {
         .andExpect(jsonPath("$.id").value(taskId))
         .andExpect(jsonPath("$.finishedAt").doesNotExist());
 
-    verify(service).updateFinished(taskId, false);
+    verify(service).updateFinished(USER_ID, taskId, false);
   }
 
   @Test
@@ -711,7 +719,7 @@ class TaskControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("task.id", "task not found"))
-        .when(service).updateFinished(taskId, true);
+        .when(service).updateFinished(USER_ID, taskId, true);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
@@ -719,7 +727,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).updateFinished(taskId, true);
+    verify(service).updateFinished(USER_ID, taskId, true);
   }
 
   @Test
@@ -732,7 +740,7 @@ class TaskControllerTest {
         }
         """;
     doThrow(new TaskFinishNotAllowedException("task.id", "cannot finish"))
-        .when(service).updateFinished(taskId, true);
+        .when(service).updateFinished(USER_ID, taskId, true);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
@@ -740,7 +748,7 @@ class TaskControllerTest {
             .content(validRequest))
         .andExpect(status().isBadRequest());
 
-    verify(service).updateFinished(taskId, true);
+    verify(service).updateFinished(USER_ID, taskId, true);
   }
 
   @Test
@@ -790,7 +798,7 @@ class TaskControllerTest {
         .andExpect(status().isNoContent())
         .andExpect(content().string(""));
 
-    verify(service).deleteById(taskId);
+    verify(service).deleteById(USER_ID, taskId);
   }
 
   @Test
@@ -798,13 +806,13 @@ class TaskControllerTest {
     // Arrange
     int taskId = 999;
     doThrow(new TargetNotFoundException("task.id", "task not found"))
-        .when(service).deleteById(taskId);
+        .when(service).deleteById(USER_ID, taskId);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.delete("/tasks/{taskId}", taskId))
         .andExpect(status().isNotFound());
 
-    verify(service).deleteById(taskId);
+    verify(service).deleteById(USER_ID, taskId);
   }
 
   @Test

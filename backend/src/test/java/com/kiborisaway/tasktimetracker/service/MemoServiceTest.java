@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -26,6 +27,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class MemoServiceTest {
+
+  private static final int USER_ID = 1;
 
   @Mock
   private MemoRepository memoRepository;
@@ -53,7 +56,7 @@ class MemoServiceTest {
     // Arrange
     int projectId = 1;
     MemoRequest request = request("プロジェクトメモ");
-    when(projectRepository.existsById(projectId)).thenReturn(true);
+    when(projectRepository.existsByIdAndUserId(projectId, USER_ID)).thenReturn(true);
     doAnswer(invocation -> {
       invocation.<Memo>getArgument(0).setId(10);
       return null;
@@ -62,16 +65,16 @@ class MemoServiceTest {
     when(memoRepository.findById(10)).thenReturn(registered);
 
     // Act
-    Memo actual = sut.registerInProject(projectId, request);
+    Memo actual = sut.registerInProject(USER_ID, projectId, request);
 
     // Assert
     assertThat(actual.getProjectId()).isEqualTo(projectId);
     assertThat(actual.getTaskGroupId()).isNull();
     assertThat(actual.getTaskId()).isNull();
     assertThat(actual.getComment()).isEqualTo("プロジェクトメモ");
-    verify(projectRepository, times(1)).existsById(projectId);
-    verify(taskGroupRepository, never()).existsById(anyInt());
-    verify(taskRepository, never()).existsById(anyInt());
+    verify(projectRepository, times(1)).existsByIdAndUserId(projectId, USER_ID);
+    verify(taskGroupRepository, never()).existsByIdAndUserId(anyInt(), anyInt());
+    verify(taskRepository, never()).existsByIdAndUserId(anyInt(), anyInt());
     verify(memoRepository, times(1)).insert(any(Memo.class));
   }
 
@@ -79,13 +82,13 @@ class MemoServiceTest {
   void プロジェクトメモ登録失敗_親プロジェクトが存在しない場合は例外を投げて登録しないこと() {
     // Arrange
     int projectId = 999;
-    when(projectRepository.existsById(projectId)).thenReturn(false);
+    when(projectRepository.existsByIdAndUserId(projectId, USER_ID)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.registerInProject(projectId, request("メモ")))
+    assertThatThrownBy(() -> sut.registerInProject(USER_ID, projectId, request("メモ")))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(projectRepository, times(1)).existsById(projectId);
+    verify(projectRepository, times(1)).existsByIdAndUserId(projectId, USER_ID);
     verify(memoRepository, never()).insert(any());
   }
 
@@ -94,7 +97,7 @@ class MemoServiceTest {
     // Arrange
     int taskGroupId = 1;
     MemoRequest request = request("タスクグループメモ");
-    when(taskGroupRepository.existsById(taskGroupId)).thenReturn(true);
+    when(taskGroupRepository.existsByIdAndUserId(taskGroupId, USER_ID)).thenReturn(true);
     doAnswer(invocation -> {
       invocation.<Memo>getArgument(0).setId(10);
       return null;
@@ -103,16 +106,16 @@ class MemoServiceTest {
     when(memoRepository.findById(10)).thenReturn(registered);
 
     // Act
-    Memo actual = sut.registerInTaskGroup(taskGroupId, request);
+    Memo actual = sut.registerInTaskGroup(USER_ID, taskGroupId, request);
 
     // Assert
     assertThat(actual.getProjectId()).isNull();
     assertThat(actual.getTaskGroupId()).isEqualTo(taskGroupId);
     assertThat(actual.getTaskId()).isNull();
     assertThat(actual.getComment()).isEqualTo("タスクグループメモ");
-    verify(taskGroupRepository, times(1)).existsById(taskGroupId);
-    verify(projectRepository, never()).existsById(anyInt());
-    verify(taskRepository, never()).existsById(anyInt());
+    verify(taskGroupRepository, times(1)).existsByIdAndUserId(taskGroupId, USER_ID);
+    verify(projectRepository, never()).existsByIdAndUserId(anyInt(), anyInt());
+    verify(taskRepository, never()).existsByIdAndUserId(anyInt(), anyInt());
     verify(memoRepository, times(1)).insert(any(Memo.class));
   }
 
@@ -120,13 +123,13 @@ class MemoServiceTest {
   void タスクグループメモ登録失敗_親タスクグループが存在しない場合は例外を投げて登録しないこと() {
     // Arrange
     int taskGroupId = 999;
-    when(taskGroupRepository.existsById(taskGroupId)).thenReturn(false);
+    when(taskGroupRepository.existsByIdAndUserId(taskGroupId, USER_ID)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.registerInTaskGroup(taskGroupId, request("メモ")))
+    assertThatThrownBy(() -> sut.registerInTaskGroup(USER_ID, taskGroupId, request("メモ")))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(taskGroupRepository, times(1)).existsById(taskGroupId);
+    verify(taskGroupRepository, times(1)).existsByIdAndUserId(taskGroupId, USER_ID);
     verify(memoRepository, never()).insert(any());
   }
 
@@ -135,7 +138,7 @@ class MemoServiceTest {
     // Arrange
     int taskId = 1;
     MemoRequest request = request("タスクメモ");
-    when(taskRepository.existsById(taskId)).thenReturn(true);
+    when(taskRepository.existsByIdAndUserId(taskId, USER_ID)).thenReturn(true);
     doAnswer(invocation -> {
       invocation.<Memo>getArgument(0).setId(10);
       return null;
@@ -144,16 +147,16 @@ class MemoServiceTest {
     when(memoRepository.findById(10)).thenReturn(registered);
 
     // Act
-    Memo actual = sut.registerInTask(taskId, request);
+    Memo actual = sut.registerInTask(USER_ID, taskId, request);
 
     // Assert
     assertThat(actual.getProjectId()).isNull();
     assertThat(actual.getTaskGroupId()).isNull();
     assertThat(actual.getTaskId()).isEqualTo(taskId);
     assertThat(actual.getComment()).isEqualTo("タスクメモ");
-    verify(taskRepository, times(1)).existsById(taskId);
-    verify(projectRepository, never()).existsById(anyInt());
-    verify(taskGroupRepository, never()).existsById(anyInt());
+    verify(taskRepository, times(1)).existsByIdAndUserId(taskId, USER_ID);
+    verify(projectRepository, never()).existsByIdAndUserId(anyInt(), anyInt());
+    verify(taskGroupRepository, never()).existsByIdAndUserId(anyInt(), anyInt());
     verify(memoRepository, times(1)).insert(any(Memo.class));
   }
 
@@ -161,13 +164,13 @@ class MemoServiceTest {
   void タスクメモ登録失敗_親タスクが存在しない場合は例外を投げて登録しないこと() {
     // Arrange
     int taskId = 999;
-    when(taskRepository.existsById(taskId)).thenReturn(false);
+    when(taskRepository.existsByIdAndUserId(taskId, USER_ID)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.registerInTask(taskId, request("メモ")))
+    assertThatThrownBy(() -> sut.registerInTask(USER_ID, taskId, request("メモ")))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(taskRepository, times(1)).existsById(taskId);
+    verify(taskRepository, times(1)).existsByIdAndUserId(taskId, USER_ID);
     verify(memoRepository, never()).insert(any());
   }
 
@@ -175,16 +178,16 @@ class MemoServiceTest {
   void メモ更新成功_リポジトリにIDとコメントを渡して更新すること() {
     // Arrange
     int id = 1;
-    when(memoRepository.update(any(Memo.class))).thenReturn(1);
+    when(memoRepository.update(any(Memo.class), eq(USER_ID))).thenReturn(1);
     Memo updated = new Memo(id, null, null, 1, "DB更新後メモ");
     when(memoRepository.findById(id)).thenReturn(updated);
 
     // Act
-    Memo actual = sut.update(id, request("更新後メモ"));
+    Memo actual = sut.update(USER_ID, id, request("更新後メモ"));
 
     // Assert
     ArgumentCaptor<Memo> captor = ArgumentCaptor.forClass(Memo.class);
-    verify(memoRepository, times(1)).update(captor.capture());
+    verify(memoRepository, times(1)).update(captor.capture(), eq(USER_ID));
     assertThat(captor.getValue().getId()).isEqualTo(id);
     assertThat(captor.getValue().getComment()).isEqualTo("更新後メモ");
     assertThat(actual.getComment()).isEqualTo("DB更新後メモ");
@@ -193,10 +196,10 @@ class MemoServiceTest {
   @Test
   void メモ更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
-    when(memoRepository.update(any(Memo.class))).thenReturn(0);
+    when(memoRepository.update(any(Memo.class), eq(USER_ID))).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(999, request("更新後メモ")))
+    assertThatThrownBy(() -> sut.update(USER_ID, 999, request("更新後メモ")))
         .isInstanceOf(TargetNotFoundException.class);
   }
 
@@ -204,22 +207,22 @@ class MemoServiceTest {
   void メモ削除成功_リポジトリにIDを渡して削除すること() {
     // Arrange
     int id = 1;
-    when(memoRepository.delete(id)).thenReturn(1);
+    when(memoRepository.delete(id, USER_ID)).thenReturn(1);
 
     // Act
-    sut.delete(id);
+    sut.delete(USER_ID, id);
 
     // Assert
-    verify(memoRepository, times(1)).delete(id);
+    verify(memoRepository, times(1)).delete(id, USER_ID);
   }
 
   @Test
   void メモ削除失敗_削除件数が0件のときTargetNotFoundExceptionを投げること() {
     // Arrange
-    when(memoRepository.delete(999)).thenReturn(0);
+    when(memoRepository.delete(999, USER_ID)).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.delete(999))
+    assertThatThrownBy(() -> sut.delete(USER_ID, 999))
         .isInstanceOf(TargetNotFoundException.class);
   }
 }

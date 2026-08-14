@@ -29,17 +29,18 @@ public class ProjectService {
   }
 
   /**
-   * プロジェクトの一覧検索を行います。完了フラグを指定した場合、指定した完了状態のプロジェクトのみを取得します。
+   * 認証ユーザーが所有するプロジェクトの一覧検索を行います。完了フラグを指定した場合、指定した完了状態のプロジェクトのみを取得します。
    *
+   * @param userId     認証ユーザーのID
    * @param isFinished 完了フラグ
    * @return 全件または指定した完了状態のプロジェクトの一覧
    */
-  public List<ProjectResponse> findAllByCondition(Boolean isFinished) {
+  public List<ProjectResponse> findAllByCondition(int userId, Boolean isFinished) {
     List<Project> projects;
     if (isFinished == null) {
-      projects = repository.findAll();
+      projects = repository.findAllByUserId(userId);
     } else {
-      projects = repository.findAllByIsFinished(isFinished);
+      projects = repository.findAllByIsFinishedAndUserId(isFinished, userId);
     }
     if (projects.isEmpty()) {
       return List.of();
@@ -60,42 +61,47 @@ public class ProjectService {
   }
 
   /**
-   * IDによるプロジェクトの
+   * IDによるプロジェクトの検索
    *
-   * @param id プロジェクトのID
+   * @param userId 認証ユーザーのID
+   * @param id     プロジェクトのID
    * @return プロジェクト
    */
-  public ProjectResponse findById(int id) {
-    return toResponse(findProjectById(id));
+  public ProjectResponse findById(int userId, int id) {
+    return toResponse(findProjectById(userId, id));
   }
 
   /**
    * プロジェクトの新規登録を行います。
    *
+   * @param userId  認証ユーザーのID
    * @param request 新規登録するプロジェクトのリクエスト
    */
   @Transactional
-  public ProjectResponse register(ProjectCreateRequest request) {
+  public ProjectResponse register(int userId, ProjectCreateRequest request) {
     Project project = toEntity(request);
+    project.setUserId(userId);
     repository.insert(project);
-    Project registeredProject = findProjectById(project.getId());
+    Project registeredProject = findProjectById(userId, project.getId());
     return new ProjectResponse(registeredProject, List.of());
   }
 
   /**
    * プロジェクトのIDを指定してプロジェクト名と説明を更新します
    *
+   * @param userId  認証ユーザーのID
    * @param id      更新するプロジェクトのID
    * @param request 更新するプロジェクトのリクエスト
    */
   @Transactional
-  public ProjectResponse update(int id, ProjectUpdateRequest request) {
+  public ProjectResponse update(int userId, int id, ProjectUpdateRequest request) {
     Project project = toEntity(id, request);
+    project.setUserId(userId);
     int updated = repository.update(project);
     if (updated == 0) {
       throw new TargetNotFoundException("project", "更新対象のプロジェクトが見つかりませんでした");
     }
-    return toResponse(findProjectById(id));
+    return toResponse(findProjectById(userId, id));
   }
 
   private Project toEntity(ProjectCreateRequest request) {
@@ -114,8 +120,8 @@ public class ProjectService {
             .toList());
   }
 
-  private Project findProjectById(int id) {
-    Project project = repository.findById(id);
+  private Project findProjectById(int userId, int id) {
+    Project project = repository.findByIdAndUserId(id, userId);
     if (project == null) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");

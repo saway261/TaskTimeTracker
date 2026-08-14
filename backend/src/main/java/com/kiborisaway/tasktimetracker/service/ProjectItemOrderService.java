@@ -38,52 +38,54 @@ public class ProjectItemOrderService {
   /**
    * プロジェクト直下の並び順一覧をposition昇順で取得します。
    *
+   * @param userId    認証ユーザーのID
    * @param projectId プロジェクトID
    * @return 並び順一覧
    */
-  public List<ProjectItemOrderResponse> findAllInProject(int projectId) {
-    if (!projectRepository.existsById(projectId)) {
+  public List<ProjectItemOrderResponse> findAllInProject(int userId, int projectId) {
+    if (!projectRepository.existsByIdAndUserId(projectId, userId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
-    return toResponses(orderRepository.findAllInProjectOrdered(projectId));
+    return toResponses(orderRepository.findAllInProjectOrdered(projectId, userId));
   }
 
   /**
    * プロジェクト直下の並び順を、リクエストで渡した配列の順序へ全置換します。
    * リクエストの項目は、プロジェクト直下の現在の項目と過不足なく一致している必要があります。
    *
+   * @param userId    認証ユーザーのID
    * @param projectId プロジェクトID
    * @param items     並び替え後の順序どおりに並べた項目一覧
    * @return 更新後の並び順一覧
    */
   @Transactional
-  public List<ProjectItemOrderResponse> replaceOrder(int projectId,
+  public List<ProjectItemOrderResponse> replaceOrder(int userId, int projectId,
       List<ProjectItemOrderItemRequest> items) {
-    if (!projectRepository.existsById(projectId)) {
+    if (!projectRepository.existsByIdAndUserId(projectId, userId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
 
-    List<ProjectItemOrder> current = orderRepository.findAllInProjectOrdered(projectId);
+    List<ProjectItemOrder> current = orderRepository.findAllInProjectOrdered(projectId, userId);
     validateSameItemSet(current, items);
 
     // 一意制約(project_id, position)に一時的にも違反しないよう、大きなオフセット値へ退避してから最終値を書き込む
     for (int i = 0; i < items.size(); i++) {
-      updatePosition(items.get(i), TEMP_POSITION_OFFSET + i);
+      updatePosition(items.get(i), TEMP_POSITION_OFFSET + i, userId);
     }
     for (int i = 0; i < items.size(); i++) {
-      updatePosition(items.get(i), i);
+      updatePosition(items.get(i), i, userId);
     }
 
-    return toResponses(orderRepository.findAllInProjectOrdered(projectId));
+    return toResponses(orderRepository.findAllInProjectOrdered(projectId, userId));
   }
 
-  private void updatePosition(ProjectItemOrderItemRequest item, int position) {
+  private void updatePosition(ProjectItemOrderItemRequest item, int position, int userId) {
     if (item.type() == ItemType.TASK) {
-      orderRepository.updatePositionByTaskId(item.id(), position);
+      orderRepository.updatePositionByTaskId(item.id(), position, userId);
     } else {
-      orderRepository.updatePositionByTaskGroupId(item.id(), position);
+      orderRepository.updatePositionByTaskGroupId(item.id(), position, userId);
     }
   }
 

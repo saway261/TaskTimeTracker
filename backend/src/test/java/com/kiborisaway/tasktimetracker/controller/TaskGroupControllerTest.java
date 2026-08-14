@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -17,18 +18,26 @@ import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateReques
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
+import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.TaskGroupService;
+import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
+import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 @WebMvcTest(TaskGroupController.class)
+@WithMockAuthenticatedUser
+@Import({WebMvcTestSecuritySupportConfig.class, JsonAuthenticationEntryPoint.class})
 class TaskGroupControllerTest {
+
+  private static final int USER_ID = 1;
 
   @Autowired
   private MockMvc mockMvc;
@@ -46,7 +55,7 @@ class TaskGroupControllerTest {
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId))
         .andExpect(status().isOk());
 
-    verify(service).findAllByCondition(pId, null);
+    verify(service).findAllByCondition(USER_ID, pId, null);
   }
 
   @Test
@@ -58,7 +67,7 @@ class TaskGroupControllerTest {
             .param("isFinished", "false"))
         .andExpect(status().isOk());
 
-    verify(service).findAllByCondition(pId, false);
+    verify(service).findAllByCondition(USER_ID, pId, false);
   }
 
   @Test
@@ -70,7 +79,7 @@ class TaskGroupControllerTest {
             .param("isFinished", "true"))
         .andExpect(status().isOk());
 
-    verify(service).findAllByCondition(pId, true);
+    verify(service).findAllByCondition(USER_ID, pId, true);
   }
 
   @Test
@@ -89,7 +98,7 @@ class TaskGroupControllerTest {
       throws Exception {
     // Arrange
     int pId = 999;
-    when(service.findAllByCondition(eq(pId), any())).thenThrow(
+    when(service.findAllByCondition(eq(USER_ID), eq(pId), any())).thenThrow(
         new TargetNotFoundException("project.id",
             "指定したIDのプロジェクトは見つかりませんでした"));
 
@@ -105,13 +114,13 @@ class TaskGroupControllerTest {
     int tgId = 1;
     TaskGroup tg = new TaskGroup();
     tg.setId(tgId);
-    when(service.findById(tgId)).thenReturn(new TaskGroupResponse(tg, List.of()));
+    when(service.findById(USER_ID, tgId)).thenReturn(new TaskGroupResponse(tg, List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}", tgId))
         .andExpect(status().isOk());
 
-    verify(service).findById(tgId);
+    verify(service).findById(USER_ID, tgId);
   }
 
   @Test
@@ -124,14 +133,14 @@ class TaskGroupControllerTest {
   @Test
   void タスクグループ単体取得失敗_対象が存在しないなら404を返すこと() throws Exception {
     // Arrange
-    when(service.findById(999)).thenThrow(
+    when(service.findById(USER_ID, 999)).thenThrow(
         new TargetNotFoundException("id", "project not found"));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/999"))
         .andExpect(status().isNotFound());
 
-    verify(service).findById(999);
+    verify(service).findById(USER_ID, 999);
   }
 
   @Test
@@ -150,7 +159,7 @@ class TaskGroupControllerTest {
     response.setProjectId(pId);
     response.setTitle("タスクグループ1");
     response.setDescription("説明");
-    when(service.register(eq(pId), any(TaskGroupCreateRequest.class)))
+    when(service.register(eq(USER_ID), eq(pId), any(TaskGroupCreateRequest.class)))
         .thenReturn(new TaskGroupResponse(response, List.of()));
     String validRequest = """
         {
@@ -165,7 +174,7 @@ class TaskGroupControllerTest {
             .content(validRequest))
         .andExpect(status().isCreated());
 
-    verify(service).register(eq(pId), any(TaskGroupCreateRequest.class));
+    verify(service).register(eq(USER_ID), eq(pId), any(TaskGroupCreateRequest.class));
   }
 
   @Test
@@ -178,7 +187,7 @@ class TaskGroupControllerTest {
           "description": "説明"
         }
         """;
-    when(service.register(eq(pId), any(TaskGroupCreateRequest.class))).thenThrow(
+    when(service.register(eq(USER_ID), eq(pId), any(TaskGroupCreateRequest.class))).thenThrow(
         new TargetNotFoundException("project.id",
             "指定したIDのプロジェクトは見つかりませんでした"));
 
@@ -188,7 +197,7 @@ class TaskGroupControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).register(eq(pId), any(TaskGroupCreateRequest.class));
+    verify(service).register(eq(USER_ID), eq(pId), any(TaskGroupCreateRequest.class));
   }
 
   @Test
@@ -222,7 +231,7 @@ class TaskGroupControllerTest {
         """;
 
     TaskGroup updated = new TaskGroup(tgId, 1, "タスク管理アプリ開発", "説明を更新", true);
-    when(service.update(eq(tgId), any(TaskGroupUpdateRequest.class)))
+    when(service.update(eq(USER_ID), eq(tgId), any(TaskGroupUpdateRequest.class)))
         .thenReturn(new TaskGroupResponse(updated, List.of()));
 
     // Act & Assert
@@ -235,7 +244,7 @@ class TaskGroupControllerTest {
         .andExpect(jsonPath("$.projectId").value(1))
         .andExpect(jsonPath("$.isFinished").value(true));
 
-    verify(service).update(eq(tgId), any(TaskGroupUpdateRequest.class));
+    verify(service).update(eq(USER_ID), eq(tgId), any(TaskGroupUpdateRequest.class));
   }
 
   @Test
@@ -264,7 +273,7 @@ class TaskGroupControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("id", "project not found"))
-        .when(service).update(eq(tgId), any(TaskGroupUpdateRequest.class));
+        .when(service).update(eq(USER_ID), eq(tgId), any(TaskGroupUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/" + tgId)
@@ -272,7 +281,7 @@ class TaskGroupControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).update(eq(tgId), any(TaskGroupUpdateRequest.class));
+    verify(service).update(eq(USER_ID), eq(tgId), any(TaskGroupUpdateRequest.class));
   }
 
   @Test

@@ -4,6 +4,7 @@ import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRe
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,6 +17,7 @@ import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -65,8 +67,10 @@ public class WorkSessionController {
       }
   )
   @GetMapping("/tasks/{taskId}/work-sessions/total-minutes")
-  public int getTaskActualTotalTime(@PathVariable @Positive int taskId) {
-    return service.getTaskActualTotalTime(taskId);
+  public int getTaskActualTotalTime(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int taskId) {
+    return service.getTaskActualTotalTime(user.getUserId(), taskId);
   }
 
   @Operation(
@@ -98,8 +102,10 @@ public class WorkSessionController {
       }
   )
   @GetMapping("/task-groups/{tgId}/work-sessions/total-minutes")
-  public int getTaskGroupActualTotalTime(@PathVariable @Positive int tgId) {
-    return service.getTaskGroupActualTotalTime(tgId);
+  public int getTaskGroupActualTotalTime(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int tgId) {
+    return service.getTaskGroupActualTotalTime(user.getUserId(), tgId);
   }
 
   @Operation(
@@ -131,8 +137,10 @@ public class WorkSessionController {
       }
   )
   @GetMapping("/projects/{pId}/work-sessions/total-minutes")
-  public int getProjectActualTotalTime(@PathVariable @Positive int pId) {
-    return service.getProjectActualTotalTime(pId);
+  public int getProjectActualTotalTime(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int pId) {
+    return service.getProjectActualTotalTime(user.getUserId(), pId);
   }
 
   @Operation(
@@ -159,8 +167,10 @@ public class WorkSessionController {
       }
   )
   @GetMapping("/tasks/{taskId}/work-sessions")
-  public List<WorkSession> getAllInTask(@PathVariable @Positive int taskId) {
-    return service.getAllInTask(taskId);
+  public List<WorkSession> getAllInTask(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int taskId) {
+    return service.getAllInTask(user.getUserId(), taskId);
   }
 
   @Operation(
@@ -192,8 +202,10 @@ public class WorkSessionController {
       }
   )
   @GetMapping("/work-sessions/{wsId}")
-  public WorkSession get(@PathVariable @Positive int wsId) {
-    return service.get(wsId);
+  public WorkSession get(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int wsId) {
+    return service.get(user.getUserId(), wsId);
   }
 
   @Operation(
@@ -230,9 +242,10 @@ public class WorkSessionController {
   )
   @PostMapping("/tasks/{taskId}/work-sessions")
   public ResponseEntity<WorkSession> create(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int taskId,
       @RequestBody @Validated WorkSessionCreateRequest request) {
-    return ResponseEntity.ok(service.create(taskId, request));
+    return ResponseEntity.ok(service.create(user.getUserId(), taskId, request));
   }
 
   @Operation(
@@ -267,8 +280,10 @@ public class WorkSessionController {
       }
   )
   @PostMapping("/work-sessions/{wsId}/end")
-  public ResponseEntity<WorkSession> setEnd(@PathVariable @Positive int wsId) {
-    return ResponseEntity.ok(service.setEnd(wsId));
+  public ResponseEntity<WorkSession> setEnd(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int wsId) {
+    return ResponseEntity.ok(service.setEnd(user.getUserId(), wsId));
   }
 
   @Operation(
@@ -310,10 +325,11 @@ public class WorkSessionController {
   )
   @PatchMapping("/work-sessions/{wsId}")
   public ResponseEntity<WorkSession> update(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int wsId,
       @RequestBody @Validated WorkSessionUpdateRequest request
   ) {
-    return ResponseEntity.ok(service.update(wsId, request));
+    return ResponseEntity.ok(service.update(user.getUserId(), wsId, request));
   }
 
   @Operation(
@@ -343,8 +359,10 @@ public class WorkSessionController {
       }
   )
   @DeleteMapping("/work-sessions/{workSessionId}")
-  public ResponseEntity<Void> delete(@PathVariable("workSessionId") @Positive int wsId) {
-    service.delete(wsId);
+  public ResponseEntity<Void> delete(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable("workSessionId") @Positive int wsId) {
+    service.delete(user.getUserId(), wsId);
     return ResponseEntity.noContent().build();
   }
 }

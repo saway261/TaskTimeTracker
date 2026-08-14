@@ -34,13 +34,14 @@ public class MemoService {
   /**
    * プロジェクトに紐づくメモを新規登録します。
    *
+   * @param userId    認証ユーザーのID
    * @param projectId プロジェクトID
    * @param request   メモ作成リクエスト
    * @return 登録したメモ
    */
   @Transactional
-  public Memo registerInProject(int projectId, MemoRequest request) {
-    if (!projectRepository.existsById(projectId)) {
+  public Memo registerInProject(int userId, int projectId, MemoRequest request) {
+    if (!projectRepository.existsByIdAndUserId(projectId, userId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
@@ -52,13 +53,14 @@ public class MemoService {
   /**
    * タスクグループに紐づくメモを新規登録します。
    *
+   * @param userId      認証ユーザーのID
    * @param taskGroupId タスクグループID
    * @param request     メモ作成リクエスト
    * @return 登録したメモ
    */
   @Transactional
-  public Memo registerInTaskGroup(int taskGroupId, MemoRequest request) {
-    if (!taskGroupRepository.existsById(taskGroupId)) {
+  public Memo registerInTaskGroup(int userId, int taskGroupId, MemoRequest request) {
+    if (!taskGroupRepository.existsByIdAndUserId(taskGroupId, userId)) {
       throw new TargetNotFoundException("taskGroup.id",
           "指定したIDのタスクグループは見つかりませんでした");
     }
@@ -70,13 +72,14 @@ public class MemoService {
   /**
    * タスクに紐づくメモを新規登録します。
    *
+   * @param userId  認証ユーザーのID
    * @param taskId  タスクID
    * @param request メモ作成リクエスト
    * @return 登録したメモ
    */
   @Transactional
-  public Memo registerInTask(int taskId, MemoRequest request) {
-    if (!taskRepository.existsById(taskId)) {
+  public Memo registerInTask(int userId, int taskId, MemoRequest request) {
+    if (!taskRepository.existsByIdAndUserId(taskId, userId)) {
       throw new TargetNotFoundException("task.id",
           "指定したIDのタスクは見つかりませんでした");
     }
@@ -88,13 +91,14 @@ public class MemoService {
   /**
    * メモコメントを更新します。
    *
+   * @param userId  認証ユーザーのID
    * @param id      メモID
    * @param request メモ更新リクエスト
    */
   @Transactional
-  public Memo update(int id, MemoRequest request) {
+  public Memo update(int userId, int id, MemoRequest request) {
     Memo memo = new Memo(id, null, null, null, request.getComment());
-    int updated = memoRepository.update(memo);
+    int updated = memoRepository.update(memo, userId);
     if (updated == 0) {
       throw new TargetNotFoundException("memo.id",
           "更新対象のメモが見つかりませんでした");
@@ -105,11 +109,12 @@ public class MemoService {
   /**
    * メモを削除します。
    *
-   * @param id メモID
+   * @param userId 認証ユーザーのID
+   * @param id     メモID
    */
   @Transactional
-  public void delete(int id) {
-    int deleted = memoRepository.delete(id);
+  public void delete(int userId, int id) {
+    int deleted = memoRepository.delete(id, userId);
     if (deleted == 0) {
       throw new TargetNotFoundException("memo.id",
           "削除対象のメモが見つかりませんでした");

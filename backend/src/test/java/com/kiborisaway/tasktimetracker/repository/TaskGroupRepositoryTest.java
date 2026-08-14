@@ -17,13 +17,16 @@ import org.springframework.dao.DataIntegrityViolationException;
 @MybatisTest
 class TaskGroupRepositoryTest {
 
+  private static final int USER_A = 1;
+  private static final int USER_B = 2;
+
   @Autowired
   private TaskGroupRepository sut;
 
   @Test
   void 全件検索_指定のプロジェクト配下のタスクグループの初期データを取得できること() {
     // Act
-    List<TaskGroup> actual = sut.findAllInProject(1);
+    List<TaskGroup> actual = sut.findAllInProject(1, USER_A);
 
     // Assert
     assertThat(actual)
@@ -36,9 +39,18 @@ class TaskGroupRepositoryTest {
   }
 
   @Test
+  void 全件検索_所有者が一致しない場合は取得できないこと() {
+    // Act
+    List<TaskGroup> actual = sut.findAllInProject(1, USER_B);
+
+    // Assert
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
   void 完了フラグ指定検索_指定のプロジェクト配下のタスクグループのうちisFinishedがtrueのプロジェクトのみをを取得できること() {
     // Act
-    List<TaskGroup> actual = sut.findAllInProjectByIsFinished(1, true);
+    List<TaskGroup> actual = sut.findAllInProjectByIsFinished(1, true, USER_A);
 
     // Assert
     assertThat(actual)
@@ -52,7 +64,7 @@ class TaskGroupRepositoryTest {
   @Test
   void 完了フラグ指定検索_指定のプロジェクト配下のタスクグループのうちisFinishedがfalseのプロジェクトのみをを取得できること() {
     // Act
-    List<TaskGroup> actual = sut.findAllInProjectByIsFinished(1, false);
+    List<TaskGroup> actual = sut.findAllInProjectByIsFinished(1, false, USER_A);
 
     // Assert
     assertThat(actual)
@@ -71,13 +83,13 @@ class TaskGroupRepositoryTest {
     List<Integer> pIdList = List.of(1, 2, 3);
 
     TaskGroup expected = pIdList.stream()
-        .flatMap(pId -> sut.findAllInProject(pId).stream())
+        .flatMap(pId -> sut.findAllInProject(pId, USER_A).stream())
         .filter(taskGroup -> taskGroup.getId().equals(id))
         .findFirst()
         .orElseThrow();
 
     // Act
-    TaskGroup actual = sut.findById(id);
+    TaskGroup actual = sut.findById(id, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(expected);
@@ -89,7 +101,19 @@ class TaskGroupRepositoryTest {
     int id = 999;
 
     // Act
-    TaskGroup actual = sut.findById(id);
+    TaskGroup actual = sut.findById(id, USER_A);
+
+    // Assert
+    assertThat(actual).isNull();
+  }
+
+  @Test
+  void ID検索失敗_所有者が一致しない場合はnullを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    TaskGroup actual = sut.findById(id, USER_B);
 
     // Assert
     assertThat(actual).isNull();
@@ -101,7 +125,7 @@ class TaskGroupRepositoryTest {
     int id = 1;
 
     // Act
-    boolean actual = sut.existsById(id);
+    boolean actual = sut.existsByIdAndUserId(id, USER_A);
 
     // Assert
     assertThat(actual).isTrue();
@@ -113,7 +137,19 @@ class TaskGroupRepositoryTest {
     int id = 999;
 
     // Act
-    boolean actual = sut.existsById(id);
+    boolean actual = sut.existsByIdAndUserId(id, USER_A);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void ID存在チェック_所有者が一致しない場合はfalseを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    boolean actual = sut.existsByIdAndUserId(id, USER_B);
 
     // Assert
     assertThat(actual).isFalse();
@@ -126,7 +162,7 @@ class TaskGroupRepositoryTest {
       Boolean flag) {
     // Arrange
     int pId = 1;
-    List<TaskGroup> before = sut.findAllInProject(pId);
+    List<TaskGroup> before = sut.findAllInProject(pId, USER_A);
 
     TaskGroup tg = new TaskGroup();
     tg.setProjectId(pId);
@@ -137,8 +173,8 @@ class TaskGroupRepositoryTest {
     // Act
     sut.insert(tg);
 
-    List<TaskGroup> after = sut.findAllInProject(pId);
-    TaskGroup registered = sut.findById(tg.getId());
+    List<TaskGroup> after = sut.findAllInProject(pId, USER_A);
+    TaskGroup registered = sut.findById(tg.getId(), USER_A);
 
     // Assert
     assertThat(tg.getId()).isNotNull();
@@ -159,7 +195,7 @@ class TaskGroupRepositoryTest {
     tg.setTitle(field.equals("title") ? null : "プロジェクトA");
     tg.setDescription("説明更新");
 
-    assertThatThrownBy(() -> sut.update(tg))
+    assertThatThrownBy(() -> sut.update(tg, USER_A))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
@@ -192,12 +228,12 @@ class TaskGroupRepositoryTest {
     TaskGroup tg = new TaskGroup(id, 3, "進捗管理システム開発", "社内向けシステム開発", false);
 
     // Act
-    int actual = sut.update(tg);
+    int actual = sut.update(tg, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);// 更新件数が１件
 
-    TaskGroup updated = sut.findById(id);
+    TaskGroup updated = sut.findById(id, USER_A);
 
     assertThat(updated.getProjectId()).isEqualTo(2);//更新できず元の値のまま
     assertThat(updated.getTitle()).isEqualTo("進捗管理システム開発");
@@ -209,7 +245,7 @@ class TaskGroupRepositoryTest {
   void 更新失敗_存在しないIDの場合は更新されず0件となること() {
     // Arrange
     int pId = 1;
-    List<TaskGroup> before = sut.findAllInProject(pId);
+    List<TaskGroup> before = sut.findAllInProject(pId, USER_A);
 
     TaskGroup tg = new TaskGroup();
     tg.setId(999); // 存在しないID
@@ -218,17 +254,33 @@ class TaskGroupRepositoryTest {
     tg.setIsFinished(true);
 
     // Act
-    int actual = sut.update(tg);
+    int actual = sut.update(tg, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(0); // 更新件数0件
 
-    List<TaskGroup> after = sut.findAllInProject(pId);
+    List<TaskGroup> after = sut.findAllInProject(pId, USER_A);
 
     // 中身が変わっていないこと
     assertThat(after)
         .usingRecursiveComparison()
         .isEqualTo(before);
+  }
+
+  @Test
+  void 更新失敗_所有者が一致しない場合は更新されず0件となること() {
+    // Arrange
+    int id = 1;
+    TaskGroup tg = new TaskGroup(id, 1, "更新されないタイトル", "更新されない説明", true);
+
+    // Act
+    int actual = sut.update(tg, USER_B);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+
+    TaskGroup unchanged = sut.findById(id, USER_A);
+    assertThat(unchanged.getTitle()).isEqualTo("バックエンド開発");
   }
 
   @ParameterizedTest(name = "[{index}]更新失敗_{0}フィールドがnullの場合は例外が発生すること")
@@ -241,7 +293,7 @@ class TaskGroupRepositoryTest {
     tg.setDescription("説明更新");
     tg.setIsFinished(field.equals("isFinished") ? null : false);
 
-    assertThatThrownBy(() -> sut.update(tg))
+    assertThatThrownBy(() -> sut.update(tg, USER_A))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
@@ -265,7 +317,7 @@ class TaskGroupRepositoryTest {
     tg.setDescription("説明更新");
     tg.setIsFinished(true);
 
-    assertThatThrownBy(() -> sut.update(tg))
+    assertThatThrownBy(() -> sut.update(tg, USER_A))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 

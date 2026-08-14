@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class TaskEstimateMinutesIntegrationTest {
 
+  private static final int USER_ID = 1;
+
   @Autowired
   private TaskService sut;
 
@@ -31,18 +33,18 @@ class TaskEstimateMinutesIntegrationTest {
   void 見積もり作業時間更新失敗_WorkSessionがなくても完了済みタスクは更新できないこと() {
     // Arrange
     int taskId = 3;
-    Task before = taskRepository.findById(taskId);
+    Task before = taskRepository.findById(taskId, USER_ID);
     assertThat(before.getFinishedAt()).isNotNull();
-    assertThat(workSessionRepository.findAllByTaskId(taskId)).isEmpty();
+    assertThat(workSessionRepository.findAllByTaskId(taskId, USER_ID)).isEmpty();
 
     TaskUpdateEstimatedMinutesRequest request = new TaskUpdateEstimatedMinutesRequest();
     request.setEstimatedMinutes(120);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.updateEstimateMinutes(taskId, request))
+    assertThatThrownBy(() -> sut.updateEstimateMinutes(USER_ID, taskId, request))
         .isInstanceOf(EstimateMinutesUpdateNotAllowedException.class);
 
-    Task after = taskRepository.findById(taskId);
+    Task after = taskRepository.findById(taskId, USER_ID);
     assertThat(after.getEstimatedMinutes()).isEqualTo(before.getEstimatedMinutes());
   }
 }

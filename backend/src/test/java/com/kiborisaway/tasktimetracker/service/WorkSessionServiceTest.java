@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -31,6 +32,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class WorkSessionServiceTest {
 
+  private static final int USER_ID = 1;
+
   @Mock
   private WorkSessionRepository repository;
 
@@ -44,42 +47,42 @@ class WorkSessionServiceTest {
   void タスク作業時間合計取得成功_リポジトリのタスクID指定合計取得を呼び出すこと() {
     // Arrange
     int taskId = 1;
-    when(repository.sumMinutesByTaskId(taskId)).thenReturn(75);
+    when(repository.sumMinutesByTaskId(taskId, USER_ID)).thenReturn(75);
 
     // Act
-    int actual = sut.getTaskActualTotalTime(taskId);
+    int actual = sut.getTaskActualTotalTime(USER_ID, taskId);
 
     // Assert
     assertThat(actual).isEqualTo(75);
-    verify(repository, times(1)).sumMinutesByTaskId(taskId);
+    verify(repository, times(1)).sumMinutesByTaskId(taskId, USER_ID);
   }
 
   @Test
   void タスクグループ作業時間合計取得成功_リポジトリのタスクグループID指定合計取得を呼び出すこと() {
     // Arrange
     int taskGroupId = 1;
-    when(repository.sumMinutesByTaskGroupId(taskGroupId)).thenReturn(120);
+    when(repository.sumMinutesByTaskGroupId(taskGroupId, USER_ID)).thenReturn(120);
 
     // Act
-    int actual = sut.getTaskGroupActualTotalTime(taskGroupId);
+    int actual = sut.getTaskGroupActualTotalTime(USER_ID, taskGroupId);
 
     // Assert
     assertThat(actual).isEqualTo(120);
-    verify(repository, times(1)).sumMinutesByTaskGroupId(taskGroupId);
+    verify(repository, times(1)).sumMinutesByTaskGroupId(taskGroupId, USER_ID);
   }
 
   @Test
   void プロジェクト作業時間合計取得成功_リポジトリのプロジェクトID指定合計取得を呼び出すこと() {
     // Arrange
     int projectId = 1;
-    when(repository.sumMinutesByProjectId(projectId)).thenReturn(180);
+    when(repository.sumMinutesByProjectId(projectId, USER_ID)).thenReturn(180);
 
     // Act
-    int actual = sut.getProjectActualTotalTime(projectId);
+    int actual = sut.getProjectActualTotalTime(USER_ID, projectId);
 
     // Assert
     assertThat(actual).isEqualTo(180);
-    verify(repository, times(1)).sumMinutesByProjectId(projectId);
+    verify(repository, times(1)).sumMinutesByProjectId(projectId, USER_ID);
   }
 
   @Test
@@ -91,14 +94,14 @@ class WorkSessionServiceTest {
     workSession.setTaskId(taskId);
     List<WorkSession> expected = List.of(workSession);
 
-    when(repository.findAllByTaskId(taskId)).thenReturn(expected);
+    when(repository.findAllByTaskId(taskId, USER_ID)).thenReturn(expected);
 
     // Act
-    List<WorkSession> actual = sut.getAllInTask(taskId);
+    List<WorkSession> actual = sut.getAllInTask(USER_ID, taskId);
 
     // Assert
     assertThat(actual).isEqualTo(expected);
-    verify(repository, times(1)).findAllByTaskId(taskId);
+    verify(repository, times(1)).findAllByTaskId(taskId, USER_ID);
   }
 
   @Test
@@ -108,27 +111,27 @@ class WorkSessionServiceTest {
     WorkSession expected = new WorkSession();
     expected.setId(wsId);
 
-    when(repository.findById(wsId)).thenReturn(expected);
+    when(repository.findById(wsId, USER_ID)).thenReturn(expected);
 
     // Act
-    WorkSession actual = sut.get(wsId);
+    WorkSession actual = sut.get(USER_ID, wsId);
 
     // Assert
     assertThat(actual).isSameAs(expected);
-    verify(repository, times(1)).findById(wsId);
+    verify(repository, times(1)).findById(wsId, USER_ID);
   }
 
   @Test
   void ID検索失敗_リポジトリからnullが返ったらTargetNotFoundExceptionを投げること() {
     // Arrange
     int wsId = 999;
-    when(repository.findById(wsId)).thenReturn(null);
+    when(repository.findById(wsId, USER_ID)).thenReturn(null);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.get(wsId))
+    assertThatThrownBy(() -> sut.get(USER_ID, wsId))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(repository, times(1)).findById(wsId);
+    verify(repository, times(1)).findById(wsId, USER_ID);
   }
 
   @Test
@@ -139,7 +142,7 @@ class WorkSessionServiceTest {
     request.setType(WorkSessionType.MANUAL);
     request.setMinutes(30);
 
-    when(taskRepository.existsById(taskId)).thenReturn(true);
+    when(taskRepository.existsByIdAndUserId(taskId, USER_ID)).thenReturn(true);
     doAnswer(invocation -> {
       invocation.<WorkSession>getArgument(0).setId(10);
       return null;
@@ -149,16 +152,16 @@ class WorkSessionServiceTest {
     registered.setTaskId(taskId);
     registered.setMinutes(30);
     registered.setType(WorkSessionType.MANUAL);
-    when(repository.findById(10)).thenReturn(registered);
+    when(repository.findById(10, USER_ID)).thenReturn(registered);
 
     // Act
-    WorkSession actual = sut.create(taskId, request);
+    WorkSession actual = sut.create(USER_ID, taskId, request);
 
     // Assert
     assertThat(actual.getTaskId()).isEqualTo(taskId);
     assertThat(actual.getMinutes()).isEqualTo(30);
-    verify(taskRepository, times(1)).existsById(taskId);
-    verify(taskRepository, times(1)).isFinished(taskId);
+    verify(taskRepository, times(1)).existsByIdAndUserId(taskId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
     ArgumentCaptor<WorkSession> captor = ArgumentCaptor.forClass(WorkSession.class);
     verify(repository, times(1)).insert(captor.capture());
     assertThat(captor.getValue()).isNotSameAs(actual);
@@ -172,14 +175,14 @@ class WorkSessionServiceTest {
     request.setType(WorkSessionType.MANUAL);
     request.setMinutes(30);
 
-    when(taskRepository.existsById(taskId)).thenReturn(false);
+    when(taskRepository.existsByIdAndUserId(taskId, USER_ID)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.create(taskId, request))
+    assertThatThrownBy(() -> sut.create(USER_ID, taskId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(taskRepository, times(1)).existsById(taskId);
-    verify(taskRepository, never()).isFinished(anyInt());
+    verify(taskRepository, times(1)).existsByIdAndUserId(taskId, USER_ID);
+    verify(taskRepository, never()).isFinished(anyInt(), anyInt());
     verify(repository, never()).insert(any(WorkSession.class));
   }
 
@@ -191,15 +194,15 @@ class WorkSessionServiceTest {
     request.setType(WorkSessionType.MANUAL);
     request.setMinutes(30);
 
-    when(taskRepository.existsById(taskId)).thenReturn(true);
-    when(taskRepository.isFinished(taskId)).thenReturn(true);
+    when(taskRepository.existsByIdAndUserId(taskId, USER_ID)).thenReturn(true);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(true);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.create(taskId, request))
+    assertThatThrownBy(() -> sut.create(USER_ID, taskId, request))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    verify(taskRepository, times(1)).existsById(taskId);
-    verify(taskRepository, times(1)).isFinished(taskId);
+    verify(taskRepository, times(1)).existsByIdAndUserId(taskId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
     verify(repository, never()).insert(any(WorkSession.class));
   }
 
@@ -208,23 +211,23 @@ class WorkSessionServiceTest {
     // Arrange
     int wsId = 1;
     int taskId = 1;
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
-    when(taskRepository.isFinished(taskId)).thenReturn(false);
-    when(repository.canSetEnd(wsId)).thenReturn(true);
-    when(repository.setEnd(wsId)).thenReturn(1);
+    when(repository.findTaskIdById(wsId, USER_ID)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(false);
+    when(repository.canSetEnd(wsId, USER_ID)).thenReturn(true);
+    when(repository.setEnd(wsId, USER_ID)).thenReturn(1);
     WorkSession ended = new WorkSession();
     ended.setId(wsId);
     ended.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 30));
-    when(repository.findById(wsId)).thenReturn(ended);
+    when(repository.findById(wsId, USER_ID)).thenReturn(ended);
 
     // Act
-    WorkSession actual = sut.setEnd(wsId);
+    WorkSession actual = sut.setEnd(USER_ID, wsId);
 
     // Assert
-    verify(repository, times(1)).findTaskIdById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, times(1)).canSetEnd(wsId);
-    verify(repository, times(1)).setEnd(wsId);
+    verify(repository, times(1)).findTaskIdById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, times(1)).canSetEnd(wsId, USER_ID);
+    verify(repository, times(1)).setEnd(wsId, USER_ID);
     assertThat(actual).isSameAs(ended);
   }
 
@@ -233,34 +236,34 @@ class WorkSessionServiceTest {
     // Arrange
     int wsId = 1;
     int taskId = 1;
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
-    when(taskRepository.isFinished(taskId)).thenReturn(false);
-    when(repository.canSetEnd(wsId)).thenReturn(false);
+    when(repository.findTaskIdById(wsId, USER_ID)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(false);
+    when(repository.canSetEnd(wsId, USER_ID)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.setEnd(wsId))
+    assertThatThrownBy(() -> sut.setEnd(USER_ID, wsId))
         .isInstanceOf(WorkSessionEndNotAllowedException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, times(1)).canSetEnd(wsId);
-    verify(repository, never()).setEnd(anyInt());
+    verify(repository, times(1)).findTaskIdById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, times(1)).canSetEnd(wsId, USER_ID);
+    verify(repository, never()).setEnd(anyInt(), anyInt());
   }
 
   @Test
   void 終了失敗_作業セッションが存在しないなら404用例外を投げること() {
     // Arrange
     int wsId = 999;
-    when(repository.findTaskIdById(wsId)).thenReturn(null);
+    when(repository.findTaskIdById(wsId, USER_ID)).thenReturn(null);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.setEnd(wsId))
+    assertThatThrownBy(() -> sut.setEnd(USER_ID, wsId))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
-    verify(taskRepository, never()).isFinished(anyInt());
-    verify(repository, never()).canSetEnd(anyInt());
-    verify(repository, never()).setEnd(anyInt());
+    verify(repository, times(1)).findTaskIdById(wsId, USER_ID);
+    verify(taskRepository, never()).isFinished(anyInt(), anyInt());
+    verify(repository, never()).canSetEnd(anyInt(), anyInt());
+    verify(repository, never()).setEnd(anyInt(), anyInt());
   }
 
   @Test
@@ -268,17 +271,17 @@ class WorkSessionServiceTest {
     // Arrange
     int wsId = 1;
     int taskId = 3;
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
-    when(taskRepository.isFinished(taskId)).thenReturn(true);
+    when(repository.findTaskIdById(wsId, USER_ID)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(true);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.setEnd(wsId))
+    assertThatThrownBy(() -> sut.setEnd(USER_ID, wsId))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, never()).canSetEnd(anyInt());
-    verify(repository, never()).setEnd(anyInt());
+    verify(repository, times(1)).findTaskIdById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, never()).canSetEnd(anyInt(), anyInt());
+    verify(repository, never()).setEnd(anyInt(), anyInt());
   }
 
   @Test
@@ -286,19 +289,19 @@ class WorkSessionServiceTest {
     // Arrange
     int wsId = 1;
     int taskId = 1;
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
-    when(taskRepository.isFinished(taskId)).thenReturn(false);
-    when(repository.canSetEnd(wsId)).thenReturn(true);
-    when(repository.setEnd(wsId)).thenReturn(0);
+    when(repository.findTaskIdById(wsId, USER_ID)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(false);
+    when(repository.canSetEnd(wsId, USER_ID)).thenReturn(true);
+    when(repository.setEnd(wsId, USER_ID)).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.setEnd(wsId))
+    assertThatThrownBy(() -> sut.setEnd(USER_ID, wsId))
         .isInstanceOf(WorkSessionEndNotAllowedException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, times(1)).canSetEnd(wsId);
-    verify(repository, times(1)).setEnd(wsId);
+    verify(repository, times(1)).findTaskIdById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, times(1)).canSetEnd(wsId, USER_ID);
+    verify(repository, times(1)).setEnd(wsId, USER_ID);
   }
 
   @Test
@@ -316,23 +319,23 @@ class WorkSessionServiceTest {
     current.setId(wsId);
     current.setTaskId(taskId);
     current.setType(WorkSessionType.MANUAL);
-    when(taskRepository.isFinished(taskId)).thenReturn(false);
-    when(repository.update(any(WorkSession.class))).thenReturn(1);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(false);
+    when(repository.update(any(WorkSession.class), eq(USER_ID))).thenReturn(1);
     WorkSession updated = new WorkSession();
     updated.setId(wsId);
     updated.setTaskId(taskId);
     updated.setMinutes(30);
     updated.setType(WorkSessionType.MANUAL);
-    when(repository.findById(wsId)).thenReturn(current, updated);
+    when(repository.findById(wsId, USER_ID)).thenReturn(current, updated);
 
     // Act
-    WorkSession actual = sut.update(wsId, request);
+    WorkSession actual = sut.update(USER_ID, wsId, request);
 
     // Assert
-    verify(repository, times(2)).findById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
+    verify(repository, times(2)).findById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
     ArgumentCaptor<WorkSession> captor = ArgumentCaptor.forClass(WorkSession.class);
-    verify(repository, times(1)).update(captor.capture());
+    verify(repository, times(1)).update(captor.capture(), eq(USER_ID));
     assertThat(captor.getValue().getId()).isEqualTo(wsId);
     assertThat(captor.getValue().getMinutes()).isEqualTo(30);
     assertThat(actual).isSameAs(updated);
@@ -351,17 +354,17 @@ class WorkSessionServiceTest {
     current.setId(wsId);
     current.setTaskId(taskId);
     current.setType(WorkSessionType.MANUAL);
-    when(repository.findById(wsId)).thenReturn(current);
-    when(taskRepository.isFinished(taskId)).thenReturn(false);
-    when(repository.update(any(WorkSession.class))).thenReturn(0);
+    when(repository.findById(wsId, USER_ID)).thenReturn(current);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(false);
+    when(repository.update(any(WorkSession.class), eq(USER_ID))).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(wsId, request))
+    assertThatThrownBy(() -> sut.update(USER_ID, wsId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(repository, times(1)).findById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, times(1)).update(any(WorkSession.class));
+    verify(repository, times(1)).findById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, times(1)).update(any(WorkSession.class), anyInt());
   }
 
   @Test
@@ -372,15 +375,15 @@ class WorkSessionServiceTest {
     request.setType(WorkSessionType.MANUAL);
     request.setMinutes(30);
 
-    when(repository.findById(wsId)).thenReturn(null);
+    when(repository.findById(wsId, USER_ID)).thenReturn(null);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(wsId, request))
+    assertThatThrownBy(() -> sut.update(USER_ID, wsId, request))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(repository, times(1)).findById(wsId);
-    verify(taskRepository, never()).isFinished(anyInt());
-    verify(repository, never()).update(any(WorkSession.class));
+    verify(repository, times(1)).findById(wsId, USER_ID);
+    verify(taskRepository, never()).isFinished(anyInt(), anyInt());
+    verify(repository, never()).update(any(WorkSession.class), anyInt());
   }
 
   @Test
@@ -396,16 +399,16 @@ class WorkSessionServiceTest {
     current.setId(wsId);
     current.setTaskId(taskId);
     current.setType(WorkSessionType.MANUAL);
-    when(repository.findById(wsId)).thenReturn(current);
-    when(taskRepository.isFinished(taskId)).thenReturn(true);
+    when(repository.findById(wsId, USER_ID)).thenReturn(current);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(true);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(wsId, request))
+    assertThatThrownBy(() -> sut.update(USER_ID, wsId, request))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    verify(repository, times(1)).findById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, never()).update(any(WorkSession.class));
+    verify(repository, times(1)).findById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, never()).update(any(WorkSession.class), anyInt());
   }
 
   @Test
@@ -421,16 +424,16 @@ class WorkSessionServiceTest {
     current.setId(wsId);
     current.setTaskId(taskId);
     current.setType(WorkSessionType.TIMER);
-    when(repository.findById(wsId)).thenReturn(current);
-    when(taskRepository.isFinished(taskId)).thenReturn(false);
+    when(repository.findById(wsId, USER_ID)).thenReturn(current);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(wsId, request))
+    assertThatThrownBy(() -> sut.update(USER_ID, wsId, request))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    verify(repository, times(1)).findById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, never()).update(any(WorkSession.class));
+    verify(repository, times(1)).findById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, never()).update(any(WorkSession.class), anyInt());
   }
 
   @Test
@@ -439,17 +442,17 @@ class WorkSessionServiceTest {
     int wsId = 1;
     int taskId = 1;
 
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
-    when(taskRepository.isFinished(taskId)).thenReturn(false);
-    when(repository.deleteById(wsId)).thenReturn(1);
+    when(repository.findTaskIdById(wsId, USER_ID)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(false);
+    when(repository.deleteById(wsId, USER_ID)).thenReturn(1);
 
     // Act
-    sut.delete(wsId);
+    sut.delete(USER_ID, wsId);
 
     // Assert
-    verify(repository, times(1)).findTaskIdById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, times(1)).deleteById(wsId);
+    verify(repository, times(1)).findTaskIdById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, times(1)).deleteById(wsId, USER_ID);
   }
 
   @Test
@@ -458,17 +461,17 @@ class WorkSessionServiceTest {
     int wsId = 999;
     int taskId = 1;
 
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
-    when(taskRepository.isFinished(taskId)).thenReturn(false);
-    when(repository.deleteById(wsId)).thenReturn(0);
+    when(repository.findTaskIdById(wsId, USER_ID)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(false);
+    when(repository.deleteById(wsId, USER_ID)).thenReturn(0);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.delete(wsId))
+    assertThatThrownBy(() -> sut.delete(USER_ID, wsId))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, times(1)).deleteById(wsId);
+    verify(repository, times(1)).findTaskIdById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, times(1)).deleteById(wsId, USER_ID);
   }
 
   @Test
@@ -476,15 +479,15 @@ class WorkSessionServiceTest {
     // Arrange
     int wsId = 999;
 
-    when(repository.findTaskIdById(wsId)).thenReturn(null);
+    when(repository.findTaskIdById(wsId, USER_ID)).thenReturn(null);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.delete(wsId))
+    assertThatThrownBy(() -> sut.delete(USER_ID, wsId))
         .isInstanceOf(TargetNotFoundException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
-    verify(taskRepository, never()).isFinished(anyInt());
-    verify(repository, never()).deleteById(anyInt());
+    verify(repository, times(1)).findTaskIdById(wsId, USER_ID);
+    verify(taskRepository, never()).isFinished(anyInt(), anyInt());
+    verify(repository, never()).deleteById(anyInt(), anyInt());
   }
 
   @Test
@@ -493,16 +496,16 @@ class WorkSessionServiceTest {
     int wsId = 1;
     int taskId = 3;
 
-    when(repository.findTaskIdById(wsId)).thenReturn(taskId);
-    when(taskRepository.isFinished(taskId)).thenReturn(true);
+    when(repository.findTaskIdById(wsId, USER_ID)).thenReturn(taskId);
+    when(taskRepository.isFinished(taskId, USER_ID)).thenReturn(true);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.delete(wsId))
+    assertThatThrownBy(() -> sut.delete(USER_ID, wsId))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    verify(repository, times(1)).findTaskIdById(wsId);
-    verify(taskRepository, times(1)).isFinished(taskId);
-    verify(repository, never()).deleteById(anyInt());
+    verify(repository, times(1)).findTaskIdById(wsId, USER_ID);
+    verify(taskRepository, times(1)).isFinished(taskId, USER_ID);
+    verify(repository, never()).deleteById(anyInt(), anyInt());
   }
 
 }

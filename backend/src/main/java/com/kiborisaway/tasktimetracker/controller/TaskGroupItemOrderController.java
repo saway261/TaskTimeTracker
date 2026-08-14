@@ -3,6 +3,7 @@ package com.kiborisaway.tasktimetracker.controller;
 import com.kiborisaway.tasktimetracker.data.dto.item_order.TaskGroupItemOrderReplaceRequest;
 import com.kiborisaway.tasktimetracker.data.dto.item_order.TaskGroupItemOrderResponse;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.TaskGroupItemOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -64,8 +66,10 @@ public class TaskGroupItemOrderController {
       }
   )
   @GetMapping("/task-groups/{tgId}/item-order")
-  public List<TaskGroupItemOrderResponse> getAll(@PathVariable @Positive int tgId) {
-    return service.findAllInTaskGroup(tgId);
+  public List<TaskGroupItemOrderResponse> getAll(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int tgId) {
+    return service.findAllInTaskGroup(user.getUserId(), tgId);
   }
 
   @Operation(
@@ -105,8 +109,9 @@ public class TaskGroupItemOrderController {
   )
   @PutMapping("/task-groups/{tgId}/item-order")
   public List<TaskGroupItemOrderResponse> replace(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int tgId,
       @RequestBody @Validated TaskGroupItemOrderReplaceRequest request) {
-    return service.replaceOrder(tgId, request.getItems());
+    return service.replaceOrder(user.getUserId(), tgId, request.getItems());
   }
 }

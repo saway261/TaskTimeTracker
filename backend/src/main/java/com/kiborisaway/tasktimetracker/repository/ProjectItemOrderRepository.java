@@ -12,16 +12,21 @@ import org.apache.ibatis.annotations.Update;
 public interface ProjectItemOrderRepository {
 
   /**
-   * プロジェクト直下の並び順一覧をposition昇順で取得します。
+   * プロジェクト直下の並び順一覧をposition昇順で取得します。所有者が一致するプロジェクトのみを対象とします。
    *
    * @param projectId プロジェクトID
    * @return 並び順一覧
    */
-  @Select("SELECT * FROM project_item_orders WHERE project_id = #{projectId} ORDER BY position ASC")
-  List<ProjectItemOrder> findAllInProjectOrdered(int projectId);
+  @Select("""
+      SELECT pio.* FROM project_item_orders pio
+      JOIN projects p ON p.id = pio.project_id
+      WHERE pio.project_id = #{projectId} AND p.user_id = #{userId}
+      ORDER BY pio.position ASC
+      """)
+  List<ProjectItemOrder> findAllInProjectOrdered(int projectId, int userId);
 
   /**
-   * タスクをプロジェクト直下の末尾に追加します。
+   * タスクをプロジェクト直下の末尾に追加します。 呼び出し前にプロジェクトの所有権が検証済みであることが前提です。
    *
    * @param projectId プロジェクトID
    * @param taskId    タスクID
@@ -34,7 +39,7 @@ public interface ProjectItemOrderRepository {
   void insertAppendForTask(int projectId, int taskId);
 
   /**
-   * タスクグループをプロジェクト直下の末尾に追加します。
+   * タスクグループをプロジェクト直下の末尾に追加します。 呼び出し前にプロジェクトの所有権が検証済みであることが前提です。
    *
    * @param projectId   プロジェクトID
    * @param taskGroupId タスクグループID
@@ -47,27 +52,38 @@ public interface ProjectItemOrderRepository {
   void insertAppendForTaskGroup(int projectId, int taskGroupId);
 
   /**
-   * タスクの並び順を更新します。
+   * タスクの並び順を更新します。所有者が一致しない場合は更新されません。
    *
    * @param taskId   タスクID
    * @param position 新しい並び順
    * @return 更新を実行した件数
    */
-  @Update("UPDATE project_item_orders SET position = #{position} WHERE task_id = #{taskId}")
-  int updatePositionByTaskId(int taskId, int position);
+  @Update("""
+      UPDATE project_item_orders
+      SET position = #{position}
+      WHERE task_id = #{taskId}
+        AND project_id IN (SELECT id FROM projects WHERE user_id = #{userId})
+      """)
+  int updatePositionByTaskId(int taskId, int position, int userId);
 
   /**
-   * タスクグループの並び順を更新します。
+   * タスクグループの並び順を更新します。所有者が一致しない場合は更新されません。
    *
    * @param taskGroupId タスクグループID
    * @param position    新しい並び順
    * @return 更新を実行した件数
    */
-  @Update("UPDATE project_item_orders SET position = #{position} WHERE task_group_id = #{taskGroupId}")
-  int updatePositionByTaskGroupId(int taskGroupId, int position);
+  @Update("""
+      UPDATE project_item_orders
+      SET position = #{position}
+      WHERE task_group_id = #{taskGroupId}
+        AND project_id IN (SELECT id FROM projects WHERE user_id = #{userId})
+      """)
+  int updatePositionByTaskGroupId(int taskGroupId, int position, int userId);
 
   /**
    * タスクの並び順レコードを削除します。プロジェクト直下に存在しない場合は何も削除しません。
+   * 呼び出し前にタスクの所有権が検証済みであることが前提です。
    *
    * @param taskId タスクID
    * @return 削除を実行した件数
@@ -76,7 +92,7 @@ public interface ProjectItemOrderRepository {
   int deleteByTaskId(int taskId);
 
   /**
-   * タスクグループの並び順レコードを削除します。
+   * タスクグループの並び順レコードを削除します。 呼び出し前にタスクグループの所有権が検証済みであることが前提です。
    *
    * @param taskGroupId タスクグループID
    * @return 削除を実行した件数

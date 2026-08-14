@@ -3,11 +3,14 @@ package com.kiborisaway.tasktimetracker.controller;
 import com.kiborisaway.tasktimetracker.data.dto.memo.MemoRequest;
 import com.kiborisaway.tasktimetracker.data.dto.memo.MemoResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
+import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.MemoService;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -39,9 +42,10 @@ public class MemoController {
    */
   @PostMapping("/projects/{pId}/memo")
   public ResponseEntity<MemoResponse> createInProject(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int pId,
       @RequestBody @Validated MemoRequest request) {
-    Memo memo = service.registerInProject(pId, request);
+    Memo memo = service.registerInProject(user.getUserId(), pId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(new MemoResponse(memo));
   }
 
@@ -54,9 +58,10 @@ public class MemoController {
    */
   @PostMapping("/task-groups/{tgId}/memo")
   public ResponseEntity<MemoResponse> createInTaskGroup(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int tgId,
       @RequestBody @Validated MemoRequest request) {
-    Memo memo = service.registerInTaskGroup(tgId, request);
+    Memo memo = service.registerInTaskGroup(user.getUserId(), tgId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(new MemoResponse(memo));
   }
 
@@ -69,9 +74,10 @@ public class MemoController {
    */
   @PostMapping("/tasks/{taskId}/memo")
   public ResponseEntity<MemoResponse> createInTask(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int taskId,
       @RequestBody @Validated MemoRequest request) {
-    Memo memo = service.registerInTask(taskId, request);
+    Memo memo = service.registerInTask(user.getUserId(), taskId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(new MemoResponse(memo));
   }
 
@@ -84,10 +90,11 @@ public class MemoController {
    */
   @PatchMapping("/memo/{id}")
   public ResponseEntity<MemoResponse> update(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int id,
       @RequestBody @Validated MemoRequest request) {
 
-    Memo memo = service.update(id, request);
+    Memo memo = service.update(user.getUserId(), id, request);
     return ResponseEntity.ok(new MemoResponse(memo));
   }
 
@@ -98,9 +105,11 @@ public class MemoController {
    * @return レスポンスボディなし
    */
   @DeleteMapping("/memo/{id}")
-  public ResponseEntity<Void> delete(@PathVariable @Positive int id) {
+  public ResponseEntity<Void> delete(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int id) {
 
-    service.delete(id);
+    service.delete(user.getUserId(), id);
     return ResponseEntity.noContent().build();
   }
 

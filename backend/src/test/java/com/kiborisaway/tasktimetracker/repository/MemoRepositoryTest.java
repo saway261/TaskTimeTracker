@@ -14,6 +14,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 @MybatisTest
 class MemoRepositoryTest {
 
+  private static final int USER_A = 1;
+  private static final int USER_B = 2;
+
   @Autowired
   private MemoRepository sut;
 
@@ -141,7 +144,7 @@ class MemoRepositoryTest {
     Memo memo = new Memo(1, null, null, null, "更新後コメント");
 
     // Act
-    int actual = sut.update(memo);
+    int actual = sut.update(memo, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
@@ -157,7 +160,23 @@ class MemoRepositoryTest {
     Memo memo = new Memo(999, null, null, null, "更新されないコメント");
 
     // Act
-    int actual = sut.update(memo);
+    int actual = sut.update(memo, USER_A);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+
+  @Test
+  void 更新失敗_所有者が一致しない場合は更新されず0件となること() {
+    // Arrange
+    List<Memo> before = sut.findAllInProject(1);
+    Memo memo = new Memo(1, null, null, null, "更新されないコメント");
+
+    // Act
+    int actual = sut.update(memo, USER_B);
 
     // Assert
     assertThat(actual).isEqualTo(0);
@@ -169,7 +188,7 @@ class MemoRepositoryTest {
   @Test
   void 削除成功_既存メモをID指定で削除できること() {
     // Act
-    int actual = sut.delete(1);
+    int actual = sut.delete(1, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
@@ -182,7 +201,22 @@ class MemoRepositoryTest {
     List<Memo> before = sut.findAllInProject(1);
 
     // Act
-    int actual = sut.delete(999);
+    int actual = sut.delete(999, USER_A);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    assertThat(sut.findAllInProject(1))
+        .usingRecursiveComparison()
+        .isEqualTo(before);
+  }
+
+  @Test
+  void 削除失敗_所有者が一致しない場合は削除されず0件となること() {
+    // Arrange
+    List<Memo> before = sut.findAllInProject(1);
+
+    // Act
+    int actual = sut.delete(1, USER_B);
 
     // Assert
     assertThat(actual).isEqualTo(0);

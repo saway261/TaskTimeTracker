@@ -14,13 +14,16 @@ import org.springframework.dao.DataIntegrityViolationException;
 @MybatisTest
 class TaskGroupItemOrderRepositoryTest {
 
+  private static final int USER_A = 1;
+  private static final int USER_B = 2;
+
   @Autowired
   private TaskGroupItemOrderRepository sut;
 
   @Test
   void 全件検索_並び順レコードが存在しない場合は空リストを返すこと() {
     // Act
-    List<TaskGroupItemOrder> actual = sut.findAllInTaskGroupOrdered(1);
+    List<TaskGroupItemOrder> actual = sut.findAllInTaskGroupOrdered(1, USER_A);
 
     // Assert
     assertThat(actual).isEmpty();
@@ -36,7 +39,7 @@ class TaskGroupItemOrderRepositoryTest {
     sut.insertAppendForTask(tgId, 2); // position=1
 
     // Assert
-    List<TaskGroupItemOrder> actual = sut.findAllInTaskGroupOrdered(tgId);
+    List<TaskGroupItemOrder> actual = sut.findAllInTaskGroupOrdered(tgId, USER_A);
     assertThat(actual)
         .extracting(TaskGroupItemOrder::getTaskGroupId, TaskGroupItemOrder::getTaskId,
             TaskGroupItemOrder::getPosition)
@@ -62,11 +65,11 @@ class TaskGroupItemOrderRepositoryTest {
     sut.insertAppendForTask(1, 1);
 
     // Act
-    int actual = sut.updatePositionByTaskId(1, 5);
+    int actual = sut.updatePositionByTaskId(1, 5, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
-    assertThat(sut.findAllInTaskGroupOrdered(1))
+    assertThat(sut.findAllInTaskGroupOrdered(1, USER_A))
         .extracting(TaskGroupItemOrder::getTaskId, TaskGroupItemOrder::getPosition)
         .containsExactly(tuple(1, 5));
   }
@@ -74,7 +77,19 @@ class TaskGroupItemOrderRepositoryTest {
   @Test
   void position更新失敗_存在しないタスクIDを指定すると更新件数0件となること() {
     // Act
-    int actual = sut.updatePositionByTaskId(999, 0);
+    int actual = sut.updatePositionByTaskId(999, 0, USER_A);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+  }
+
+  @Test
+  void position更新失敗_所有者が一致しない場合は更新されず0件となること() {
+    // Arrange
+    sut.insertAppendForTask(1, 1);
+
+    // Act
+    int actual = sut.updatePositionByTaskId(1, 5, USER_B);
 
     // Assert
     assertThat(actual).isEqualTo(0);
@@ -87,7 +102,7 @@ class TaskGroupItemOrderRepositoryTest {
     sut.insertAppendForTask(1, 2); // position=1
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.updatePositionByTaskId(2, 0))
+    assertThatThrownBy(() -> sut.updatePositionByTaskId(2, 0, USER_A))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
@@ -101,7 +116,7 @@ class TaskGroupItemOrderRepositoryTest {
 
     // Assert
     assertThat(actual).isEqualTo(1);
-    assertThat(sut.findAllInTaskGroupOrdered(1)).isEmpty();
+    assertThat(sut.findAllInTaskGroupOrdered(1, USER_A)).isEmpty();
   }
 
   @Test
@@ -124,7 +139,7 @@ class TaskGroupItemOrderRepositoryTest {
 
     // Assert
     assertThat(actual).isEqualTo(2);
-    assertThat(sut.findAllInTaskGroupOrdered(1)).isEmpty();
+    assertThat(sut.findAllInTaskGroupOrdered(1, USER_A)).isEmpty();
   }
 
 }

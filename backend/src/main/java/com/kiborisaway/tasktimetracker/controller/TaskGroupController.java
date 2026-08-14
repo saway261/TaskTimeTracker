@@ -4,6 +4,7 @@ import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupCreateReques
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.TaskGroupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,6 +18,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -72,10 +74,11 @@ public class TaskGroupController {
   )
   @GetMapping("/projects/{pId}/task-groups")
   public List<TaskGroupResponse> getAll(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int pId,
       @RequestParam(required = false) Boolean isFinished
   ) {
-    return service.findAllByCondition(pId, isFinished);
+    return service.findAllByCondition(user.getUserId(), pId, isFinished);
   }
 
   @Operation(
@@ -113,8 +116,10 @@ public class TaskGroupController {
       }
   )
   @GetMapping("/task-groups/{tgId}")
-  public TaskGroupResponse getById(@PathVariable @Positive int tgId) {
-    return service.findById(tgId);
+  public TaskGroupResponse getById(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int tgId) {
+    return service.findById(user.getUserId(), tgId);
   }
 
   @Operation(
@@ -151,10 +156,11 @@ public class TaskGroupController {
   )
   @PostMapping("/projects/{pId}/task-groups")
   public ResponseEntity<TaskGroupResponse> create(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int pId,
       @RequestBody @Validated TaskGroupCreateRequest request
   ) {
-    TaskGroupResponse response = service.register(pId, request);
+    TaskGroupResponse response = service.register(user.getUserId(), pId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -199,8 +205,9 @@ public class TaskGroupController {
   )
   @PutMapping("/task-groups/{tgId}")
   public ResponseEntity<TaskGroupResponse> update(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int tgId,
       @RequestBody @Validated TaskGroupUpdateRequest request) {
-    return ResponseEntity.ok(service.update(tgId, request));
+    return ResponseEntity.ok(service.update(user.getUserId(), tgId, request));
   }
 }

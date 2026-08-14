@@ -41,21 +41,22 @@ public class TaskGroupService {
   /**
    * プロジェクトIDに紐づくタスクグループの一覧検索を行います。完了フラグを指定した場合、指定した完了状態のタスクグループのみを取得します。
    *
+   * @param userId     認証ユーザーのID
    * @param pId        プロジェクトID
    * @param isFinished 完了フラグ
    * @return 全件または指定した完了状態のタスクグループの一覧
    */
-  public List<TaskGroupResponse> findAllByCondition(int pId, Boolean isFinished) {
-    if (!prRepository.existsById(pId)) {
+  public List<TaskGroupResponse> findAllByCondition(int userId, int pId, Boolean isFinished) {
+    if (!prRepository.existsByIdAndUserId(pId, userId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
 
     List<TaskGroup> taskGroups;
     if (isFinished == null) {
-      taskGroups = tgRepository.findAllInProject(pId);
+      taskGroups = tgRepository.findAllInProject(pId, userId);
     } else {
-      taskGroups = tgRepository.findAllInProjectByIsFinished(pId, isFinished);
+      taskGroups = tgRepository.findAllInProjectByIsFinished(pId, isFinished, userId);
     }
     if (taskGroups.isEmpty()) {
       return List.of();
@@ -78,21 +79,23 @@ public class TaskGroupService {
   /**
    * IDによるタスクグループの検索
    *
-   * @param id タスクグループのID
+   * @param userId 認証ユーザーのID
+   * @param id     タスクグループのID
    * @return タスクグループ
    */
-  public TaskGroupResponse findById(int id) {
-    return toResponse(findTaskGroupById(id));
+  public TaskGroupResponse findById(int userId, int id) {
+    return toResponse(findTaskGroupById(userId, id));
   }
 
   /**
    * タスクグループの新規登録を行います。
    *
+   * @param userId  認証ユーザーのID
    * @param request 新規登録するタスクグループのリクエスト
    */
   @Transactional
-  public TaskGroupResponse register(int pId, TaskGroupCreateRequest request) {
-    if (!prRepository.existsById(pId)) {
+  public TaskGroupResponse register(int userId, int pId, TaskGroupCreateRequest request) {
+    if (!prRepository.existsByIdAndUserId(pId, userId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
@@ -100,25 +103,26 @@ public class TaskGroupService {
     tg.setProjectId(pId);
     tgRepository.insert(tg);
     pjItemOrderRepository.insertAppendForTaskGroup(pId, tg.getId());
-    TaskGroup registeredTaskGroup = findTaskGroupById(tg.getId());
+    TaskGroup registeredTaskGroup = findTaskGroupById(userId, tg.getId());
     return new TaskGroupResponse(registeredTaskGroup, List.of());
   }
 
   /**
    * タスクグループIDを指定してタスクグループ名と説明と完了フラグを更新します
    *
+   * @param userId  認証ユーザーのID
    * @param id      更新するタスクグループのID
    * @param request 更新するタスクグループのリクエスト
    */
   @Transactional
-  public TaskGroupResponse update(int id, TaskGroupUpdateRequest request) {
+  public TaskGroupResponse update(int userId, int id, TaskGroupUpdateRequest request) {
     TaskGroup tg = toEntity(id, request);
-    int updated = tgRepository.update(tg);
+    int updated = tgRepository.update(tg, userId);
     if (updated == 0) {
       throw new TargetNotFoundException("taskGroup",
           "更新対象のタスクグループが見つかりませんでした");
     }
-    return toResponse(findTaskGroupById(id));
+    return toResponse(findTaskGroupById(userId, id));
   }
 
   private TaskGroup toEntity(TaskGroupCreateRequest request) {
@@ -137,8 +141,8 @@ public class TaskGroupService {
     return new TaskGroupResponse(taskGroup, memoResponses);
   }
 
-  private TaskGroup findTaskGroupById(int id) {
-    TaskGroup taskGroup = tgRepository.findById(id);
+  private TaskGroup findTaskGroupById(int userId, int id) {
+    TaskGroup taskGroup = tgRepository.findById(id, userId);
     if (taskGroup == null) {
       throw new TargetNotFoundException("taskGroup.id",
           "指定したIDのタスクグループは見つかりませんでした");
