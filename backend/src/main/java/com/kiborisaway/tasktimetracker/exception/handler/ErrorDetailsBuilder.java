@@ -2,6 +2,8 @@ package com.kiborisaway.tasktimetracker.exception.handler;
 
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -173,6 +175,40 @@ public class ErrorDetailsBuilder {
    * @return エラー発生個所とエラーメッセージ
    */
   public List<Map<String, String>> buildErrorDetails(InvalidItemOrderException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * ReflectionAlreadyExistsExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex ReflectionAlreadyExistsException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(ReflectionAlreadyExistsException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * ReflectionOperationNotAllowedExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex ReflectionOperationNotAllowedException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(ReflectionOperationNotAllowedException ex) {
     List<Map<String, String>> errors = new ArrayList<>();
 
     Map<String, String> error = new HashMap<>();

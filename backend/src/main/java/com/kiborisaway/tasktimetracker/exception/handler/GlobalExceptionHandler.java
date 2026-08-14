@@ -5,6 +5,8 @@ import com.kiborisaway.tasktimetracker.exception.EmailUnavailableException;
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationException;
 import com.kiborisaway.tasktimetracker.exception.PasswordChangeNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -202,6 +204,35 @@ public class GlobalExceptionHandler {
         "invalid item order", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
 
+  }
+
+  /**
+   * 既に振り返りを持つタスクへの登録操作をクライアントに返します。
+   *
+   * @param ex ReflectionAlreadyExistsException
+   * @return HTTPステータス(CONFLICT), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(ReflectionAlreadyExistsException.class)
+  public ResponseEntity<ErrorResponse> handleReflectionAlreadyExistsException(
+      ReflectionAlreadyExistsException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.CONFLICT,
+        "reflection already exists", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+  }
+
+  /**
+   * 未完了タスクへの振り返り操作をクライアントに返します。
+   *
+   * @param ex ReflectionOperationNotAllowedException
+   * @return HTTPステータス(CONFLICT), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(
+      ReflectionOperationNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleReflectionOperationNotAllowedException(
+      ReflectionOperationNotAllowedException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.CONFLICT,
+        "reflection operation not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
   }
 
   @org.springframework.web.bind.annotation.ExceptionHandler(EmailUnavailableException.class)
