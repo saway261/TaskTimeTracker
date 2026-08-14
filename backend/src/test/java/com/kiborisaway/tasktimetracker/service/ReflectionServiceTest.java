@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -9,15 +10,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ProjectReflectionOverviewResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionRequest;
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskGroupResponse;
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Reflection;
+import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionTaskRow;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -37,8 +45,87 @@ class ReflectionServiceTest {
   @Mock
   private TaskRepository taskRepository;
 
+  @Mock
+  private ProjectRepository projectRepository;
+
   @InjectMocks
   private ReflectionService sut;
+
+  @Test
+  void 一覧取得成功_直下とグループ配下の完了タスクを取得順のまま階層化すること() {
+    int projectId = 3;
+    Project project = new Project(projectId, 2, "プロジェクトX", "説明", true);
+    when(projectRepository.findByIdAndUserId(projectId, USER_ID)).thenReturn(project);
+    when(reflectionRepository.findDirectTasksInProject(projectId)).thenReturn(List.of(
+        row(7, "直下B", null, null, null, null, null, 100, -20, -16.6666666667),
+        row(6, "直下A", null, null, 1, "原因A", "改善A", 90, 30, 50.0)));
+    when(reflectionRepository.findGroupedTasksInProject(projectId)).thenReturn(List.of(
+        row(12, "別配下", 5, "グループB", null, null, null, 25, -5, -16.6666666667),
+        row(10, "配下B", 4, "グループA", null, null, null, 90, 0, 0.0),
+        row(9, "配下A", 4, "グループA", 2, "原因B", null, null, null, null)));
+
+    ProjectReflectionOverviewResponse actual = sut.getOverview(USER_ID, projectId);
+
+    assertThat(actual.getProjectId()).isEqualTo(projectId);
+    assertThat(actual.getProjectTitle()).isEqualTo("プロジェクトX");
+    assertThat(actual.getTasks())
+        .extracting(
+            ReflectionTaskResponse::getId,
+            ReflectionTaskResponse::getTitle,
+            ReflectionTaskResponse::getGapRateCached)
+        .containsExactly(
+            tuple(7, "直下B", -16.6666666667),
+            tuple(6, "直下A", 50.0));
+    assertThat(actual.getTasks().get(0).getReflection()).isNull();
+    assertThat(actual.getTasks().get(1).getReflection().getCause()).isEqualTo("原因A");
+    assertThat(actual.getTasks().get(1).getReflection().getTaskId()).isEqualTo(6);
+
+    assertThat(actual.getTaskGroups())
+        .extracting(ReflectionTaskGroupResponse::getId, ReflectionTaskGroupResponse::getTitle)
+        .containsExactly(
+            tuple(5, "グループB"),
+            tuple(4, "グループA"));
+    assertThat(actual.getTaskGroups().get(0).getTasks())
+        .extracting(ReflectionTaskResponse::getId)
+        .containsExactly(12);
+    assertThat(actual.getTaskGroups().get(1).getTasks())
+        .extracting(ReflectionTaskResponse::getId)
+        .containsExactly(10, 9);
+    assertThat(actual.getTaskGroups().get(1).getTasks().get(1).getActualMinutesCached())
+        .isNull();
+
+    verify(projectRepository).findByIdAndUserId(projectId, USER_ID);
+    verify(reflectionRepository).findDirectTasksInProject(projectId);
+    verify(reflectionRepository).findGroupedTasksInProject(projectId);
+  }
+
+  @Test
+  void 一覧取得成功_完了タスクがない場合は空のタスク配列とグループ配列を返すこと() {
+    int projectId = 2;
+    Project project = new Project(projectId, USER_ID, "空プロジェクト", null, false);
+    when(projectRepository.findByIdAndUserId(projectId, USER_ID)).thenReturn(project);
+    when(reflectionRepository.findDirectTasksInProject(projectId)).thenReturn(List.of());
+    when(reflectionRepository.findGroupedTasksInProject(projectId)).thenReturn(List.of());
+
+    ProjectReflectionOverviewResponse actual = sut.getOverview(USER_ID, projectId);
+
+    assertThat(actual.getTasks()).isEmpty();
+    assertThat(actual.getTaskGroups()).isEmpty();
+  }
+
+  @Test
+  void 一覧取得失敗_プロジェクトが存在しない場合は404用例外を投げてタスクを検索しないこと() {
+    int projectId = 999;
+    when(projectRepository.findByIdAndUserId(projectId, USER_ID)).thenReturn(null);
+
+    assertThatThrownBy(() -> sut.getOverview(USER_ID, projectId))
+        .isInstanceOfSatisfying(TargetNotFoundException.class, ex -> {
+          assertThat(ex.getField()).isEqualTo("project.id");
+          assertThat(ex.getMessage()).isEqualTo("指定したIDのプロジェクトは見つかりませんでした");
+        });
+    verify(reflectionRepository, never()).findDirectTasksInProject(projectId);
+    verify(reflectionRepository, never()).findGroupedTasksInProject(projectId);
+  }
 
   @Test
   void 登録成功_完了状態と重複を確認して正規化した振り返りを登録すること() {
@@ -194,5 +281,36 @@ class ReflectionServiceTest {
         nextAction,
         LocalDateTime.of(2026, 8, 10, 10, 5),
         LocalDateTime.of(2026, 8, 10, 10, 5));
+  }
+
+  private static ReflectionTaskRow row(
+      int taskId,
+      String taskTitle,
+      Integer taskGroupId,
+      String taskGroupTitle,
+      Integer reflectionId,
+      String cause,
+      String nextAction,
+      Integer actualMinutesCached,
+      Integer gapMinutesCached,
+      Double gapRateCached) {
+    LocalDateTime finishedAt = LocalDateTime.of(2026, 8, 10, 10, 0);
+    LocalDateTime reflectionAt = reflectionId == null
+        ? null
+        : LocalDateTime.of(2026, 8, 10, 10, 5);
+    return new ReflectionTaskRow(
+        taskId,
+        taskTitle,
+        finishedAt,
+        actualMinutesCached,
+        gapMinutesCached,
+        gapRateCached,
+        taskGroupId,
+        taskGroupTitle,
+        reflectionId,
+        cause,
+        nextAction,
+        reflectionAt,
+        reflectionAt);
   }
 }

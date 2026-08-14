@@ -30,11 +30,27 @@ public class ReflectionResponse {
   private final LocalDateTime updatedAt;
 
   public ReflectionResponse(Reflection reflection) {
-    this.id = reflection.getId();
-    this.taskId = reflection.getTaskId();
-    this.cause = reflection.getCause();
-    this.nextAction = reflection.getNextAction();
-    this.createdAt = reflection.getCreatedAt();
-    this.updatedAt = reflection.getUpdatedAt();
+    this(
+        reflection.getId(),
+        reflection.getTaskId(),
+        reflection.getCause(),
+        reflection.getNextAction(),
+        reflection.getCreatedAt(),
+        reflection.getUpdatedAt());
+  }
+
+  public ReflectionResponse(
+      int id,
+      int taskId,
+      String cause,
+      String nextAction,
+      LocalDateTime createdAt,
+      LocalDateTime updatedAt) {
+    this.id = id;
+    this.taskId = taskId;
+    this.cause = cause;
+    this.nextAction = nextAction;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
   }
 }

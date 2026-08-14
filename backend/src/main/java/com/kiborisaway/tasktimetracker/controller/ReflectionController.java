@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.controller;
 
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ProjectReflectionOverviewResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionRequest;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Reflection;
@@ -19,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,6 +35,35 @@ public class ReflectionController {
   @Autowired
   public ReflectionController(ReflectionService service) {
     this.service = service;
+  }
+
+  @Operation(
+      summary = "プロジェクトの振り返り対象一覧取得",
+      description = "プロジェクト内の完了タスクを階層と表示順を維持して返します。",
+      parameters = {
+          @Parameter(in = ParameterIn.PATH,
+              name = "pId", required = true,
+              description = "対象プロジェクトID",
+              schema = @Schema(type = "integer", format = "int32")
+          )
+      },
+      responses = {
+          @ApiResponse(responseCode = "200", description = "取得成功",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ProjectReflectionOverviewResponse.class))),
+          @ApiResponse(responseCode = "400", description = "プロジェクトIDの形式が不正なときのエラー",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class))),
+          @ApiResponse(responseCode = "404", description = "指定されたプロジェクトが存在しないときのエラー",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)))
+      }
+  )
+  @GetMapping("/projects/{pId}/reflections")
+  public ProjectReflectionOverviewResponse getOverview(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int pId) {
+    return service.getOverview(user.getUserId(), pId);
   }
 
   @Operation(

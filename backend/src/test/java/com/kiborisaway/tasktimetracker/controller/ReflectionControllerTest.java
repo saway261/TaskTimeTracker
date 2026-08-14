@@ -9,7 +9,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ProjectReflectionOverviewResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionRequest;
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionResponse;
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskGroupResponse;
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Reflection;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
@@ -20,6 +24,7 @@ import com.kiborisaway.tasktimetracker.service.ReflectionService;
 import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
 import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -51,6 +56,75 @@ class ReflectionControllerTest {
 
   @MockitoBean
   private ErrorDetailsBuilder errorDetailsBuilder;
+
+  @Test
+  void 一覧取得成功_200とプロジェクト直下およびグループ配下のタスクを返すこと() throws Exception {
+    ReflectionResponse reflection = new ReflectionResponse(
+        20,
+        6,
+        "原因",
+        "改善する",
+        LocalDateTime.of(2026, 8, 10, 10, 5),
+        LocalDateTime.of(2026, 8, 10, 10, 5));
+    ReflectionTaskResponse directTask = new ReflectionTaskResponse(
+        6,
+        "直下タスク",
+        LocalDateTime.of(2026, 8, 10, 10, 0),
+        90,
+        30,
+        50.0,
+        reflection);
+    ReflectionTaskResponse groupedTask = new ReflectionTaskResponse(
+        9,
+        "配下タスク",
+        LocalDateTime.of(2026, 8, 11, 11, 0),
+        null,
+        null,
+        null,
+        null);
+    ProjectReflectionOverviewResponse response = new ProjectReflectionOverviewResponse(
+        3,
+        "プロジェクトX",
+        List.of(directTask),
+        List.of(new ReflectionTaskGroupResponse(4, "グループA", List.of(groupedTask))));
+    when(service.getOverview(USER_ID, 3)).thenReturn(response);
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/reflections", 3))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.projectId").value(3))
+        .andExpect(jsonPath("$.projectTitle").value("プロジェクトX"))
+        .andExpect(jsonPath("$.tasks[0].id").value(6))
+        .andExpect(jsonPath("$.tasks[0].gapRateCached").value(50.0))
+        .andExpect(jsonPath("$.tasks[0].reflection.id").value(20))
+        .andExpect(jsonPath("$.taskGroups[0].id").value(4))
+        .andExpect(jsonPath("$.taskGroups[0].tasks[0].id").value(9))
+        .andExpect(jsonPath("$.taskGroups[0].tasks[0].actualMinutesCached").isEmpty())
+        .andExpect(jsonPath("$.taskGroups[0].tasks[0].reflection").isEmpty());
+
+    verify(service).getOverview(USER_ID, 3);
+  }
+
+  @Test
+  void 一覧取得失敗_プロジェクトが存在しない場合は404を返すこと() throws Exception {
+    when(service.getOverview(USER_ID, 999))
+        .thenThrow(new TargetNotFoundException("project.id", "project not found"));
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/reflections", 999))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void 一覧取得失敗_プロジェクトIDが負値の場合は400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/reflections", -1))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 一覧取得失敗_プロジェクトIDが非数値の場合は400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/not-a-number/reflections"))
+        .andExpect(status().isBadRequest());
+  }
 
   @Test
   void 登録成功_201と登録済み振り返りを返すこと() throws Exception {
