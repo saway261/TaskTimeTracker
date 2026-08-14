@@ -58,21 +58,22 @@ public class TaskService {
   /**
    * タスクグループIDに紐づくタスクの一覧検索を行います。完了フラグを指定した場合、指定した完了状態のタスクのみを取得します。
    *
+   * @param userId     認証ユーザーのID
    * @param tgId       タスクグループID
    * @param isFinished 完了フラグ
    * @return タスクグループ内の全件または指定した完了状態のタスクの一覧
    */
-  public List<TaskResponse> findAllInTaskGroupByCondition(int tgId, Boolean isFinished) {
-    if (!tgRepository.existsById(tgId)) {
+  public List<TaskResponse> findAllInTaskGroupByCondition(int userId, int tgId, Boolean isFinished) {
+    if (!tgRepository.existsByIdAndUserId(tgId, userId)) {
       throw new TargetNotFoundException("taskGroup.id",
           "指定したIDのタスクグループは見つかりませんでした");
     }
 
     List<Task> tasks;
     if (isFinished == null) {
-      tasks = tsRepository.findAllInTaskGroup(tgId);
+      tasks = tsRepository.findAllInTaskGroup(tgId, userId);
     } else {
-      tasks = tsRepository.findAllInTaskGroupByCondition(tgId, isFinished);
+      tasks = tsRepository.findAllInTaskGroupByCondition(tgId, isFinished, userId);
     }
     return toResponses(tasks);
   }
@@ -80,21 +81,22 @@ public class TaskService {
   /**
    * プロジェクトIDに紐づくタスクの一覧検索を行います。完了フラグを指定した場合、指定した完了状態のタスクのみを取得します。
    *
+   * @param userId     認証ユーザーのID
    * @param pjId       プロジェクトID
    * @param isFinished 完了フラグ
    * @return プロジェクト内の全件または指定した完了状態のタスクの一覧
    */
-  public List<TaskResponse> findAllInProjectByCondition(int pjId, Boolean isFinished) {
-    if (!pjRepository.existsById(pjId)) {
+  public List<TaskResponse> findAllInProjectByCondition(int userId, int pjId, Boolean isFinished) {
+    if (!pjRepository.existsByIdAndUserId(pjId, userId)) {
       throw new TargetNotFoundException("project.id",
           "指定したIDのプロジェクトは見つかりませんでした");
     }
 
     List<Task> tasks;
     if (isFinished == null) {
-      tasks = tsRepository.findAllInProject(pjId);
+      tasks = tsRepository.findAllInProject(pjId, userId);
     } else {
-      tasks = tsRepository.findAllInProjectByCondition(pjId, isFinished);
+      tasks = tsRepository.findAllInProjectByCondition(pjId, isFinished, userId);
     }
     return toResponses(tasks);
   }
@@ -102,22 +104,25 @@ public class TaskService {
   /**
    * IDによるタスクグループの検索
    *
-   * @param id タスクグループのID
+   * @param userId 認証ユーザーのID
+   * @param id     タスクグループのID
    * @return タスクグループ
    */
-  public TaskResponse findById(int id) {
-    return toResponse(findTaskById(id));
+  public TaskResponse findById(int userId, int id) {
+    return toResponse(findTaskById(userId, id));
   }
 
   /**
    * タスクの新規登録を行います。projectIdとtaskGroupIdはXORになるようコントローラで制御する前提です。
    *
+   * @param userId      認証ユーザーのID
    * @param projectId   親となるプロジェクトID
    * @param taskGroupId 親となるタスクグループID
    * @param request     新規登録するタスクのリクエスト
    */
   @Transactional
-  public TaskResponse register(Integer projectId, Integer taskGroupId, TaskCreateRequest request) {
+  public TaskResponse register(int userId, Integer projectId, Integer taskGroupId,
+      TaskCreateRequest request) {
     Task task = toEntity(projectId, taskGroupId, request);
 
     String parentField = "";
@@ -125,11 +130,11 @@ public class TaskService {
 
     if (task.getProjectId() != null) {
       parentField = "project.id";
-      existsParent = pjRepository.existsById(task.getProjectId());
+      existsParent = pjRepository.existsByIdAndUserId(task.getProjectId(), userId);
     }
     if (task.getTaskGroupId() != null) {
       parentField = "taskGroup.id";
-      existsParent = tgRepository.existsById(task.getTaskGroupId());
+      existsParent = tgRepository.existsByIdAndUserId(task.getTaskGroupId(), userId);
     }
 
     if (!existsParent) {
@@ -143,50 +148,52 @@ public class TaskService {
     } else {
       pjItemOrderRepository.insertAppendForTask(task.getProjectId(), task.getId());
     }
-    Task registeredTask = findTaskById(task.getId());
+    Task registeredTask = findTaskById(userId, task.getId());
     return new TaskResponse(registeredTask, List.of());
   }
 
   /**
    * タスクIDを指定してタスク名と説明を更新します
    *
+   * @param userId  認証ユーザーのID
    * @param id      更新するタスクのID
    * @param request 更新するタスクのリクエスト
    */
   @Transactional
-  public TaskResponse updateProperty(int id, TaskUpdatePropertyRequest request) {
+  public TaskResponse updateProperty(int userId, int id, TaskUpdatePropertyRequest request) {
     Task task = toEntity(id, request);
-    int updated = tsRepository.updateProperty(task);
+    int updated = tsRepository.updateProperty(task, userId);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
           "更新対象のタスクが見つかりませんでした");
     }
-    return findById(id);
+    return findById(userId, id);
   }
 
   /**
    * タスクの所属を同根プロジェクト直下または同一プロジェクト内のタスクグループ配下へ変更します。
    *
+   * @param userId      認証ユーザーのID
    * @param id          タスクID
    * @param projectId   移動先プロジェクトID
    * @param taskGroupId 移動先タスクグループID
    */
   @Transactional
-  public TaskResponse updateParent(int id, Integer projectId, Integer taskGroupId) {
-    Task task = tsRepository.findById(id);
+  public TaskResponse updateParent(int userId, int id, Integer projectId, Integer taskGroupId) {
+    Task task = tsRepository.findById(id, userId);
     if (task == null) {
       throw new TargetNotFoundException("task.id",
           "所属変更対象のタスクが見つかりませんでした");
     }
 
-    if (projectId != null && !pjRepository.existsById(projectId)) {
+    if (projectId != null && !pjRepository.existsByIdAndUserId(projectId, userId)) {
       throw new TargetNotFoundException("project.id",
           "移動先のプロジェクトが見つかりませんでした");
     }
 
     Integer currentProjectId = task.getProjectId();
     if (currentProjectId == null) {
-      TaskGroup currentTaskGroup = tgRepository.findById(task.getTaskGroupId());
+      TaskGroup currentTaskGroup = tgRepository.findById(task.getTaskGroupId(), userId);
       if (currentTaskGroup == null) {
         throw new TargetNotFoundException("task.taskGroupId",
             "タスクの所属元タスクグループが見つかりませんでした");
@@ -196,7 +203,7 @@ public class TaskService {
 
     int updated;
     if (taskGroupId != null) {
-      TaskGroup targetTaskGroup = tgRepository.findById(taskGroupId);
+      TaskGroup targetTaskGroup = tgRepository.findById(taskGroupId, userId);
       if (targetTaskGroup == null) {
         throw new TargetNotFoundException("taskGroup.id",
             "移動先のタスクグループが見つかりませんでした");
@@ -205,13 +212,13 @@ public class TaskService {
         throw new TargetNotFoundException("taskGroup.id",
             "移動先のタスクグループはタスクの所属プロジェクト内に見つかりませんでした");
       }
-      updated = tsRepository.updateTaskGroup(id, taskGroupId);
+      updated = tsRepository.updateTaskGroup(id, taskGroupId, userId);
     } else {
       if (!currentProjectId.equals(projectId)) {
         throw new TargetNotFoundException("project.id",
             "移動先のプロジェクトはタスクの所属元プロジェクトと一致しませんでした");
       }
-      updated = tsRepository.updateProject(id, projectId);
+      updated = tsRepository.updateProject(id, projectId, userId);
     }
 
     if (updated == 0) {
@@ -228,66 +235,74 @@ public class TaskService {
       pjItemOrderRepository.insertAppendForTask(projectId, id);
     }
 
-    return findById(id);
+    return findById(userId, id);
   }
 
   /**
    * タスクIDを指定して見積もり作業時間を更新します。 紐づく作業セッションが存在する場合、またはタスクが完了済みの場合は更新できません。
    *
+   * @param userId  認証ユーザーのID
    * @param id      タスクID
    * @param request 更新する見積作業時間のリクエスト
    */
   @Transactional
-  public TaskResponse updateEstimateMinutes(int id, TaskUpdateEstimatedMinutesRequest request) {
-    if (wsRepository.existsByTaskId(id)) {
+  public TaskResponse updateEstimateMinutes(int userId, int id,
+      TaskUpdateEstimatedMinutesRequest request) {
+    if (wsRepository.existsByTaskId(id, userId)) {
       throw new EstimateMinutesUpdateNotAllowedException("task.id",
           "作業セッションが存在するタスクの見積もり作業時間は変更できません");
     }
-    if (tsRepository.isFinished(id)) {
+    if (tsRepository.isFinished(id, userId)) {
       throw new EstimateMinutesUpdateNotAllowedException("task.id",
           "完了済みタスクの見積もり作業時間は変更できません");
     }
-    int updated = tsRepository.updateEstimateMinutes(id, request.getEstimatedMinutes());
+    int updated = tsRepository.updateEstimateMinutes(id, request.getEstimatedMinutes(), userId);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
           "更新対象のタスクが見つかりませんでした");
     }
-    return findById(id);
+    return findById(userId, id);
   }
 
   /**
    * タスクIDを指定してタスクの完了状態を更新します。完了にする場合は作業セッションの時間を集計してキャッシュし、未完了に戻す場合は完了日時とキャッシュを削除します。
    *
+   * @param userId     認証ユーザーのID
    * @param id         タスクID
    * @param isFinished 完了状態
    */
   @Transactional
-  public TaskResponse updateFinished(int id, boolean isFinished) {
-    if (isFinished && wsRepository.existsUnfinishedByTaskId(id)) {
+  public TaskResponse updateFinished(int userId, int id, boolean isFinished) {
+    if (isFinished && wsRepository.existsUnfinishedByTaskId(id, userId)) {
       throw new TaskFinishNotAllowedException("task.id",
           "未終了の作業セッションがあるタスクは完了状態にできません");
     }
 
-    int updated = tsRepository.updateFinished(id, isFinished);
+    int updated = tsRepository.updateFinished(id, isFinished, userId);
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
           "完了状態更新対象のタスクが見つかりませんでした");
     }
-    return findById(id);
+    return findById(userId, id);
   }
 
   /**
    * タスクIDを指定してタスクを削除します。
    *
-   * @param id タスクのID
+   * @param userId 認証ユーザーのID
+   * @param id     タスクのID
    */
   @Transactional
-  public void deleteById(int id) {
+  public void deleteById(int userId, int id) {
+    if (!tsRepository.existsByIdAndUserId(id, userId)) {
+      throw new TargetNotFoundException("task.id",
+          "削除対象のタスクが見つかりませんでした");
+    }
     wsRepository.deleteAllByTaskId(id);
     memoRepository.deleteAllInTask(id);
     pjItemOrderRepository.deleteByTaskId(id);
     tgItemOrderRepository.deleteByTaskId(id);
-    int deleted = tsRepository.deleteById(id);
+    int deleted = tsRepository.deleteById(id, userId);
     if (deleted == 0) {
       throw new TargetNotFoundException("task.id",
           "削除対象のタスクが見つかりませんでした");
@@ -310,8 +325,8 @@ public class TaskService {
     return new TaskResponse(task, memoResponses);
   }
 
-  private Task findTaskById(int id) {
-    Task task = tsRepository.findById(id);
+  private Task findTaskById(int userId, int id) {
+    Task task = tsRepository.findById(id, userId);
     if (task == null) {
       throw new TargetNotFoundException("task.id",
           "指定したIDのタスクは見つかりませんでした");

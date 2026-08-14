@@ -32,6 +32,12 @@ dependencies {
     // Validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    // 認証・認可
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // セッションのDB永続化とBoot自動構成
+    implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
+
     // OpenAPI Generator
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 
@@ -45,6 +51,9 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     // SpringBoot WebMvcTest
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+
+    // Spring Security Test
+    testImplementation 'org.springframework.security:spring-security-test'
 
     // テスト実行基盤
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

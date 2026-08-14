@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class WorkSessionEndIntegrationTest {
 
+  private static final int USER_ID = 1;
+
   @Autowired
   private WorkSessionService sut;
 
@@ -29,15 +31,15 @@ class WorkSessionEndIntegrationTest {
   void 終了失敗_終了済みセッションの終了日時と作業時間を上書きしないこと() {
     // Arrange
     int wsId = 2;
-    WorkSession before = workSessionRepository.findById(wsId);
+    WorkSession before = workSessionRepository.findById(wsId, USER_ID);
     LocalDateTime endedAt = before.getEndedAt();
     Integer minutes = before.getMinutes();
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.setEnd(wsId))
+    assertThatThrownBy(() -> sut.setEnd(USER_ID, wsId))
         .isInstanceOf(WorkSessionEndNotAllowedException.class);
 
-    WorkSession after = workSessionRepository.findById(wsId);
+    WorkSession after = workSessionRepository.findById(wsId, USER_ID);
     assertThat(after.getEndedAt()).isEqualTo(endedAt);
     assertThat(after.getMinutes()).isEqualTo(minutes);
   }
@@ -51,10 +53,10 @@ class WorkSessionEndIntegrationTest {
     workSessionRepository.insert(workSession);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.setEnd(workSession.getId()))
+    assertThatThrownBy(() -> sut.setEnd(USER_ID, workSession.getId()))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    WorkSession unchanged = workSessionRepository.findById(workSession.getId());
+    WorkSession unchanged = workSessionRepository.findById(workSession.getId(), USER_ID);
     assertThat(unchanged.getEndedAt()).isNull();
     assertThat(unchanged.getMinutes()).isNull();
   }

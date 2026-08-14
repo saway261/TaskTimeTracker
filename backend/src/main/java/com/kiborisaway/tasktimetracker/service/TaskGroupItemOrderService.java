@@ -37,44 +37,47 @@ public class TaskGroupItemOrderService {
   /**
    * タスクグループ直下の並び順一覧をposition昇順で取得します。
    *
+   * @param userId      認証ユーザーのID
    * @param taskGroupId タスクグループID
    * @return 並び順一覧
    */
-  public List<TaskGroupItemOrderResponse> findAllInTaskGroup(int taskGroupId) {
-    if (!taskGroupRepository.existsById(taskGroupId)) {
+  public List<TaskGroupItemOrderResponse> findAllInTaskGroup(int userId, int taskGroupId) {
+    if (!taskGroupRepository.existsByIdAndUserId(taskGroupId, userId)) {
       throw new TargetNotFoundException("taskGroup.id",
           "指定したIDのタスクグループは見つかりませんでした");
     }
-    return toResponses(orderRepository.findAllInTaskGroupOrdered(taskGroupId));
+    return toResponses(orderRepository.findAllInTaskGroupOrdered(taskGroupId, userId));
   }
 
   /**
    * タスクグループ直下の並び順を、リクエストで渡した配列の順序へ全置換します。
    * リクエストの項目は、タスクグループ直下の現在の項目と過不足なく一致している必要があります。
    *
+   * @param userId      認証ユーザーのID
    * @param taskGroupId タスクグループID
    * @param items       並び替え後の順序どおりに並べた項目一覧
    * @return 更新後の並び順一覧
    */
   @Transactional
-  public List<TaskGroupItemOrderResponse> replaceOrder(int taskGroupId,
+  public List<TaskGroupItemOrderResponse> replaceOrder(int userId, int taskGroupId,
       List<TaskGroupItemOrderItemRequest> items) {
-    if (!taskGroupRepository.existsById(taskGroupId)) {
+    if (!taskGroupRepository.existsByIdAndUserId(taskGroupId, userId)) {
       throw new TargetNotFoundException("taskGroup.id",
           "指定したIDのタスクグループは見つかりませんでした");
     }
 
-    List<TaskGroupItemOrder> current = orderRepository.findAllInTaskGroupOrdered(taskGroupId);
+    List<TaskGroupItemOrder> current =
+        orderRepository.findAllInTaskGroupOrdered(taskGroupId, userId);
     validateSameItemSet(current, items);
 
     for (int i = 0; i < items.size(); i++) {
-      orderRepository.updatePositionByTaskId(items.get(i).id(), TEMP_POSITION_OFFSET + i);
+      orderRepository.updatePositionByTaskId(items.get(i).id(), TEMP_POSITION_OFFSET + i, userId);
     }
     for (int i = 0; i < items.size(); i++) {
-      orderRepository.updatePositionByTaskId(items.get(i).id(), i);
+      orderRepository.updatePositionByTaskId(items.get(i).id(), i, userId);
     }
 
-    return toResponses(orderRepository.findAllInTaskGroupOrdered(taskGroupId));
+    return toResponses(orderRepository.findAllInTaskGroupOrdered(taskGroupId, userId));
   }
 
   private void validateSameItemSet(List<TaskGroupItemOrder> current,

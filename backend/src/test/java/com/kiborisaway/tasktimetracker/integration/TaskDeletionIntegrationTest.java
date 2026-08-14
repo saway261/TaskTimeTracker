@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class TaskDeletionIntegrationTest {
 
+  private static final int USER_ID = 1;
+
   @Autowired
   private TaskService sut;
 
@@ -31,15 +33,15 @@ class TaskDeletionIntegrationTest {
   void 削除成功_作業セッションとメモを持つタスクを子データごと削除できること() {
     // Arrange
     int taskId = 1;
-    assertThat(workSessionRepository.findAllByTaskId(taskId)).hasSize(1);
+    assertThat(workSessionRepository.findAllByTaskId(taskId, USER_ID)).hasSize(1);
     assertThat(memoRepository.findAllInTask(taskId)).hasSize(1);
 
     // Act
-    sut.deleteById(taskId);
+    sut.deleteById(USER_ID, taskId);
 
     // Assert
-    assertThat(taskRepository.findById(taskId)).isNull();
-    assertThat(workSessionRepository.findAllByTaskId(taskId)).isEmpty();
+    assertThat(taskRepository.findById(taskId, USER_ID)).isNull();
+    assertThat(workSessionRepository.findAllByTaskId(taskId, USER_ID)).isEmpty();
     assertThat(memoRepository.findAllInTask(taskId)).isEmpty();
   }
 }

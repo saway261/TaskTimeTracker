@@ -3,6 +3,7 @@ package com.kiborisaway.tasktimetracker.controller;
 import com.kiborisaway.tasktimetracker.data.dto.item_order.ProjectItemOrderReplaceRequest;
 import com.kiborisaway.tasktimetracker.data.dto.item_order.ProjectItemOrderResponse;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.ProjectItemOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -64,8 +66,10 @@ public class ProjectItemOrderController {
       }
   )
   @GetMapping("/projects/{pId}/item-order")
-  public List<ProjectItemOrderResponse> getAll(@PathVariable @Positive int pId) {
-    return service.findAllInProject(pId);
+  public List<ProjectItemOrderResponse> getAll(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int pId) {
+    return service.findAllInProject(user.getUserId(), pId);
   }
 
   @Operation(
@@ -105,8 +109,9 @@ public class ProjectItemOrderController {
   )
   @PutMapping("/projects/{pId}/item-order")
   public List<ProjectItemOrderResponse> replace(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int pId,
       @RequestBody @Validated ProjectItemOrderReplaceRequest request) {
-    return service.replaceOrder(pId, request.getItems());
+    return service.replaceOrder(user.getUserId(), pId, request.getItems());
   }
 }

@@ -17,42 +17,17 @@ import org.springframework.dao.DataIntegrityViolationException;
 @MybatisTest
 class ProjectRepositoryTest {
 
+  private static final int USER_A = 1;
+  private static final int USER_B = 2;
+
   @Autowired
   private ProjectRepository sut;
 
 
   @Test
-  void 全件検索_初期データに含まれるプロジェクトを取得できること() {
+  void ユーザー指定全件検索_初期データに含まれるユーザーAのプロジェクトのみを取得できること() {
     // Act
-    List<Project> actual = sut.findAll();
-
-    // Assert
-    assertThat(actual)
-        .extracting(Project::getTitle, Project::getDescription, Project::getIsFinished)
-        .containsExactlyInAnyOrder(
-            tuple("タスク管理アプリ開発", "A社から受託した開発", false),
-            tuple("Java Silver勉強", null, false),
-            tuple("プロジェクトX", "社外秘", true)
-        );
-  }
-
-  @Test
-  void 完了フラグ指定検索_初期データに含まれるisFinishedがtrueのプロジェクトのみをを取得できること() {
-    // Act
-    List<Project> actual = sut.findAllByIsFinished(true);
-
-    // Assert
-    assertThat(actual)
-        .extracting(Project::getTitle, Project::getDescription, Project::getIsFinished)
-        .containsExactlyInAnyOrder(
-            tuple("プロジェクトX", "社外秘", true)
-        );
-  }
-
-  @Test
-  void 完了フラグ指定検索_初期データに含まれるisFinishedがfalseのプロジェクトのみをを取得できること() {
-    // Act
-    List<Project> actual = sut.findAllByIsFinished(false);
+    List<Project> actual = sut.findAllByUserId(USER_A);
 
     // Assert
     assertThat(actual)
@@ -64,17 +39,66 @@ class ProjectRepositoryTest {
   }
 
   @Test
-  void ID検索成功_IDが一致するプロジェクトを取得できること() {
+  void ユーザー指定全件検索_ユーザーBを指定するとユーザーBのプロジェクトのみを取得できること() {
+    // Act
+    List<Project> actual = sut.findAllByUserId(USER_B);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Project::getTitle, Project::getDescription, Project::getIsFinished)
+        .containsExactlyInAnyOrder(
+            tuple("プロジェクトX", "社外秘", true)
+        );
+  }
+
+  @Test
+  void 完了フラグ指定検索_初期データに含まれるisFinishedがtrueのユーザーBのプロジェクトのみを取得できること() {
+    // Act
+    List<Project> actual = sut.findAllByIsFinishedAndUserId(true, USER_B);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Project::getTitle, Project::getDescription, Project::getIsFinished)
+        .containsExactlyInAnyOrder(
+            tuple("プロジェクトX", "社外秘", true)
+        );
+  }
+
+  @Test
+  void 完了フラグ指定検索_初期データに含まれるisFinishedがfalseのユーザーAのプロジェクトのみを取得できること() {
+    // Act
+    List<Project> actual = sut.findAllByIsFinishedAndUserId(false, USER_A);
+
+    // Assert
+    assertThat(actual)
+        .extracting(Project::getTitle, Project::getDescription, Project::getIsFinished)
+        .containsExactlyInAnyOrder(
+            tuple("タスク管理アプリ開発", "A社から受託した開発", false),
+            tuple("Java Silver勉強", null, false)
+        );
+  }
+
+  @Test
+  void 完了フラグ指定検索_所有者が一致しない場合は取得できないこと() {
+    // Act
+    List<Project> actual = sut.findAllByIsFinishedAndUserId(false, USER_B);
+
+    // Assert
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
+  void ID検索成功_IDと所有者が一致するプロジェクトを取得できること() {
     // Arrange
     int id = 1;
 
-    Project expected = sut.findAll().stream()
+    Project expected = sut.findAllByUserId(USER_A).stream()
         .filter(p -> p.getId().equals(id))
         .findFirst()
         .orElseThrow();
 
     // Act
-    Project actual = sut.findById(id);
+    Project actual = sut.findByIdAndUserId(id, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(expected);
@@ -86,19 +110,31 @@ class ProjectRepositoryTest {
     int id = 999;
 
     // Act
-    Project actual = sut.findById(id);
+    Project actual = sut.findByIdAndUserId(id, USER_A);
 
     // Assert
     assertThat(actual).isNull();
   }
 
   @Test
-  void ID存在チェック_存在するIDを指定するとtrueを返すこと() {
+  void ID検索失敗_所有者が一致しない場合はnullを返すこと() {
     // Arrange
     int id = 1;
 
     // Act
-    boolean actual = sut.existsById(id);
+    Project actual = sut.findByIdAndUserId(id, USER_B);
+
+    // Assert
+    assertThat(actual).isNull();
+  }
+
+  @Test
+  void ID存在チェック_存在するIDと所有者が一致するとtrueを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    boolean actual = sut.existsByIdAndUserId(id, USER_A);
 
     // Assert
     assertThat(actual).isTrue();
@@ -110,7 +146,19 @@ class ProjectRepositoryTest {
     int id = 999;
 
     // Act
-    boolean actual = sut.existsById(id);
+    boolean actual = sut.existsByIdAndUserId(id, USER_A);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void ID存在チェック_所有者が一致しない場合はfalseを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    boolean actual = sut.existsByIdAndUserId(id, USER_B);
 
     // Assert
     assertThat(actual).isFalse();
@@ -122,9 +170,10 @@ class ProjectRepositoryTest {
   void 登録成功_プロジェクトを登録でき採番されたidが設定されること_完了フラグは常にfalseで登録されること(
       Boolean flag) {
     // Arrange
-    List<Project> before = sut.findAll();
+    List<Project> before = sut.findAllByUserId(USER_A);
 
     Project arg = new Project();
+    arg.setUserId(USER_A);
     arg.setTitle("Spring Boot学習");
     arg.setDescription("REST APIを作る");
     arg.setIsFinished(flag);
@@ -132,8 +181,8 @@ class ProjectRepositoryTest {
     // Act
     sut.insert(arg);
 
-    List<Project> after = sut.findAll();
-    Project registered = sut.findById(arg.getId());
+    List<Project> after = sut.findAllByUserId(USER_A);
+    Project registered = sut.findByIdAndUserId(arg.getId(), USER_A);
 
     // Assert
     assertThat(arg.getId()).isNotNull();
@@ -141,11 +190,13 @@ class ProjectRepositoryTest {
     assertThat(registered.getTitle()).isEqualTo("Spring Boot学習");
     assertThat(registered.getDescription()).isEqualTo("REST APIを作る");
     assertThat(registered.getIsFinished()).isEqualTo(false);
+    assertThat(registered.getUserId()).isEqualTo(USER_A);
   }
 
   @Test
   void 登録失敗_titleがnullの場合は例外が発生すること() {
     Project project = new Project();
+    project.setUserId(USER_A);
     project.setTitle(null);
     project.setDescription("説明");
 
@@ -157,6 +208,7 @@ class ProjectRepositoryTest {
   @ValueSource(strings = {"", " "})
   void 登録失敗_titleが有効な文字を含まない場合は例外が発生すること(String invalidTitle) {
     Project project = new Project();
+    project.setUserId(USER_A);
     project.setTitle(invalidTitle);
     project.setDescription("説明");
 
@@ -167,6 +219,7 @@ class ProjectRepositoryTest {
   @Test
   void 登録失敗_titleが20文字を超える場合は例外が発生すること() {
     Project project = new Project();
+    project.setUserId(USER_A);
     project.setTitle("123456789012345678901"); // 21文字
     project.setDescription("説明");
 
@@ -180,6 +233,7 @@ class ProjectRepositoryTest {
     int id = 1;
     // もとは"タスク管理システム開発","A社から受託した開発",false
     Project project = new Project(id, "進捗管理システム開発", "社内向けシステム開発", true);
+    project.setUserId(USER_A);
 
     // Act
     int actual = sut.update(project);
@@ -187,7 +241,7 @@ class ProjectRepositoryTest {
     // Assert
     assertThat(actual).isEqualTo(1);// 更新件数が１件
 
-    Project updated = sut.findById(id);
+    Project updated = sut.findByIdAndUserId(id, USER_A);
 
     assertThat(updated.getTitle()).isEqualTo("進捗管理システム開発");
     assertThat(updated.getDescription()).isEqualTo("社内向けシステム開発");
@@ -197,10 +251,11 @@ class ProjectRepositoryTest {
   @Test
   void 更新失敗_存在しないIDの場合は更新されず0件となること() {
     // Arrange
-    List<Project> before = sut.findAll();
+    List<Project> before = sut.findAllByUserId(USER_A);
 
     Project project = new Project();
     project.setId(999); // 存在しないID
+    project.setUserId(USER_A);
     project.setTitle("更新されないタイトル");
     project.setDescription("更新されない説明");
     project.setIsFinished(true);
@@ -211,7 +266,7 @@ class ProjectRepositoryTest {
     // Assert
     assertThat(actual).isEqualTo(0); // 更新件数0件
 
-    List<Project> after = sut.findAll();
+    List<Project> after = sut.findAllByUserId(USER_A);
 
     // 件数が変わっていないこと
     assertThat(after).hasSize(before.size());
@@ -222,12 +277,30 @@ class ProjectRepositoryTest {
         .isEqualTo(before);
   }
 
+  @Test
+  void 更新失敗_所有者が一致しない場合は更新されず0件となること() {
+    // Arrange
+    int id = 1;
+    Project project = new Project(id, "更新されないタイトル", "更新されない説明", true);
+    project.setUserId(USER_B);
+
+    // Act
+    int actual = sut.update(project);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+
+    Project unchanged = sut.findByIdAndUserId(id, USER_A);
+    assertThat(unchanged.getTitle()).isEqualTo("タスク管理アプリ開発");
+  }
+
   @ParameterizedTest(name = "[{index}]更新失敗_{0}フィールドがnullの場合は例外が発生すること")
   @ValueSource(strings = {"title", "isFinished"})
   void 更新失敗_DBでnull非許容のフィールドがnullの場合はDataIntegrityViolationExceptionが発生すること(
       String field) {
     Project project = new Project();
     project.setId(1);
+    project.setUserId(USER_A);
     project.setTitle(field.equals("title") ? null : "プロジェクトA");
     project.setDescription("説明更新");
     project.setIsFinished(field.equals("isFinished") ? null : false);
@@ -240,6 +313,7 @@ class ProjectRepositoryTest {
   @ValueSource(strings = {"", " "})
   void 更新失敗_titleが有効な文字を含まない場合は例外が発生すること(String invalidTitle) {
     Project project = new Project();
+    project.setUserId(USER_A);
     project.setTitle(invalidTitle);
     project.setDescription("説明");
     project.setIsFinished(true);
@@ -252,6 +326,7 @@ class ProjectRepositoryTest {
   void 更新失敗_titleが20文字を超える場合は例外が発生すること() {
     Project project = new Project();
     project.setId(1);
+    project.setUserId(USER_A);
     project.setTitle("123456789012345678901"); // 21文字
     project.setDescription("説明更新");
     project.setIsFinished(true);

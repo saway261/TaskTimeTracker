@@ -19,13 +19,17 @@ import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
+import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
+import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
+import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -33,7 +37,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 @WebMvcTest(WorkSessionController.class)
+@WithMockAuthenticatedUser
+@Import({WebMvcTestSecuritySupportConfig.class, JsonAuthenticationEntryPoint.class})
 class WorkSessionControllerTest {
+
+  private static final int USER_ID = 1;
 
   @Autowired
   private MockMvc mockMvc;
@@ -48,21 +56,21 @@ class WorkSessionControllerTest {
   void タスク作業時間合計取得成功_200を返しサービスを呼び出すこと() throws Exception {
     // Arrange
     int taskId = 1;
-    when(service.getTaskActualTotalTime(taskId)).thenReturn(75);
+    when(service.getTaskActualTotalTime(USER_ID, taskId)).thenReturn(75);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}/work-sessions/total-minutes",
             taskId))
         .andExpect(status().isOk());
 
-    verify(service).getTaskActualTotalTime(taskId);
+    verify(service).getTaskActualTotalTime(USER_ID, taskId);
   }
 
   @Test
   void CORS許可済みオリジンからのリクエストなら許可ヘッダーを返すこと() throws Exception {
     // Arrange
     int taskId = 1;
-    when(service.getTaskActualTotalTime(taskId)).thenReturn(75);
+    when(service.getTaskActualTotalTime(USER_ID, taskId)).thenReturn(75);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}/work-sessions/total-minutes",
@@ -85,28 +93,28 @@ class WorkSessionControllerTest {
   void タスクグループ作業時間合計取得成功_200を返しサービスを呼び出すこと() throws Exception {
     // Arrange
     int tgId = 1;
-    when(service.getTaskGroupActualTotalTime(tgId)).thenReturn(120);
+    when(service.getTaskGroupActualTotalTime(USER_ID, tgId)).thenReturn(120);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get(
             "/task-groups/{tgId}/work-sessions/total-minutes", tgId))
         .andExpect(status().isOk());
 
-    verify(service).getTaskGroupActualTotalTime(tgId);
+    verify(service).getTaskGroupActualTotalTime(USER_ID, tgId);
   }
 
   @Test
   void プロジェクト作業時間合計取得成功_200を返しサービスを呼び出すこと() throws Exception {
     // Arrange
     int pId = 1;
-    when(service.getProjectActualTotalTime(pId)).thenReturn(180);
+    when(service.getProjectActualTotalTime(USER_ID, pId)).thenReturn(180);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/work-sessions/total-minutes",
             pId))
         .andExpect(status().isOk());
 
-    verify(service).getProjectActualTotalTime(pId);
+    verify(service).getProjectActualTotalTime(USER_ID, pId);
   }
 
   @Test
@@ -116,13 +124,13 @@ class WorkSessionControllerTest {
     WorkSession workSession = new WorkSession();
     workSession.setId(1);
     workSession.setTaskId(taskId);
-    when(service.getAllInTask(taskId)).thenReturn(List.of(workSession));
+    when(service.getAllInTask(USER_ID, taskId)).thenReturn(List.of(workSession));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}/work-sessions", taskId))
         .andExpect(status().isOk());
 
-    verify(service).getAllInTask(taskId);
+    verify(service).getAllInTask(USER_ID, taskId);
   }
 
   @Test
@@ -131,27 +139,27 @@ class WorkSessionControllerTest {
     int wsId = 1;
     WorkSession workSession = new WorkSession();
     workSession.setId(wsId);
-    when(service.get(wsId)).thenReturn(workSession);
+    when(service.get(USER_ID, wsId)).thenReturn(workSession);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/work-sessions/{wsId}", wsId))
         .andExpect(status().isOk());
 
-    verify(service).get(wsId);
+    verify(service).get(USER_ID, wsId);
   }
 
   @Test
   void 作業セッション単体取得失敗_対象が存在しないなら404を返すこと() throws Exception {
     // Arrange
     int wsId = 999;
-    when(service.get(wsId)).thenThrow(
+    when(service.get(USER_ID, wsId)).thenThrow(
         new TargetNotFoundException("workSession.id", "work session not found"));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/work-sessions/{wsId}", wsId))
         .andExpect(status().isNotFound());
 
-    verify(service).get(wsId);
+    verify(service).get(USER_ID, wsId);
   }
 
   @Test
@@ -170,7 +178,7 @@ class WorkSessionControllerTest {
     WorkSession response = new WorkSession();
     response.setId(10);
     response.setTaskId(taskId);
-    when(service.create(eq(taskId), any(WorkSessionCreateRequest.class))).thenReturn(response);
+    when(service.create(eq(USER_ID), eq(taskId), any(WorkSessionCreateRequest.class))).thenReturn(response);
     String validRequest = """
         {
           "type": "MANUAL",
@@ -184,7 +192,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isOk());
 
-    verify(service).create(eq(taskId), any(WorkSessionCreateRequest.class));
+    verify(service).create(eq(USER_ID), eq(taskId), any(WorkSessionCreateRequest.class));
   }
 
   @Test
@@ -194,7 +202,7 @@ class WorkSessionControllerTest {
     int taskId = 1;
     WorkSession response = new WorkSession();
     response.setId(10);
-    when(service.create(eq(taskId), any(WorkSessionCreateRequest.class))).thenReturn(response);
+    when(service.create(eq(USER_ID), eq(taskId), any(WorkSessionCreateRequest.class))).thenReturn(response);
     String validRequest = """
         {
           "type": "TIMER",
@@ -208,7 +216,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isOk());
 
-    verify(service).create(eq(taskId), argThat(request ->
+    verify(service).create(eq(USER_ID), eq(taskId), argThat(request ->
         LocalDateTime.of(2026, 1, 1, 9, 0).equals(request.getStartedAt())));
   }
 
@@ -222,7 +230,7 @@ class WorkSessionControllerTest {
           "minutes": 30
         }
         """;
-    when(service.create(eq(taskId), any(WorkSessionCreateRequest.class))).thenThrow(
+    when(service.create(eq(USER_ID), eq(taskId), any(WorkSessionCreateRequest.class))).thenThrow(
         new TargetNotFoundException("task.id", "task not found"));
 
     // Act & Assert
@@ -231,7 +239,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).create(eq(taskId), any(WorkSessionCreateRequest.class));
+    verify(service).create(eq(USER_ID), eq(taskId), any(WorkSessionCreateRequest.class));
   }
 
   @Test
@@ -244,7 +252,7 @@ class WorkSessionControllerTest {
           "minutes": 30
         }
         """;
-    when(service.create(eq(taskId), any(WorkSessionCreateRequest.class))).thenThrow(
+    when(service.create(eq(USER_ID), eq(taskId), any(WorkSessionCreateRequest.class))).thenThrow(
         new WorkSessionOperationNotAllowedException("task.id", "cannot create"));
 
     // Act & Assert
@@ -253,7 +261,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isBadRequest());
 
-    verify(service).create(eq(taskId), any(WorkSessionCreateRequest.class));
+    verify(service).create(eq(USER_ID), eq(taskId), any(WorkSessionCreateRequest.class));
   }
 
   @Test
@@ -284,7 +292,7 @@ class WorkSessionControllerTest {
     ended.setMinutes(30);
     ended.setStartedAt(LocalDateTime.of(2026, 1, 1, 9, 0));
     ended.setEndedAt(LocalDateTime.of(2026, 1, 1, 9, 30));
-    when(service.setEnd(wsId)).thenReturn(ended);
+    when(service.setEnd(USER_ID, wsId)).thenReturn(ended);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/work-sessions/{wsId}/end", wsId))
@@ -295,7 +303,7 @@ class WorkSessionControllerTest {
         .andExpect(jsonPath("$.startedAt").value("2026-01-01T09:00:00+09:00"))
         .andExpect(jsonPath("$.endedAt").value("2026-01-01T09:30:00+09:00"));
 
-    verify(service).setEnd(wsId);
+    verify(service).setEnd(USER_ID, wsId);
   }
 
   @Test
@@ -303,13 +311,13 @@ class WorkSessionControllerTest {
     // Arrange
     int wsId = 1;
     doThrow(new WorkSessionEndNotAllowedException("workSession.id", "cannot end"))
-        .when(service).setEnd(wsId);
+        .when(service).setEnd(USER_ID, wsId);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/work-sessions/{wsId}/end", wsId))
         .andExpect(status().isBadRequest());
 
-    verify(service).setEnd(wsId);
+    verify(service).setEnd(USER_ID, wsId);
   }
 
   @Test
@@ -317,13 +325,13 @@ class WorkSessionControllerTest {
     // Arrange
     int wsId = 1;
     doThrow(new WorkSessionOperationNotAllowedException("task.id", "cannot end"))
-        .when(service).setEnd(wsId);
+        .when(service).setEnd(USER_ID, wsId);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/work-sessions/{wsId}/end", wsId))
         .andExpect(status().isBadRequest());
 
-    verify(service).setEnd(wsId);
+    verify(service).setEnd(USER_ID, wsId);
   }
 
   @Test
@@ -339,7 +347,7 @@ class WorkSessionControllerTest {
     WorkSession updated = new WorkSession();
     updated.setId(wsId);
     updated.setMinutes(45);
-    when(service.update(eq(wsId), any(WorkSessionUpdateRequest.class))).thenReturn(updated);
+    when(service.update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class))).thenReturn(updated);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
@@ -350,7 +358,7 @@ class WorkSessionControllerTest {
         .andExpect(jsonPath("$.id").value(wsId))
         .andExpect(jsonPath("$.minutes").value(45));
 
-    verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+    verify(service).update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class));
   }
 
   @Test
@@ -369,7 +377,7 @@ class WorkSessionControllerTest {
     updated.setId(wsId);
     updated.setStartedAt(LocalDateTime.of(2026, 8, 8, 21, 57, 21, 691_905_000));
     updated.setEndedAt(LocalDateTime.of(2026, 8, 8, 22, 57, 21, 691_905_000));
-    when(service.update(eq(wsId), any(WorkSessionUpdateRequest.class))).thenReturn(updated);
+    when(service.update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class))).thenReturn(updated);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
@@ -381,7 +389,7 @@ class WorkSessionControllerTest {
         .andExpect(jsonPath("$.endedAt")
             .value("2026-08-08T22:57:21.691905+09:00"));
 
-    verify(service).update(eq(wsId), argThat(request ->
+    verify(service).update(eq(USER_ID), eq(wsId), argThat(request ->
         LocalDateTime.of(2026, 8, 8, 21, 57, 21, 691_905_000)
             .equals(request.getStartedAt())
             && LocalDateTime.of(2026, 8, 8, 22, 57, 21, 691_905_000)
@@ -402,7 +410,7 @@ class WorkSessionControllerTest {
         """;
     WorkSession updated = new WorkSession();
     updated.setId(wsId);
-    when(service.update(eq(wsId), any(WorkSessionUpdateRequest.class))).thenReturn(updated);
+    when(service.update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class))).thenReturn(updated);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
@@ -410,7 +418,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isOk());
 
-    verify(service).update(eq(wsId), argThat(request ->
+    verify(service).update(eq(USER_ID), eq(wsId), argThat(request ->
         LocalDateTime.of(2026, 1, 1, 9, 0).equals(request.getStartedAt())
             && LocalDateTime.of(2026, 1, 1, 10, 0).equals(request.getEndedAt())));
   }
@@ -426,7 +434,7 @@ class WorkSessionControllerTest {
         }
         """;
     doThrow(new TargetNotFoundException("workSession.id", "work session not found"))
-        .when(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+        .when(service).update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
@@ -434,7 +442,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isNotFound());
 
-    verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+    verify(service).update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class));
   }
 
   @Test
@@ -448,7 +456,7 @@ class WorkSessionControllerTest {
         }
         """;
     doThrow(new WorkSessionOperationNotAllowedException("workSession.id", "cannot change"))
-        .when(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+        .when(service).update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
@@ -456,7 +464,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isBadRequest());
 
-    verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+    verify(service).update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class));
   }
 
   @Test
@@ -471,7 +479,7 @@ class WorkSessionControllerTest {
         """;
     doThrow(new WorkSessionOperationNotAllowedException("workSession.type",
         "作業セッションの記録タイプは変更できません"))
-        .when(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+        .when(service).update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
@@ -479,7 +487,7 @@ class WorkSessionControllerTest {
             .content(validRequest))
         .andExpect(status().isBadRequest());
 
-    verify(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+    verify(service).update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class));
   }
 
   @Test
@@ -561,7 +569,7 @@ class WorkSessionControllerTest {
         """;
     SQLException cause = new SQLException("sensitive database detail", "23514");
     doThrow(new DataIntegrityViolationException("database operation failed", cause))
-        .when(service).update(eq(wsId), any(WorkSessionUpdateRequest.class));
+        .when(service).update(eq(USER_ID), eq(wsId), any(WorkSessionUpdateRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/work-sessions/{wsId}", wsId)
@@ -585,7 +593,7 @@ class WorkSessionControllerTest {
         .andExpect(status().isNoContent())
         .andExpect(content().string(""));
 
-    verify(service).delete(wsId);
+    verify(service).delete(USER_ID, wsId);
   }
 
   @Test
@@ -593,13 +601,13 @@ class WorkSessionControllerTest {
     // Arrange
     int wsId = 999;
     doThrow(new TargetNotFoundException("workSession.id", "work session not found"))
-        .when(service).delete(wsId);
+        .when(service).delete(USER_ID, wsId);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.delete("/work-sessions/{wsId}", wsId))
         .andExpect(status().isNotFound());
 
-    verify(service).delete(wsId);
+    verify(service).delete(USER_ID, wsId);
   }
 
   @Test
@@ -607,13 +615,13 @@ class WorkSessionControllerTest {
     // Arrange
     int wsId = 1;
     doThrow(new WorkSessionOperationNotAllowedException("workSession.id", "cannot change"))
-        .when(service).delete(wsId);
+        .when(service).delete(USER_ID, wsId);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.delete("/work-sessions/{wsId}", wsId))
         .andExpect(status().isBadRequest());
 
-    verify(service).delete(wsId);
+    verify(service).delete(USER_ID, wsId);
   }
 
   @Test

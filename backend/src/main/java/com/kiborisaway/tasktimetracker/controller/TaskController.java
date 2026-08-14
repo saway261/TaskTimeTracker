@@ -7,6 +7,7 @@ import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateFinishedRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateParentRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,6 +21,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -76,10 +78,11 @@ public class TaskController {
   )
   @GetMapping("/projects/{pId}/tasks")
   public List<TaskResponse> getAllInProject(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int pId,
       @RequestParam(required = false) Boolean isFinished
   ) {
-    return service.findAllInProjectByCondition(pId, isFinished);
+    return service.findAllInProjectByCondition(user.getUserId(), pId, isFinished);
   }
 
   @Operation(
@@ -117,10 +120,11 @@ public class TaskController {
   )
   @GetMapping("/task-groups/{tgId}/tasks")
   public List<TaskResponse> getAllInTaskGroup(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int tgId,
       @RequestParam(required = false) Boolean isFinished
   ) {
-    return service.findAllInTaskGroupByCondition(tgId, isFinished);
+    return service.findAllInTaskGroupByCondition(user.getUserId(), tgId, isFinished);
   }
 
   @Operation(
@@ -158,8 +162,10 @@ public class TaskController {
       }
   )
   @GetMapping("/tasks/{taskId}")
-  public TaskResponse getById(@PathVariable @Positive int taskId) {
-    return service.findById(taskId);
+  public TaskResponse getById(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int taskId) {
+    return service.findById(user.getUserId(), taskId);
   }
 
   @Operation(
@@ -196,9 +202,10 @@ public class TaskController {
   )
   @PostMapping("/projects/{pId}/tasks")
   public ResponseEntity<TaskResponse> createInProject(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int pId,
       @RequestBody @Validated TaskCreateRequest request) {
-    TaskResponse response = service.register(pId, null, request);
+    TaskResponse response = service.register(user.getUserId(), pId, null, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -236,9 +243,10 @@ public class TaskController {
   )
   @PostMapping("/task-groups/{tgId}/tasks")
   public ResponseEntity<TaskResponse> createInTaskGroup(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int tgId,
       @RequestBody @Validated TaskCreateRequest request) {
-    TaskResponse response = service.register(null, tgId, request);
+    TaskResponse response = service.register(user.getUserId(), null, tgId, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -274,9 +282,10 @@ public class TaskController {
   )
   @PatchMapping("/tasks/{taskId}")
   public ResponseEntity<TaskResponse> updateProperty(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int taskId,
       @RequestBody @Validated TaskUpdatePropertyRequest request) {
-    return ResponseEntity.ok(service.updateProperty(taskId, request));
+    return ResponseEntity.ok(service.updateProperty(user.getUserId(), taskId, request));
   }
 
   @Operation(
@@ -315,9 +324,10 @@ public class TaskController {
   )
   @PatchMapping("/tasks/{taskId}/estimated-minutes")
   public ResponseEntity<TaskResponse> updateEstimatedMinutes(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int taskId,
       @RequestBody @Validated TaskUpdateEstimatedMinutesRequest request) {
-    return ResponseEntity.ok(service.updateEstimateMinutes(taskId, request));
+    return ResponseEntity.ok(service.updateEstimateMinutes(user.getUserId(), taskId, request));
   }
 
   @Operation(
@@ -356,10 +366,12 @@ public class TaskController {
   )
   @PatchMapping("/tasks/{taskId}/parent")
   public ResponseEntity<TaskResponse> updateParent(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int taskId,
       @RequestBody @Validated TaskUpdateParentRequest request) {
     return ResponseEntity.ok(
-        service.updateParent(taskId, request.projectId(), request.taskGroupId()));
+        service.updateParent(user.getUserId(), taskId, request.projectId(),
+            request.taskGroupId()));
   }
 
   @Operation(
@@ -394,9 +406,11 @@ public class TaskController {
   )
   @PatchMapping("/tasks/{taskId}/finished")
   public ResponseEntity<TaskResponse> updateFinished(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int taskId,
       @RequestBody @Validated TaskUpdateFinishedRequest request) {
-    return ResponseEntity.ok(service.updateFinished(taskId, request.isFinished()));
+    return ResponseEntity.ok(
+        service.updateFinished(user.getUserId(), taskId, request.isFinished()));
   }
 
   @Operation(
@@ -422,8 +436,10 @@ public class TaskController {
       }
   )
   @DeleteMapping("/tasks/{taskId}")
-  public ResponseEntity<Void> delete(@PathVariable @Positive int taskId) {
-    service.deleteById(taskId);
+  public ResponseEntity<Void> delete(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int taskId) {
+    service.deleteById(user.getUserId(), taskId);
     return ResponseEntity.noContent().build();
   }
 }

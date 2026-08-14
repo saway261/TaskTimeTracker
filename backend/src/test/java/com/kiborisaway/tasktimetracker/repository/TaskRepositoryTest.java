@@ -14,6 +14,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 @MybatisTest
 class TaskRepositoryTest {
 
+  private static final int USER_A = 1;
+  private static final int USER_B = 2;
+
   @Autowired
   private TaskRepository sut;
 
@@ -31,7 +34,7 @@ class TaskRepositoryTest {
   @Test
   void 全件検索_指定のタスクグループ配下のタスクの初期データを取得できること() {
     // Act
-    List<Task> actual = sut.findAllInTaskGroup(1);
+    List<Task> actual = sut.findAllInTaskGroup(1, USER_A);
 
     // Assert
     assertThat(actual)
@@ -47,7 +50,7 @@ class TaskRepositoryTest {
   @Test
   void 全件検索_存在しないタスクグループIDを指定すると空のリストを返すこと() {
     // Act
-    List<Task> actual = sut.findAllInTaskGroup(999);
+    List<Task> actual = sut.findAllInTaskGroup(999, USER_A);
 
     // Assert
     assertThat(actual).isEmpty();
@@ -56,7 +59,7 @@ class TaskRepositoryTest {
   @Test
   void 完了フラグ指定検索_指定のタスクグループ配下のタスクのうち完了済みのタスクのみを取得できること() {
     // Act
-    List<Task> actual = sut.findAllInTaskGroupByCondition(2, true);
+    List<Task> actual = sut.findAllInTaskGroupByCondition(2, true, USER_A);
 
     // Assert
     assertThat(actual)
@@ -71,7 +74,7 @@ class TaskRepositoryTest {
   @Test
   void 完了フラグ指定検索_指定のタスクグループ配下のタスクのうち未完了のタスクのみを取得できること() {
     // Act
-    List<Task> actual = sut.findAllInTaskGroupByCondition(1, false);
+    List<Task> actual = sut.findAllInTaskGroupByCondition(1, false, USER_A);
 
     // Assert
     assertThat(actual)
@@ -88,7 +91,7 @@ class TaskRepositoryTest {
   @Test
   void 完了フラグ指定検索_存在しないタスクグループIDを指定すると空のリストを返すこと() {
     // Act
-    List<Task> actual = sut.findAllInTaskGroupByCondition(999, true);
+    List<Task> actual = sut.findAllInTaskGroupByCondition(999, true, USER_A);
 
     // Assert
     assertThat(actual).isEmpty();
@@ -97,7 +100,7 @@ class TaskRepositoryTest {
   @Test
   void 全件検索_指定のプロジェクト配下のタスクの初期データを取得できること() {
     // Act
-    List<Task> actual = sut.findAllInProject(1);
+    List<Task> actual = sut.findAllInProject(1, USER_A);
 
     // Assert
     assertThat(actual)
@@ -113,7 +116,7 @@ class TaskRepositoryTest {
   @Test
   void 全件検索_存在しないプロジェクトIDを指定すると空のリストを返すこと() {
     // Act
-    List<Task> actual = sut.findAllInProject(999);
+    List<Task> actual = sut.findAllInProject(999, USER_A);
 
     // Assert
     assertThat(actual).isEmpty();
@@ -122,7 +125,7 @@ class TaskRepositoryTest {
   @Test
   void 完了フラグ指定検索_指定のプロジェクト配下のタスクのうち完了済みのタスクのみを取得できること() {
     // Act
-    List<Task> actual = sut.findAllInProjectByCondition(1, true);
+    List<Task> actual = sut.findAllInProjectByCondition(1, true, USER_A);
 
     // Assert
     assertThat(actual)
@@ -136,7 +139,7 @@ class TaskRepositoryTest {
   @Test
   void 完了フラグ指定検索_指定のプロジェクト配下のタスクのうち未完了のタスクのみを取得できること() {
     // Act
-    List<Task> actual = sut.findAllInProjectByCondition(1, false);
+    List<Task> actual = sut.findAllInProjectByCondition(1, false, USER_A);
 
     // Assert
     assertThat(actual)
@@ -152,7 +155,7 @@ class TaskRepositoryTest {
   @Test
   void 完了フラグ指定検索_存在しないプロジェクトIDを指定すると空のリストを返すこと() {
     // Act
-    List<Task> actual = sut.findAllInProjectByCondition(999, true);
+    List<Task> actual = sut.findAllInProjectByCondition(999, true, USER_A);
 
     // Assert
     assertThat(actual).isEmpty();
@@ -164,7 +167,7 @@ class TaskRepositoryTest {
     int id = 1;
 
     // Act
-    Task actual = sut.findById(id);
+    Task actual = sut.findById(id, USER_A);
 
     // Assert
     assertThat(actual.getId()).isEqualTo(id);
@@ -177,7 +180,19 @@ class TaskRepositoryTest {
   @Test
   void ID検索失敗_存在しないIDを指定するとnullを返すこと() {
     // Act
-    Task actual = sut.findById(999);
+    Task actual = sut.findById(999, USER_A);
+
+    // Assert
+    assertThat(actual).isNull();
+  }
+
+  @Test
+  void ID検索失敗_所有者が一致しない場合はnullを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    Task actual = sut.findById(id, USER_B);
 
     // Assert
     assertThat(actual).isNull();
@@ -189,7 +204,7 @@ class TaskRepositoryTest {
     int id = 1;
 
     // Act
-    boolean actual = sut.existsById(id);
+    boolean actual = sut.existsByIdAndUserId(id, USER_A);
 
     // Assert
     assertThat(actual).isTrue();
@@ -201,7 +216,19 @@ class TaskRepositoryTest {
     int id = 999;
 
     // Act
-    boolean actual = sut.existsById(id);
+    boolean actual = sut.existsByIdAndUserId(id, USER_A);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void ID存在チェック_所有者が一致しない場合はfalseを返すこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    boolean actual = sut.existsByIdAndUserId(id, USER_B);
 
     // Assert
     assertThat(actual).isFalse();
@@ -213,7 +240,7 @@ class TaskRepositoryTest {
     int id = 3;
 
     // Act
-    boolean actual = sut.isFinished(id);
+    boolean actual = sut.isFinished(id, USER_A);
 
     // Assert
     assertThat(actual).isTrue();
@@ -225,7 +252,7 @@ class TaskRepositoryTest {
     int id = 1;
 
     // Act
-    boolean actual = sut.isFinished(id);
+    boolean actual = sut.isFinished(id, USER_A);
 
     // Assert
     assertThat(actual).isFalse();
@@ -237,7 +264,7 @@ class TaskRepositoryTest {
     int id = 999;
 
     // Act
-    boolean actual = sut.isFinished(id);
+    boolean actual = sut.isFinished(id, USER_A);
 
     // Assert
     assertThat(actual).isFalse();
@@ -246,14 +273,14 @@ class TaskRepositoryTest {
   @Test
   void 登録成功_タスクグループIDのみを指定したタスクを登録でき採番されたidが設定されること() {
     // Arrange
-    List<Task> before = sut.findAllInProject(1);
+    List<Task> before = sut.findAllInProject(1, USER_A);
     Task task = newTask(null, 1, "API実装", "タスクAPIを実装する", 100);
 
     // Act
     sut.insert(task);
 
-    List<Task> after = sut.findAllInProject(1);
-    Task registered = sut.findById(task.getId());
+    List<Task> after = sut.findAllInProject(1, USER_A);
+    Task registered = sut.findById(task.getId(), USER_A);
 
     // Assert
     assertThat(task.getId()).isNotNull();
@@ -270,14 +297,14 @@ class TaskRepositoryTest {
   @Test
   void 登録成功_プロジェクトIDのみを指定したタスクを登録できること() {
     // Arrange
-    List<Task> before = sut.findAllInProject(1);
+    List<Task> before = sut.findAllInProject(1, USER_A);
     Task task = newTask(1, null, "要件整理", "プロジェクト直下のタスクを登録する", 80);
 
     // Act
     sut.insert(task);
 
-    List<Task> after = sut.findAllInProject(1);
-    Task registered = sut.findById(task.getId());
+    List<Task> after = sut.findAllInProject(1, USER_A);
+    Task registered = sut.findById(task.getId(), USER_A);
 
     // Assert
     assertThat(task.getId()).isNotNull();
@@ -323,17 +350,17 @@ class TaskRepositoryTest {
   void 更新成功_既存タスクのタイトルと説明だけを更新できること() {
     // Arrange
     int id = 1;
-    Task before = sut.findById(id);
+    Task before = sut.findById(id, USER_A);
     Task task = newTask(2, null, "例外設計", "例外設計を見直す", 999);
     task.setId(id);
 
     // Act
-    int actual = sut.updateProperty(task);
+    int actual = sut.updateProperty(task, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
 
-    Task updated = sut.findById(id);
+    Task updated = sut.findById(id, USER_A);
     assertThat(updated.getTitle()).isEqualTo("例外設計");
     assertThat(updated.getDescription()).isEqualTo("例外設計を見直す");
     assertThat(updated.getProjectId()).isEqualTo(before.getProjectId());
@@ -349,16 +376,16 @@ class TaskRepositoryTest {
   @Test
   void 更新失敗_タイトルと説明の更新で存在しないIDの場合は更新されず0件となること() {
     // Arrange
-    List<Task> before = sut.findAllInProject(1);
+    List<Task> before = sut.findAllInProject(1, USER_A);
     Task task = newTask(null, 1, "更新されないタイトル", "更新されない説明", 60);
     task.setId(999);
 
     // Act
-    int actual = sut.updateProperty(task);
+    int actual = sut.updateProperty(task, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(0);
-    assertThat(sut.findAllInProject(1))
+    assertThat(sut.findAllInProject(1, USER_A))
         .usingRecursiveComparison()
         .isEqualTo(before);
   }
@@ -370,7 +397,7 @@ class TaskRepositoryTest {
     task.setId(1);
 
     // Assert
-    assertThatThrownBy(() -> sut.updateProperty(task))
+    assertThatThrownBy(() -> sut.updateProperty(task, USER_A))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
@@ -380,12 +407,12 @@ class TaskRepositoryTest {
     int id = 4;
 
     // Act
-    int actual = sut.updateTaskGroup(id, 2);
+    int actual = sut.updateTaskGroup(id, 2, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
 
-    Task updated = sut.findById(id);
+    Task updated = sut.findById(id, USER_A);
     assertThat(updated.getProjectId()).isNull();
     assertThat(updated.getTaskGroupId()).isEqualTo(2);
   }
@@ -396,12 +423,12 @@ class TaskRepositoryTest {
     int id = 1;
 
     // Act
-    int actual = sut.updateTaskGroup(id, 2);
+    int actual = sut.updateTaskGroup(id, 2, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
 
-    Task updated = sut.findById(id);
+    Task updated = sut.findById(id, USER_A);
     assertThat(updated.getProjectId()).isNull();
     assertThat(updated.getTaskGroupId()).isEqualTo(2);
   }
@@ -409,14 +436,14 @@ class TaskRepositoryTest {
   @Test
   void 所属変更失敗_存在しないタスクIDの場合は更新されず0件となること() {
     // Arrange
-    List<Task> before = sut.findAllInProject(1);
+    List<Task> before = sut.findAllInProject(1, USER_A);
 
     // Act
-    int actual = sut.updateTaskGroup(999, 2);
+    int actual = sut.updateTaskGroup(999, 2, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(0);
-    assertThat(sut.findAllInProject(1))
+    assertThat(sut.findAllInProject(1, USER_A))
         .usingRecursiveComparison()
         .isEqualTo(before);
   }
@@ -427,12 +454,12 @@ class TaskRepositoryTest {
     int id = 1;
 
     // Act
-    int actual = sut.updateProject(id, 1);
+    int actual = sut.updateProject(id, 1, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
 
-    Task updated = sut.findById(id);
+    Task updated = sut.findById(id, USER_A);
     assertThat(updated.getProjectId()).isEqualTo(1);
     assertThat(updated.getTaskGroupId()).isNull();
   }
@@ -440,14 +467,14 @@ class TaskRepositoryTest {
   @Test
   void 所属変更失敗_プロジェクト直下への変更で存在しないタスクIDの場合は更新されず0件となること() {
     // Arrange
-    List<Task> before = sut.findAllInProject(1);
+    List<Task> before = sut.findAllInProject(1, USER_A);
 
     // Act
-    int actual = sut.updateProject(999, 1);
+    int actual = sut.updateProject(999, 1, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(0);
-    assertThat(sut.findAllInProject(1))
+    assertThat(sut.findAllInProject(1, USER_A))
         .usingRecursiveComparison()
         .isEqualTo(before);
   }
@@ -456,17 +483,17 @@ class TaskRepositoryTest {
   void 更新成功_既存タスクの見積もり作業時間だけを更新できること() {
     // Arrange
     int id = 1;
-    Task before = sut.findById(id);
+    Task before = sut.findById(id, USER_A);
     Task task = newTask(2, null, "更新されないタイトル", "更新されない説明", 45);
     task.setId(id);
 
     // Act
-    int actual = sut.updateEstimateMinutes(task.getId(), task.getEstimatedMinutes());
+    int actual = sut.updateEstimateMinutes(task.getId(), task.getEstimatedMinutes(), USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
 
-    Task updated = sut.findById(id);
+    Task updated = sut.findById(id, USER_A);
     assertThat(updated.getEstimatedMinutes()).isEqualTo(45);
     assertThat(updated.getProjectId()).isEqualTo(before.getProjectId());
     assertThat(updated.getTaskGroupId()).isEqualTo(before.getTaskGroupId());
@@ -482,16 +509,16 @@ class TaskRepositoryTest {
   @Test
   void 更新失敗_見積もり作業時間の更新で存在しないIDの場合は更新されず0件となること() {
     // Arrange
-    List<Task> before = sut.findAllInProject(1);
+    List<Task> before = sut.findAllInProject(1, USER_A);
     Task task = newTask(null, 1, "更新されないタイトル", "更新されない説明", 45);
     task.setId(999);
 
     // Act
-    int actual = sut.updateEstimateMinutes(task.getId(), task.getEstimatedMinutes());
+    int actual = sut.updateEstimateMinutes(task.getId(), task.getEstimatedMinutes(), USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(0);
-    assertThat(sut.findAllInProject(1))
+    assertThat(sut.findAllInProject(1, USER_A))
         .usingRecursiveComparison()
         .isEqualTo(before);
   }
@@ -499,12 +526,12 @@ class TaskRepositoryTest {
   @Test
   void 完了更新成功_既存タスクを完了にして実績時間と差分をキャッシュできること() {
     // Act
-    int actual = sut.updateFinished(4, true);
+    int actual = sut.updateFinished(4, true, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
 
-    Task updated = sut.findById(4);
+    Task updated = sut.findById(4, USER_A);
     assertThat(updated.getFinishedAt()).isNotNull();
     assertThat(updated.getActualMinutesCached()).isEqualTo(75);
     assertThat(updated.getGapMinutesCached()).isEqualTo(-105);
@@ -514,12 +541,12 @@ class TaskRepositoryTest {
   @Test
   void 完了更新成功_完了済みタスクを未完了に戻して完了日時とキャッシュをnullにできること() {
     // Act
-    int actual = sut.updateFinished(3, false);
+    int actual = sut.updateFinished(3, false, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
 
-    Task updated = sut.findById(3);
+    Task updated = sut.findById(3, USER_A);
     assertThat(updated.getFinishedAt()).isNull();
     assertThat(updated.getActualMinutesCached()).isNull();
     assertThat(updated.getGapMinutesCached()).isNull();
@@ -529,14 +556,14 @@ class TaskRepositoryTest {
   @Test
   void 完了更新失敗_存在しないIDの場合は更新されず0件となること() {
     // Arrange
-    List<Task> before = sut.findAllInProject(1);
+    List<Task> before = sut.findAllInProject(1, USER_A);
 
     // Act
-    int actual = sut.updateFinished(999, true);
+    int actual = sut.updateFinished(999, true, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(0);
-    assertThat(sut.findAllInProject(1))
+    assertThat(sut.findAllInProject(1, USER_A))
         .usingRecursiveComparison()
         .isEqualTo(before);
   }
@@ -545,28 +572,28 @@ class TaskRepositoryTest {
   void 削除成功_既存タスクをID指定で削除できること() {
     // Arrange
     int id = 2;
-    List<Task> before = sut.findAllInProject(1);
+    List<Task> before = sut.findAllInProject(1, USER_A);
 
     // Act
-    int actual = sut.deleteById(id);
+    int actual = sut.deleteById(id, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
-    assertThat(sut.findById(id)).isNull();
-    assertThat(sut.findAllInProject(1)).hasSize(before.size() - 1);
+    assertThat(sut.findById(id, USER_A)).isNull();
+    assertThat(sut.findAllInProject(1, USER_A)).hasSize(before.size() - 1);
   }
 
   @Test
   void 削除失敗_存在しないIDの場合は削除されず0件となること() {
     // Arrange
-    List<Task> before = sut.findAllInProject(1);
+    List<Task> before = sut.findAllInProject(1, USER_A);
 
     // Act
-    int actual = sut.deleteById(999);
+    int actual = sut.deleteById(999, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(0);
-    assertThat(sut.findAllInProject(1))
+    assertThat(sut.findAllInProject(1, USER_A))
         .usingRecursiveComparison()
         .isEqualTo(before);
   }

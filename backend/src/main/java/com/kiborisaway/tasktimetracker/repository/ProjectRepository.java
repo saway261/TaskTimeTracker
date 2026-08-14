@@ -12,63 +12,69 @@ import org.apache.ibatis.annotations.Update;
 public interface ProjectRepository {
 
   /**
-   * プロジェクトの全件検索を行います。
+   * 認証ユーザーが所有するプロジェクトの全件検索を行います。
    *
+   * @param userId 認証ユーザーのID
    * @return プロジェクト一覧
    */
-  @Select("SELECT * FROM projects")
-  List<Project> findAll();
+  @Select("SELECT * FROM projects WHERE user_id=#{userId}")
+  List<Project> findAllByUserId(int userId);
 
   /**
-   * 完了フラグを指定してプロジェクトを検索します。
+   * 認証ユーザーが所有するプロジェクトのうち、完了フラグを指定して検索します。
    *
    * @param isFinished 完了フラグ
+   * @param userId     認証ユーザーのID
    * @return 指定した完了状態のプロジェクト一覧
    */
-  @Select("SELECT * FROM projects WHERE is_finished=#{isFinished}")
-  List<Project> findAllByIsFinished(boolean isFinished);
+  @Select("SELECT * FROM projects WHERE is_finished=#{isFinished} AND user_id=#{userId}")
+  List<Project> findAllByIsFinishedAndUserId(boolean isFinished, int userId);
 
   /**
-   * IDによるプロジェクトの単一検索を行います
+   * IDと所有者による単一検索を行います。
    *
-   * @param id プロジェクトのID
+   * @param id     プロジェクトのID
+   * @param userId 認証ユーザーのID
    * @return プロジェクト
    */
-  @Select("SELECT * FROM projects WHERE id=#{id}")
-  Project findById(int id);
+  @Select("SELECT * FROM projects WHERE id=#{id} AND user_id=#{userId}")
+  Project findByIdAndUserId(int id, int userId);
 
   /**
-   * IDによるプロジェクトの存在チェックを行います
+   * IDと所有者によるプロジェクトの存在チェックを行います
    *
-   * @param id プロジェクトのID
+   * @param id     プロジェクトのID
+   * @param userId 認証ユーザーのID
    * @return 存在すればtrue, 存在しなければfalse
    */
   @Select("""
       SELECT EXISTS(
         SELECT 1
         FROM projects
-        WHERE id = #{id}
+        WHERE id = #{id} AND user_id = #{userId}
       )
       """)
-  boolean existsById(int id);
+  boolean existsByIdAndUserId(int id, int userId);
 
   /**
-   * プロジェクトの新規追加を行います。 完了フラグは新規追加時にはfalseとなります。
+   * プロジェクトの新規追加を行います。 完了フラグは新規追加時にはfalseとなります。所有者はProjectのuserIdに設定した値を用います。
    *
    * @param project プロジェクト
    */
-  @Insert("INSERT INTO projects(title, description, is_finished) VALUES(#{title}, #{description}, false)")
+  @Insert("INSERT INTO projects(user_id, title, description, is_finished) "
+      + "VALUES(#{userId}, #{title}, #{description}, false)")
   @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
   void insert(Project project);
 
   /**
    * プロジェクトの更新を行います。プロジェクト名と説明と完了フラグを変更できます。 未変更の項目はDBに既存の値のままフロントエンドから返される想定で、全体更新します。
+   * 所有者が一致しない場合は更新されません。
    *
    * @return 更新を実行した件数
    */
   @Update(
       "UPDATE projects SET title=#{title}, description=#{description}, is_finished=#{isFinished} "
-          + "WHERE id=#{id}")
+          + "WHERE id=#{id} AND user_id=#{userId}")
   int update(Project project);
 
 }

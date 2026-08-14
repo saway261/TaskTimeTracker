@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,17 +14,25 @@ import com.kiborisaway.tasktimetracker.data.dto.memo.MemoRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
+import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.MemoService;
+import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
+import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 @WebMvcTest(MemoController.class)
+@WithMockAuthenticatedUser
+@Import({WebMvcTestSecuritySupportConfig.class, JsonAuthenticationEntryPoint.class})
 class MemoControllerTest {
+
+  private static final int USER_ID = 1;
 
   @Autowired
   private MockMvc mockMvc;
@@ -45,11 +54,13 @@ class MemoControllerTest {
     // Arrange
     int projectId = 1;
     Memo response = new Memo(10, projectId, null, null, "メモコメント");
-    org.mockito.Mockito.when(service.registerInProject(eq(projectId), any(MemoRequest.class)))
+    org.mockito.Mockito.when(
+            service.registerInProject(eq(USER_ID), eq(projectId), any(MemoRequest.class)))
         .thenReturn(response);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/memo", projectId)
+            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isCreated())
@@ -57,7 +68,7 @@ class MemoControllerTest {
         .andExpect(jsonPath("$.comment").value("メモコメント"))
         .andExpect(jsonPath("$.projectId").doesNotExist());
 
-    verify(service).registerInProject(eq(projectId), any(MemoRequest.class));
+    verify(service).registerInProject(eq(USER_ID), eq(projectId), any(MemoRequest.class));
   }
 
   @Test
@@ -65,11 +76,13 @@ class MemoControllerTest {
     // Arrange
     int taskGroupId = 1;
     Memo response = new Memo(10, null, taskGroupId, null, "メモコメント");
-    org.mockito.Mockito.when(service.registerInTaskGroup(eq(taskGroupId), any(MemoRequest.class)))
+    org.mockito.Mockito.when(
+            service.registerInTaskGroup(eq(USER_ID), eq(taskGroupId), any(MemoRequest.class)))
         .thenReturn(response);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/task-groups/{tgId}/memo", taskGroupId)
+            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isCreated())
@@ -77,7 +90,7 @@ class MemoControllerTest {
         .andExpect(jsonPath("$.comment").value("メモコメント"))
         .andExpect(jsonPath("$.taskGroupId").doesNotExist());
 
-    verify(service).registerInTaskGroup(eq(taskGroupId), any(MemoRequest.class));
+    verify(service).registerInTaskGroup(eq(USER_ID), eq(taskGroupId), any(MemoRequest.class));
   }
 
   @Test
@@ -85,11 +98,13 @@ class MemoControllerTest {
     // Arrange
     int taskId = 1;
     Memo response = new Memo(10, null, null, taskId, "メモコメント");
-    org.mockito.Mockito.when(service.registerInTask(eq(taskId), any(MemoRequest.class)))
+    org.mockito.Mockito.when(
+            service.registerInTask(eq(USER_ID), eq(taskId), any(MemoRequest.class)))
         .thenReturn(response);
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/memo", taskId)
+            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isCreated())
@@ -97,7 +112,7 @@ class MemoControllerTest {
         .andExpect(jsonPath("$.comment").value("メモコメント"))
         .andExpect(jsonPath("$.taskId").doesNotExist());
 
-    verify(service).registerInTask(eq(taskId), any(MemoRequest.class));
+    verify(service).registerInTask(eq(USER_ID), eq(taskId), any(MemoRequest.class));
   }
 
   @Test
@@ -111,6 +126,7 @@ class MemoControllerTest {
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/projects/1/memo")
+            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -120,27 +136,30 @@ class MemoControllerTest {
   void メモ登録失敗_親が存在しないなら404を返すこと() throws Exception {
     // Arrange
     int projectId = 999;
-    org.mockito.Mockito.when(service.registerInProject(eq(projectId), any(MemoRequest.class)))
+    org.mockito.Mockito.when(
+            service.registerInProject(eq(USER_ID), eq(projectId), any(MemoRequest.class)))
         .thenThrow(new TargetNotFoundException("project.id", "project not found"));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/memo", projectId)
+            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isNotFound());
 
-    verify(service).registerInProject(eq(projectId), any(MemoRequest.class));
+    verify(service).registerInProject(eq(USER_ID), eq(projectId), any(MemoRequest.class));
   }
 
   @Test
   void メモ更新成功_200とメッセージを返すこと() throws Exception {
     // Arrange
     int id = 1;
-    org.mockito.Mockito.when(service.update(eq(id), any(MemoRequest.class)))
+    org.mockito.Mockito.when(service.update(eq(USER_ID), eq(id), any(MemoRequest.class)))
         .thenReturn(new Memo(id, null, null, 1, "メモ"));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/memo/{id}", id)
+            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isOk())
@@ -148,7 +167,7 @@ class MemoControllerTest {
         .andExpect(jsonPath("$.id").value(id))
         .andExpect(jsonPath("$.comment").value("メモ"));
 
-    verify(service).update(eq(id), any(MemoRequest.class));
+    verify(service).update(eq(USER_ID), eq(id), any(MemoRequest.class));
   }
 
   @Test
@@ -156,29 +175,30 @@ class MemoControllerTest {
     // Arrange
     int id = 999;
     doThrow(new TargetNotFoundException("memo.id", "memo not found"))
-        .when(service).update(eq(id), any(MemoRequest.class));
+        .when(service).update(eq(USER_ID), eq(id), any(MemoRequest.class));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/memo/{id}", id)
+            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isNotFound());
 
-    verify(service).update(eq(id), any(MemoRequest.class));
+    verify(service).update(eq(USER_ID), eq(id), any(MemoRequest.class));
   }
 
   @Test
   void メモ削除成功_204と空のレスポンスボディを返すこと() throws Exception {
     // Arrange
     int id = 1;
-    doNothing().when(service).delete(id);
+    doNothing().when(service).delete(USER_ID, id);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.delete("/memo/{id}", id))
+    mockMvc.perform(MockMvcRequestBuilders.delete("/memo/{id}", id).with(csrf()))
         .andExpect(status().isNoContent())
         .andExpect(content().string(""));
 
-    verify(service).delete(id);
+    verify(service).delete(USER_ID, id);
   }
 
   @Test
@@ -186,12 +206,12 @@ class MemoControllerTest {
     // Arrange
     int id = 999;
     doThrow(new TargetNotFoundException("memo.id", "memo not found"))
-        .when(service).delete(id);
+        .when(service).delete(USER_ID, id);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.delete("/memo/{id}", id))
+    mockMvc.perform(MockMvcRequestBuilders.delete("/memo/{id}", id).with(csrf()))
         .andExpect(status().isNotFound());
 
-    verify(service).delete(id);
+    verify(service).delete(USER_ID, id);
   }
 }

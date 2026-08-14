@@ -26,6 +26,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class TaskGroupItemOrderServiceTest {
 
+  private static final int USER_ID = 1;
+
   @Mock
   private TaskGroupItemOrderRepository orderRepository;
 
@@ -39,13 +41,13 @@ class TaskGroupItemOrderServiceTest {
   void 一覧取得成功_position昇順の並び順一覧を返すこと() {
     // Arrange
     int tgId = 1;
-    when(taskGroupRepository.existsById(tgId)).thenReturn(true);
-    when(orderRepository.findAllInTaskGroupOrdered(tgId)).thenReturn(List.of(
+    when(taskGroupRepository.existsByIdAndUserId(tgId, USER_ID)).thenReturn(true);
+    when(orderRepository.findAllInTaskGroupOrdered(tgId, USER_ID)).thenReturn(List.of(
         new TaskGroupItemOrder(1, tgId, 1, 0),
         new TaskGroupItemOrder(2, tgId, 2, 1)));
 
     // Act
-    List<TaskGroupItemOrderResponse> actual = sut.findAllInTaskGroup(tgId);
+    List<TaskGroupItemOrderResponse> actual = sut.findAllInTaskGroup(USER_ID, tgId);
 
     // Assert
     assertThat(actual)
@@ -57,20 +59,20 @@ class TaskGroupItemOrderServiceTest {
   void 一覧取得失敗_存在しないタスクグループIDの場合は例外を投げること() {
     // Arrange
     int tgId = 999;
-    when(taskGroupRepository.existsById(tgId)).thenReturn(false);
+    when(taskGroupRepository.existsByIdAndUserId(tgId, USER_ID)).thenReturn(false);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.findAllInTaskGroup(tgId))
+    assertThatThrownBy(() -> sut.findAllInTaskGroup(USER_ID, tgId))
         .isInstanceOf(TargetNotFoundException.class);
-    verify(orderRepository, never()).findAllInTaskGroupOrdered(anyInt());
+    verify(orderRepository, never()).findAllInTaskGroupOrdered(anyInt(), anyInt());
   }
 
   @Test
   void 並び替え成功_リクエストの順序どおりに一時オフセットを経由してpositionを更新すること() {
     // Arrange
     int tgId = 1;
-    when(taskGroupRepository.existsById(tgId)).thenReturn(true);
-    when(orderRepository.findAllInTaskGroupOrdered(tgId))
+    when(taskGroupRepository.existsByIdAndUserId(tgId, USER_ID)).thenReturn(true);
+    when(orderRepository.findAllInTaskGroupOrdered(tgId, USER_ID))
         .thenReturn(List.of(
             new TaskGroupItemOrder(1, tgId, 1, 0),
             new TaskGroupItemOrder(2, tgId, 2, 1)))
@@ -83,37 +85,37 @@ class TaskGroupItemOrderServiceTest {
         new TaskGroupItemOrderItemRequest(1));
 
     // Act
-    List<TaskGroupItemOrderResponse> actual = sut.replaceOrder(tgId, items);
+    List<TaskGroupItemOrderResponse> actual = sut.replaceOrder(USER_ID, tgId,items);
 
     // Assert
     assertThat(actual)
         .extracting(TaskGroupItemOrderResponse::getId, TaskGroupItemOrderResponse::getPosition)
         .containsExactly(tuple(2, 0), tuple(1, 1));
-    verify(orderRepository, times(1)).updatePositionByTaskId(2, 1_000_000);
-    verify(orderRepository, times(1)).updatePositionByTaskId(1, 1_000_001);
-    verify(orderRepository, times(1)).updatePositionByTaskId(2, 0);
-    verify(orderRepository, times(1)).updatePositionByTaskId(1, 1);
+    verify(orderRepository, times(1)).updatePositionByTaskId(2, 1_000_000, USER_ID);
+    verify(orderRepository, times(1)).updatePositionByTaskId(1, 1_000_001, USER_ID);
+    verify(orderRepository, times(1)).updatePositionByTaskId(2, 0, USER_ID);
+    verify(orderRepository, times(1)).updatePositionByTaskId(1, 1, USER_ID);
   }
 
   @Test
   void 並び替え失敗_存在しないタスクグループIDの場合は例外を投げて以降の処理を呼び出さないこと() {
     // Arrange
     int tgId = 999;
-    when(taskGroupRepository.existsById(tgId)).thenReturn(false);
+    when(taskGroupRepository.existsByIdAndUserId(tgId, USER_ID)).thenReturn(false);
 
     // Act & Assert
     assertThatThrownBy(
-        () -> sut.replaceOrder(tgId, List.of(new TaskGroupItemOrderItemRequest(1))))
+        () -> sut.replaceOrder(USER_ID, tgId,List.of(new TaskGroupItemOrderItemRequest(1))))
         .isInstanceOf(TargetNotFoundException.class);
-    verify(orderRepository, never()).findAllInTaskGroupOrdered(anyInt());
+    verify(orderRepository, never()).findAllInTaskGroupOrdered(anyInt(), anyInt());
   }
 
   @Test
   void 並び替え失敗_リクエストの項目に重複がある場合は例外を投げて更新処理を呼び出さないこと() {
     // Arrange
     int tgId = 1;
-    when(taskGroupRepository.existsById(tgId)).thenReturn(true);
-    when(orderRepository.findAllInTaskGroupOrdered(tgId)).thenReturn(List.of(
+    when(taskGroupRepository.existsByIdAndUserId(tgId, USER_ID)).thenReturn(true);
+    when(orderRepository.findAllInTaskGroupOrdered(tgId, USER_ID)).thenReturn(List.of(
         new TaskGroupItemOrder(1, tgId, 1, 0)));
 
     List<TaskGroupItemOrderItemRequest> items = List.of(
@@ -121,17 +123,17 @@ class TaskGroupItemOrderServiceTest {
         new TaskGroupItemOrderItemRequest(1));
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.replaceOrder(tgId, items))
+    assertThatThrownBy(() -> sut.replaceOrder(USER_ID, tgId,items))
         .isInstanceOf(InvalidItemOrderException.class);
-    verify(orderRepository, never()).updatePositionByTaskId(anyInt(), anyInt());
+    verify(orderRepository, never()).updatePositionByTaskId(anyInt(), anyInt(), anyInt());
   }
 
   @Test
   void 並び替え失敗_リクエストの項目が現在の項目と一致しない場合は例外を投げて更新処理を呼び出さないこと() {
     // Arrange
     int tgId = 1;
-    when(taskGroupRepository.existsById(tgId)).thenReturn(true);
-    when(orderRepository.findAllInTaskGroupOrdered(tgId)).thenReturn(List.of(
+    when(taskGroupRepository.existsByIdAndUserId(tgId, USER_ID)).thenReturn(true);
+    when(orderRepository.findAllInTaskGroupOrdered(tgId, USER_ID)).thenReturn(List.of(
         new TaskGroupItemOrder(1, tgId, 1, 0),
         new TaskGroupItemOrder(2, tgId, 2, 1)));
 
@@ -139,9 +141,9 @@ class TaskGroupItemOrderServiceTest {
         List.of(new TaskGroupItemOrderItemRequest(1)); // タスク2が不足
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.replaceOrder(tgId, items))
+    assertThatThrownBy(() -> sut.replaceOrder(USER_ID, tgId,items))
         .isInstanceOf(InvalidItemOrderException.class);
-    verify(orderRepository, never()).updatePositionByTaskId(anyInt(), anyInt());
+    verify(orderRepository, never()).updatePositionByTaskId(anyInt(), anyInt(), anyInt());
   }
 
 }

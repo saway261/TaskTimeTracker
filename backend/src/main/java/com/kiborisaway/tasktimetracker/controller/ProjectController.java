@@ -4,6 +4,7 @@ import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,6 +18,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -66,8 +68,10 @@ public class ProjectController {
       }
   )
   @GetMapping
-  public List<ProjectResponse> getAll(@RequestParam(required = false) Boolean isFinished) {
-    return service.findAllByCondition(isFinished);
+  public List<ProjectResponse> getAll(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @RequestParam(required = false) Boolean isFinished) {
+    return service.findAllByCondition(user.getUserId(), isFinished);
   }
 
   @Operation(
@@ -104,8 +108,10 @@ public class ProjectController {
       }
   )
   @GetMapping("/{id}")
-  public ProjectResponse getById(@PathVariable @Positive int id) {
-    return service.findById(id);
+  public ProjectResponse getById(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int id) {
+    return service.findById(user.getUserId(), id);
   }
 
   @Operation(
@@ -136,8 +142,9 @@ public class ProjectController {
   )
   @PostMapping
   public ResponseEntity<ProjectResponse> create(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @RequestBody @Validated ProjectCreateRequest request) {
-    ProjectResponse response = service.register(request);
+    ProjectResponse response = service.register(user.getUserId(), request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -175,8 +182,9 @@ public class ProjectController {
   )
   @PutMapping("/{id}")
   public ResponseEntity<ProjectResponse> update(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int id,
       @RequestBody @Validated ProjectUpdateRequest request) {
-    return ResponseEntity.ok(service.update(id, request));
+    return ResponseEntity.ok(service.update(user.getUserId(), id, request));
   }
 }

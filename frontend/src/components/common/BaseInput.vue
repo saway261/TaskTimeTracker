@@ -7,16 +7,20 @@ const props = withDefaults(
     label: string
     error?: string
     maxlength?: number
+    minlength?: number
     required?: boolean
     type?: string
     step?: string | number
+    autocomplete?: string
   }>(),
   {
     error: undefined,
     maxlength: undefined,
+    minlength: undefined,
     required: false,
     type: 'text',
     step: undefined,
+    autocomplete: undefined,
   },
 )
 
@@ -42,7 +46,10 @@ const remaining = computed(() =>
       :type="type"
       :value="modelValue"
       :maxlength="maxlength"
+      :minlength="minlength"
       :step="step"
+      :required="required"
+      :autocomplete="autocomplete"
       :aria-invalid="!!error"
       :aria-describedby="error ? `${inputId}-error` : undefined"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"

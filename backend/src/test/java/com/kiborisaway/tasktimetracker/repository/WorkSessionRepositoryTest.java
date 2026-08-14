@@ -17,22 +17,34 @@ import org.springframework.dao.DataIntegrityViolationException;
 @MybatisTest
 class WorkSessionRepositoryTest {
 
+  private static final int USER_A = 1;
+  private static final int USER_B = 2;
+
   @Autowired
   private WorkSessionRepository sut;
 
   @Test
   void 合計取得_指定したタスクIDに紐づく作業セッションのminutes合計を取得できること() {
     // Act
-    int actual = sut.sumMinutesByTaskId(4);
+    int actual = sut.sumMinutesByTaskId(4, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(75);
   }
 
   @Test
+  void 合計取得_所有者が一致しない場合は0を返すこと() {
+    // Act
+    int actual = sut.sumMinutesByTaskId(4, USER_B);
+
+    // Assert
+    assertThat(actual).isZero();
+  }
+
+  @Test
   void 合計取得_指定したタスクIDに紐づくminutesがnullのみの場合は0を返すこと() {
     // Act
-    int actual = sut.sumMinutesByTaskId(1);
+    int actual = sut.sumMinutesByTaskId(1, USER_A);
 
     // Assert
     assertThat(actual).isZero();
@@ -48,7 +60,7 @@ class WorkSessionRepositoryTest {
     sut.insert(workSession);
 
     // Act
-    int actual = sut.sumMinutesByTaskGroupId(1);
+    int actual = sut.sumMinutesByTaskGroupId(1, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(25);
@@ -64,7 +76,7 @@ class WorkSessionRepositoryTest {
     sut.insert(workSession);
 
     // Act
-    int actual = sut.sumMinutesByProjectId(1);
+    int actual = sut.sumMinutesByProjectId(1, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(100);
@@ -73,7 +85,7 @@ class WorkSessionRepositoryTest {
   @Test
   void 一覧取得_指定したタスクIDに紐づく作業セッション一覧を取得できること() {
     // Act
-    List<WorkSession> actual = sut.findAllByTaskId(4);
+    List<WorkSession> actual = sut.findAllByTaskId(4, USER_A);
 
     // Assert
     assertThat(actual)
@@ -87,7 +99,16 @@ class WorkSessionRepositoryTest {
   @Test
   void 一覧取得_存在しないタスクIDを指定すると空のリストを返すこと() {
     // Act
-    List<WorkSession> actual = sut.findAllByTaskId(999);
+    List<WorkSession> actual = sut.findAllByTaskId(999, USER_A);
+
+    // Assert
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
+  void 一覧取得_所有者が一致しない場合は空のリストを返すこと() {
+    // Act
+    List<WorkSession> actual = sut.findAllByTaskId(4, USER_B);
 
     // Assert
     assertThat(actual).isEmpty();
@@ -96,7 +117,7 @@ class WorkSessionRepositoryTest {
   @Test
   void ID検索成功_IDが一致する作業セッションを取得できること() {
     // Act
-    WorkSession actual = sut.findById(2);
+    WorkSession actual = sut.findById(2, USER_A);
 
     // Assert
     assertThat(actual.getId()).isEqualTo(2);
@@ -110,7 +131,16 @@ class WorkSessionRepositoryTest {
   @Test
   void ID検索失敗_存在しないIDを指定するとnullを返すこと() {
     // Act
-    WorkSession actual = sut.findById(999);
+    WorkSession actual = sut.findById(999, USER_A);
+
+    // Assert
+    assertThat(actual).isNull();
+  }
+
+  @Test
+  void ID検索失敗_所有者が一致しない場合はnullを返すこと() {
+    // Act
+    WorkSession actual = sut.findById(2, USER_B);
 
     // Assert
     assertThat(actual).isNull();
@@ -119,7 +149,7 @@ class WorkSessionRepositoryTest {
   @Test
   void タスクID取得成功_作業セッションIDに紐づくタスクIDを取得できること() {
     // Act
-    Integer actual = sut.findTaskIdById(2);
+    Integer actual = sut.findTaskIdById(2, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(4);
@@ -128,7 +158,16 @@ class WorkSessionRepositoryTest {
   @Test
   void タスクID取得失敗_存在しない作業セッションIDならnullを返すこと() {
     // Act
-    Integer actual = sut.findTaskIdById(999);
+    Integer actual = sut.findTaskIdById(999, USER_A);
+
+    // Assert
+    assertThat(actual).isNull();
+  }
+
+  @Test
+  void タスクID取得失敗_所有者が一致しない場合はnullを返すこと() {
+    // Act
+    Integer actual = sut.findTaskIdById(2, USER_B);
 
     // Assert
     assertThat(actual).isNull();
@@ -140,7 +179,7 @@ class WorkSessionRepositoryTest {
     int taskId = 1;
 
     // Act
-    boolean exists = sut.existsByTaskId(taskId);
+    boolean exists = sut.existsByTaskId(taskId, USER_A);
 
     // Assert
     assertThat(exists).isTrue();
@@ -152,7 +191,16 @@ class WorkSessionRepositoryTest {
     int taskId = 2;
 
     // Act
-    boolean exists = sut.existsByTaskId(taskId);
+    boolean exists = sut.existsByTaskId(taskId, USER_A);
+
+    // Assert
+    assertThat(exists).isFalse();
+  }
+
+  @Test
+  void タスクの作業セッション存在チェック_所有者が一致しない場合はfalseを返すこと() {
+    // Act
+    boolean exists = sut.existsByTaskId(1, USER_B);
 
     // Assert
     assertThat(exists).isFalse();
@@ -164,7 +212,7 @@ class WorkSessionRepositoryTest {
     int taskId = 1;
 
     // Act
-    boolean actual = sut.existsUnfinishedByTaskId(taskId);
+    boolean actual = sut.existsUnfinishedByTaskId(taskId, USER_A);
 
     // Assert
     assertThat(actual).isTrue();
@@ -176,7 +224,16 @@ class WorkSessionRepositoryTest {
     int taskId = 4;
 
     // Act
-    boolean actual = sut.existsUnfinishedByTaskId(taskId);
+    boolean actual = sut.existsUnfinishedByTaskId(taskId, USER_A);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void 未終了作業セッション存在チェック_所有者が一致しない場合はfalseを返すこと() {
+    // Act
+    boolean actual = sut.existsUnfinishedByTaskId(1, USER_B);
 
     // Assert
     assertThat(actual).isFalse();
@@ -194,7 +251,7 @@ class WorkSessionRepositoryTest {
 
     // Assert
     assertThat(workSession.getId()).isNotNull();
-    WorkSession registered = sut.findById(workSession.getId());
+    WorkSession registered = sut.findById(workSession.getId(), USER_A);
     assertThat(registered.getTaskId()).isEqualTo(2);
     assertThat(registered.getMinutes()).isNull();
     assertThat(registered.getStartedAt()).isNotNull();
@@ -217,7 +274,7 @@ class WorkSessionRepositoryTest {
 
     // Assert
     assertThat(workSession.getId()).isNotNull();
-    WorkSession registered = sut.findById(workSession.getId());
+    WorkSession registered = sut.findById(workSession.getId(), USER_A);
     assertThat(registered.getTaskId()).isEqualTo(2);
     assertThat(registered.getMinutes()).isEqualTo(40);
     assertThat(registered.getStartedAt()).isNull();
@@ -230,7 +287,7 @@ class WorkSessionRepositoryTest {
   @Test
   void 終了可否判定_TIMERかつstartedAtがある作業セッションならtrueを返すこと() {
     // Act
-    boolean actual = sut.canSetEnd(1);
+    boolean actual = sut.canSetEnd(1, USER_A);
 
     // Assert
     assertThat(actual).isTrue();
@@ -239,7 +296,7 @@ class WorkSessionRepositoryTest {
   @Test
   void 終了可否判定_終了済みの作業セッションならfalseを返すこと() {
     // Act
-    boolean actual = sut.canSetEnd(2);
+    boolean actual = sut.canSetEnd(2, USER_A);
 
     // Assert
     assertThat(actual).isFalse();
@@ -248,7 +305,16 @@ class WorkSessionRepositoryTest {
   @Test
   void 終了可否判定_存在しない作業セッションならfalseを返すこと() {
     // Act
-    boolean actual = sut.canSetEnd(999);
+    boolean actual = sut.canSetEnd(999, USER_A);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void 終了可否判定_所有者が一致しない場合はfalseを返すこと() {
+    // Act
+    boolean actual = sut.canSetEnd(1, USER_B);
 
     // Assert
     assertThat(actual).isFalse();
@@ -257,14 +323,14 @@ class WorkSessionRepositoryTest {
   @Test
   void 終了更新成功_指定した作業セッションにendedAtとupdatedAtを設定できること() {
     // Arrange
-    WorkSession before = sut.findById(1);
+    WorkSession before = sut.findById(1, USER_A);
 
     // Act
-    int actual = sut.setEnd(1);
+    int actual = sut.setEnd(1, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
-    WorkSession updated = sut.findById(1);
+    WorkSession updated = sut.findById(1, USER_A);
     assertThat(updated.getEndedAt()).isNotNull();
     assertThat(updated.getMinutes())
         .isEqualTo(
@@ -277,7 +343,7 @@ class WorkSessionRepositoryTest {
   @Test
   void 終了更新失敗_存在しない作業セッションIDの場合は更新されず0件となること() {
     // Act
-    int actual = sut.setEnd(999);
+    int actual = sut.setEnd(999, USER_A);
 
     // Assert
     assertThat(actual).isZero();
@@ -286,23 +352,32 @@ class WorkSessionRepositoryTest {
   @Test
   void 終了更新失敗_終了済みの作業セッションは上書きされず0件となること() {
     // Arrange
-    WorkSession before = sut.findById(2);
+    WorkSession before = sut.findById(2, USER_A);
 
     // Act
-    int actual = sut.setEnd(2);
+    int actual = sut.setEnd(2, USER_A);
 
     // Assert
     assertThat(actual).isZero();
-    WorkSession after = sut.findById(2);
+    WorkSession after = sut.findById(2, USER_A);
     assertThat(after.getEndedAt()).isEqualTo(before.getEndedAt());
     assertThat(after.getMinutes()).isEqualTo(before.getMinutes());
     assertThat(after.getUpdatedAt()).isEqualTo(before.getUpdatedAt());
   }
 
   @Test
+  void 終了更新失敗_所有者が一致しない場合は更新されず0件となること() {
+    // Act
+    int actual = sut.setEnd(1, USER_B);
+
+    // Assert
+    assertThat(actual).isZero();
+  }
+
+  @Test
   void 更新成功_startedAtとendedAtを指定すると差分からminutesを計算して更新できること() {
     // Arrange
-    WorkSession before = sut.findById(2);
+    WorkSession before = sut.findById(2, USER_A);
     WorkSession workSession = new WorkSession();
     workSession.setId(2);
     workSession.setTaskId(1);
@@ -314,11 +389,11 @@ class WorkSessionRepositoryTest {
     workSession.setType(WorkSessionType.MANUAL);
 
     // Act
-    int actual = sut.update(workSession);
+    int actual = sut.update(workSession, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
-    WorkSession updated = sut.findById(2);
+    WorkSession updated = sut.findById(2, USER_A);
     assertThat(updated.getMinutes()).isEqualTo(75);
     assertThat(updated.getStartedAt()).isEqualTo(LocalDateTime.of(2026, 1, 3, 9, 0));
     assertThat(updated.getEndedAt()).isEqualTo(LocalDateTime.of(2026, 1, 3, 10, 15));
@@ -331,7 +406,7 @@ class WorkSessionRepositoryTest {
   @Test
   void 更新成功_minutesのみを指定すると受け取ったminutesを更新し日時はnullにできること() {
     // Arrange
-    WorkSession before = sut.findById(2);
+    WorkSession before = sut.findById(2, USER_A);
     WorkSession workSession = new WorkSession();
     workSession.setId(2);
     workSession.setTaskId(1);
@@ -341,11 +416,11 @@ class WorkSessionRepositoryTest {
     workSession.setType(WorkSessionType.MANUAL);
 
     // Act
-    int actual = sut.update(workSession);
+    int actual = sut.update(workSession, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
-    WorkSession updated = sut.findById(2);
+    WorkSession updated = sut.findById(2, USER_A);
     assertThat(updated.getMinutes()).isEqualTo(60);
     assertThat(updated.getStartedAt()).isNull();
     assertThat(updated.getEndedAt()).isNull();
@@ -365,7 +440,23 @@ class WorkSessionRepositoryTest {
     workSession.setEndedAt(LocalDateTime.of(2026, 1, 3, 10, 0));
 
     // Act
-    int actual = sut.update(workSession);
+    int actual = sut.update(workSession, USER_A);
+
+    // Assert
+    assertThat(actual).isZero();
+  }
+
+  @Test
+  void 更新失敗_所有者が一致しない場合は更新されず0件となること() {
+    // Arrange
+    WorkSession workSession = new WorkSession();
+    workSession.setId(2);
+    workSession.setMinutes(60);
+    workSession.setStartedAt(LocalDateTime.of(2026, 1, 3, 9, 0));
+    workSession.setEndedAt(LocalDateTime.of(2026, 1, 3, 10, 0));
+
+    // Act
+    int actual = sut.update(workSession, USER_B);
 
     // Assert
     assertThat(actual).isZero();
@@ -381,46 +472,56 @@ class WorkSessionRepositoryTest {
     workSession.setEndedAt(LocalDateTime.of(2026, 1, 3, 9, 0));
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(workSession))
+    assertThatThrownBy(() -> sut.update(workSession, USER_A))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   @Test
   void 削除成功_指定した作業セッションを削除できること() {
     // Arrange
-    List<WorkSession> before = sut.findAllByTaskId(4);
+    List<WorkSession> before = sut.findAllByTaskId(4, USER_A);
 
     // Act
-    int actual = sut.deleteById(2);
+    int actual = sut.deleteById(2, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(1);
-    assertThat(sut.findById(2)).isNull();
-    assertThat(sut.findAllByTaskId(4)).hasSize(before.size() - 1);
+    assertThat(sut.findById(2, USER_A)).isNull();
+    assertThat(sut.findAllByTaskId(4, USER_A)).hasSize(before.size() - 1);
   }
 
   @Test
   void 削除失敗_存在しない作業セッションIDの場合は削除されず0件となること() {
     // Act
-    int actual = sut.deleteById(999);
+    int actual = sut.deleteById(999, USER_A);
 
     // Assert
     assertThat(actual).isZero();
   }
 
   @Test
+  void 削除失敗_所有者が一致しない場合は削除されず0件となること() {
+    // Act
+    int actual = sut.deleteById(2, USER_B);
+
+    // Assert
+    assertThat(actual).isZero();
+    assertThat(sut.findById(2, USER_A)).isNotNull();
+  }
+
+  @Test
   void タスク配下削除成功_指定したタスクの作業セッションをすべて削除できること() {
     // Arrange
-    assertThat(sut.findAllByTaskId(4)).hasSize(2);
-    assertThat(sut.findAllByTaskId(1)).hasSize(1);
+    assertThat(sut.findAllByTaskId(4, USER_A)).hasSize(2);
+    assertThat(sut.findAllByTaskId(1, USER_A)).hasSize(1);
 
     // Act
     int actual = sut.deleteAllByTaskId(4);
 
     // Assert
     assertThat(actual).isEqualTo(2);
-    assertThat(sut.findAllByTaskId(4)).isEmpty();
-    assertThat(sut.findAllByTaskId(1)).hasSize(1);
+    assertThat(sut.findAllByTaskId(4, USER_A)).isEmpty();
+    assertThat(sut.findAllByTaskId(1, USER_A)).hasSize(1);
   }
 
   @Test

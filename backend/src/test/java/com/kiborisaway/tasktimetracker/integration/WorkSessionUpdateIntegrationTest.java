@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class WorkSessionUpdateIntegrationTest {
 
+  private static final int USER_ID = 1;
+
   @Autowired
   private WorkSessionService sut;
 
@@ -29,7 +31,7 @@ class WorkSessionUpdateIntegrationTest {
   void 更新失敗_TIMERからMANUALへのtype変更を拒否してDBの値を変更しないこと() {
     // Arrange
     int wsId = 1;
-    WorkSession before = workSessionRepository.findById(wsId);
+    WorkSession before = workSessionRepository.findById(wsId, USER_ID);
     LocalDateTime startedAt = before.getStartedAt();
 
     WorkSessionUpdateRequest request = new WorkSessionUpdateRequest();
@@ -37,10 +39,10 @@ class WorkSessionUpdateIntegrationTest {
     request.setMinutes(30);
 
     // Act & Assert
-    assertThatThrownBy(() -> sut.update(wsId, request))
+    assertThatThrownBy(() -> sut.update(USER_ID, wsId, request))
         .isInstanceOf(WorkSessionOperationNotAllowedException.class);
 
-    WorkSession after = workSessionRepository.findById(wsId);
+    WorkSession after = workSessionRepository.findById(wsId, USER_ID);
     assertThat(after.getType()).isEqualTo(WorkSessionType.TIMER);
     assertThat(after.getStartedAt()).isEqualTo(startedAt);
     assertThat(after.getEndedAt()).isNull();
