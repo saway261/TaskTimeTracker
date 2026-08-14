@@ -31,6 +31,13 @@ function unauthorized(config: InternalAxiosRequestConfig) {
 describe('httpClient authentication interceptors', () => {
   beforeEach(async () => {
     setActivePinia(createPinia())
+    const authStore = useAuthStore()
+    authStore.initialized = true
+    authStore.currentUser = {
+      id: 1,
+      email: 'user@example.com',
+      passwordChangeRequired: false,
+    }
     await router.push('/projects')
   })
 
@@ -92,7 +99,7 @@ describe('httpClient authentication interceptors', () => {
 
     expect(authStore.currentUser).toBeNull()
     expect(authStore.csrfToken).toBeNull()
-    expect(router.currentRoute.value.path).toBe('/login')
+    await expect.poll(() => router.currentRoute.value.path).toBe('/login')
   })
 
   it('does not clear authentication or navigate after a login 401', async () => {

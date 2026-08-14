@@ -20,6 +20,18 @@ const EXACT_MATCHES: Record<string, string> = {
   'work session end not allowed': 'このセッションは終了できません。',
   'invalid item order':
     '他の場所で変更があったため、並び順を更新できませんでした。最新の状態を読み込み直します。',
+
+  // 認証
+  'email or password is incorrect': 'メールアドレスまたはパスワードが正しくありません。',
+  'email is unavailable': 'このメールアドレスは使用できません。',
+  'authentication required': 'ログインが必要です。',
+  forbidden: 'この操作は許可されていません。',
+  'password change required': 'パスワードを変更してください。',
+  'current password is incorrect': '現在のパスワードが正しくありません。',
+  'new password must be different': '現在とは異なるパスワードを設定してください。',
+  'password does not meet policy':
+    'パスワードは12文字以上、UTF-8換算で72バイト以内とし、メールアドレスとは異なる値を設定してください。',
+  'too many failed attempts': '試行回数が上限に達しました。しばらく待ってからお試しください。',
 }
 
 // "size must be between 0 and 20" → 上限値だけ抜き出して組み立てる

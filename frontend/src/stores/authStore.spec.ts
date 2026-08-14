@@ -31,6 +31,27 @@ describe('authStore', () => {
     expect(result.headerName).toBe('X-CSRF-TOKEN')
   })
 
+  it('initializes the current user only once for concurrent callers', async () => {
+    vi.mocked(authApi.fetchMe).mockResolvedValue({ data: user } as never)
+    const store = useAuthStore()
+
+    await Promise.all([store.initialize(), store.initialize()])
+
+    expect(authApi.fetchMe).toHaveBeenCalledTimes(1)
+    expect(store.currentUser).toEqual(user)
+    expect(store.initialized).toBe(true)
+  })
+
+  it('finishes initialization as unauthenticated when fetchMe returns 401', async () => {
+    vi.mocked(authApi.fetchMe).mockRejectedValue({ status: 401 })
+    const store = useAuthStore()
+
+    await expect(store.initialize()).resolves.toBeUndefined()
+
+    expect(store.currentUser).toBeNull()
+    expect(store.initialized).toBe(true)
+  })
+
   it.each([
     ['register', authApi.register, { email: user.email, password: 'password1234' }],
     ['login', authApi.login, { email: user.email, password: 'password1234' }],

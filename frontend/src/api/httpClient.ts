@@ -59,7 +59,7 @@ httpClient.interceptors.response.use(
     if (error.response?.status === 401 && !isLoginRequest(error)) {
       useAuthStore().clear()
       if (router.currentRoute.value.path !== '/login') {
-        await router.push('/login')
+        void router.push('/login')
       }
     }
 
