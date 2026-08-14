@@ -27,6 +27,7 @@ import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
@@ -62,6 +63,9 @@ class TaskServiceTest {
 
   @Mock
   private MemoRepository memoRepository;
+
+  @Mock
+  private ReflectionRepository reflectionRepository;
 
   @Mock
   private ProjectItemOrderRepository pjItemOrderRepository;
@@ -753,6 +757,7 @@ class TaskServiceTest {
     // Assert
     verify(wsRepository, times(1)).existsUnfinishedByTaskId(id, USER_ID);
     verify(tsRepository, times(1)).updateFinished(id, isFinished, USER_ID);
+    verify(reflectionRepository, never()).deleteByTaskId(anyInt());
   }
 
   @Test
@@ -772,6 +777,7 @@ class TaskServiceTest {
     // Assert
     verify(wsRepository, never()).existsUnfinishedByTaskId(anyInt(), anyInt());
     verify(tsRepository, times(1)).updateFinished(id, isFinished, USER_ID);
+    verify(reflectionRepository, times(1)).deleteByTaskId(id);
   }
 
   @Test
@@ -788,6 +794,7 @@ class TaskServiceTest {
 
     verify(wsRepository, times(1)).existsUnfinishedByTaskId(id, USER_ID);
     verify(tsRepository, never()).updateFinished(anyInt(), anyBoolean(), anyInt());
+    verify(reflectionRepository, never()).deleteByTaskId(anyInt());
   }
 
   @Test
@@ -804,6 +811,25 @@ class TaskServiceTest {
 
     verify(wsRepository, times(1)).existsUnfinishedByTaskId(id, USER_ID);
     verify(tsRepository, times(1)).updateFinished(id, isFinished, USER_ID);
+    verify(reflectionRepository, never()).deleteByTaskId(anyInt());
+  }
+
+  @Test
+  void 完了状態更新失敗_未完了に戻す更新が0件のときReflection削除も呼び出して例外を投げること() {
+    // Arrange
+    int id = 999;
+    boolean isFinished = false;
+
+    when(tsRepository.updateFinished(id, isFinished, USER_ID)).thenReturn(0);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateFinished(USER_ID, id, isFinished))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    InOrder inOrder = org.mockito.Mockito.inOrder(tsRepository, reflectionRepository);
+    inOrder.verify(tsRepository, times(1)).updateFinished(id, isFinished, USER_ID);
+    inOrder.verify(reflectionRepository, times(1)).deleteByTaskId(id);
+    verify(wsRepository, never()).existsUnfinishedByTaskId(anyInt(), anyInt());
   }
 
   @Test
@@ -818,10 +844,11 @@ class TaskServiceTest {
     sut.deleteById(USER_ID, id);
 
     // Assert
-    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository,
+    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, reflectionRepository,
         pjItemOrderRepository, tgItemOrderRepository, tsRepository);
     inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
     inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
+    inOrder.verify(reflectionRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(pjItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tgItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tsRepository, times(1)).deleteById(id, USER_ID);
@@ -840,6 +867,7 @@ class TaskServiceTest {
 
     verify(wsRepository, never()).deleteAllByTaskId(anyInt());
     verify(memoRepository, never()).deleteAllInTask(anyInt());
+    verify(reflectionRepository, never()).deleteByTaskId(anyInt());
     verify(pjItemOrderRepository, never()).deleteByTaskId(anyInt());
     verify(tgItemOrderRepository, never()).deleteByTaskId(anyInt());
     verify(tsRepository, never()).deleteById(anyInt(), anyInt());
@@ -857,10 +885,11 @@ class TaskServiceTest {
     assertThatThrownBy(() -> sut.deleteById(USER_ID, id))
         .isInstanceOf(TargetNotFoundException.class);
 
-    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository,
+    InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, reflectionRepository,
         pjItemOrderRepository, tgItemOrderRepository, tsRepository);
     inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
     inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
+    inOrder.verify(reflectionRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(pjItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tgItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tsRepository, times(1)).deleteById(id, USER_ID);
