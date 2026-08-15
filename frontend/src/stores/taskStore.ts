@@ -53,14 +53,25 @@ export const useTaskStore = defineStore('task', {
       this.loading = true
       this.error = null
       try {
-        const res = await tasksApi.fetchById(id)
-        this.currentTask = res.data
+        return await this.fetchTaskForInteraction(id)
       } catch (e) {
         this.error = e as ApiError
         throw e
       } finally {
         this.loading = false
       }
+    },
+
+    // 一覧上の操作モーダルや作業セッション更新後の再取得用。
+    // 一覧全体のローディング状態を変更せず、開いているモーダルがアンマウントされるのを防ぐ。
+    async fetchTaskForInteraction(id: number) {
+      const res = await tasksApi.fetchById(id)
+      this.currentTask = res.data
+      const idx = this.tasks.findIndex((task) => task.id === id)
+      if (idx !== -1) {
+        this.tasks[idx] = res.data
+      }
+      return res.data
     },
 
     // 登録後オブジェクトをそのまま反映するため、再取得は不要。

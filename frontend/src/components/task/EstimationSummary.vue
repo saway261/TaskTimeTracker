@@ -9,6 +9,7 @@ import { formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
 const props = defineProps<{
   task: TaskResponse
   actualMinutes: number | null
+  compact?: boolean
 }>()
 
 const finished = computed(() => isFinished(props.task))
@@ -36,7 +37,7 @@ const gapRate = computed(() => {
       <dt>見積</dt>
       <dd>{{ task.estimatedMinutes !== null ? formatMinutes(task.estimatedMinutes) : '-' }}</dd>
     </div>
-    <div class="item">
+    <div v-if="!compact" class="item">
       <dt>実績</dt>
       <dd>{{ actual !== null ? formatMinutes(actual) : '-' }}</dd>
     </div>
@@ -44,7 +45,7 @@ const gapRate = computed(() => {
       <dt>見積との差</dt>
       <dd>{{ gap !== null ? formatGap(gap) : '-' }}</dd>
     </div>
-    <div class="item">
+    <div v-if="!compact" class="item">
       <dt>誤差率</dt>
       <dd>{{ gapRate !== null ? formatGapRate(gapRate) : '-' }}</dd>
     </div>

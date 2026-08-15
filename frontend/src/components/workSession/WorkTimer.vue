@@ -123,7 +123,7 @@ async function handleStop() {
     await workSessionStore.stopTimer(session.id)
     await Promise.all([
       workSessionStore.fetchTotalMinutes(props.taskId),
-      taskStore.fetchTask(props.taskId),
+      taskStore.fetchTaskForInteraction(props.taskId),
     ])
     notification.success('タイマーを停止しました。')
   } catch (e) {
@@ -179,6 +179,7 @@ async function handleStop() {
 .work-timer {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0.6em;
   padding: 0.9em 1em;
   border-radius: 8px;
@@ -188,14 +189,20 @@ async function handleStop() {
 
 .display {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 0.8em;
+  width: 100%;
   flex-wrap: wrap;
+  text-align: center;
 }
 
 .clock {
-  font-size: 1.6rem;
+  font-size: clamp(2.2rem, 9vw, 3rem);
   font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
 }
@@ -207,5 +214,9 @@ async function handleStop() {
 .warning {
   font-size: 0.85rem;
   color: var(--color-danger);
+}
+
+.work-timer :deep(.error-message) {
+  align-self: stretch;
 }
 </style>

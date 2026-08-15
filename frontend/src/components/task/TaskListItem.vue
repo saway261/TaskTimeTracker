@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useItemOrderStore } from '@/stores/itemOrderStore'
 import type { TaskResponse } from '@/types/task'
 import type { TaskGroupResponse } from '@/types/taskGroup'
 import { isFinished } from '@/utils/task'
 import { formatMinutes } from '@/utils/duration'
 import TaskRowMenu from './TaskRowMenu.vue'
+import TaskQuickActionModal from './TaskQuickActionModal.vue'
 
 const props = defineProps<{
   task: TaskResponse
@@ -62,6 +62,7 @@ function handleDrop(e: DragEvent) {
 }
 
 const showMenu = ref(false)
+const showQuickActions = ref(false)
 </script>
 
 <template>
@@ -84,7 +85,13 @@ const showMenu = ref(false)
       ⠿
     </span>
 
-    <RouterLink :to="to" class="task-row" :class="{ finished }" draggable="false">
+    <button
+      type="button"
+      class="task-row"
+      :class="{ finished }"
+      aria-haspopup="dialog"
+      @click="showQuickActions = true"
+    >
       <span class="label">タスク</span>
       <span class="title">{{ task.title }}</span>
       <span v-if="task.estimatedMinutes !== null" class="estimate">
@@ -93,7 +100,7 @@ const showMenu = ref(false)
       <span class="status" :class="{ finished }">
         {{ finished ? '完了' : '未完了' }}
       </span>
-    </RouterLink>
+    </button>
 
     <button type="button" class="menu-button" aria-label="タスクを操作" @click="showMenu = true">
       ⋮
@@ -109,6 +116,13 @@ const showMenu = ref(false)
       :can-move-down="canMoveDown"
       @move-up="emit('move-up')"
       @move-down="emit('move-down')"
+    />
+
+    <TaskQuickActionModal
+      v-model="showQuickActions"
+      :task-id="task.id"
+      :task-title="task.title"
+      :detail-to="to"
     />
   </div>
 </template>
@@ -151,7 +165,10 @@ const showMenu = ref(false)
   border: 1px solid var(--color-surface-muted);
   border-left: 4px solid var(--color-task-accent);
   color: var(--color-text);
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .task-row:hover {
