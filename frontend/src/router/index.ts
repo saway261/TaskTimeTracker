@@ -36,6 +36,12 @@ const routes = [
     component: () => import('@/views/ReflectionView.vue'),
   },
   {
+    path: '/reflections/:projectId',
+    name: 'reflection-detail',
+    component: () => import('@/views/ReflectionDetailView.vue'),
+    props: true,
+  },
+  {
     path: '/projects/:projectId',
     name: 'project-detail',
     component: () => import('@/views/ProjectDetailView.vue'),
