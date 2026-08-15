@@ -3,7 +3,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useProjectStore } from '@/stores/projectStore'
 import { useTaskGroupStore } from '@/stores/taskGroupStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { projectContainerKey, useItemOrderStore } from '@/stores/itemOrderStore'
+import {
+  projectContainerKey,
+  taskGroupContainerKey,
+  useItemOrderStore,
+} from '@/stores/itemOrderStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
 import { sortProjectItemsByOrder } from '@/utils/sort'
@@ -162,14 +166,24 @@ async function handleCreateTask(payload: {
   title: string
   description: string | null
   estimatedMinutes?: number
+  taskGroupId?: number | null
 }) {
   const id = numericId.value
   if (id === null) return
   creatingTask.value = true
   createTaskError.value = null
   try {
-    const task = await taskStore.createTaskInProject(id, payload as TaskCreateRequest)
-    itemOrderStore.appendToContainerOrder(projectContainerKey(id), 'TASK', task.id)
+    const { taskGroupId, ...taskRequest } = payload
+    const targetTaskGroupId = taskGroupId ?? null
+    const task =
+      targetTaskGroupId === null
+        ? await taskStore.createTaskInProject(id, taskRequest as TaskCreateRequest)
+        : await taskStore.createTaskInTaskGroup(targetTaskGroupId, taskRequest as TaskCreateRequest)
+    const targetContainer =
+      targetTaskGroupId === null
+        ? projectContainerKey(id)
+        : taskGroupContainerKey(targetTaskGroupId)
+    itemOrderStore.appendToContainerOrder(targetContainer, 'TASK', task.id)
     notification.success('タスクを登録しました。')
     showCreateTaskModal.value = false
   } catch (e) {
@@ -366,6 +380,8 @@ async function handleItemDrop() {
       <TaskForm
         :submitting="creatingTask"
         :error="createTaskError"
+        :task-groups="taskGroupStore.taskGroups"
+        show-task-group-selector
         @submit="handleCreateTask"
         @cancel="showCreateTaskModal = false"
       />

@@ -255,7 +255,7 @@ async function handleCreateTask(payload: {
             @drop="handleHeaderDrop"
           >
             <span class="chevron" :class="{ open: isOpen }" aria-hidden="true">›</span>
-            <span class="label">タスクグループ</span>
+            <span class="label">グループ</span>
             <span class="title">{{ taskGroup.title }}</span>
           </button>
 
@@ -311,6 +311,7 @@ async function handleCreateTask(payload: {
       :detail-to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}`"
       :can-move-up="canMoveUp"
       :can-move-down="canMoveDown"
+      @add-task="openCreateTaskModal"
       @move-up="emit('move-up')"
       @move-down="emit('move-down')"
     />
@@ -401,6 +402,12 @@ async function handleCreateTask(payload: {
 .inline-add-task {
   flex-shrink: 0;
   align-self: center;
+}
+
+@media (max-width: 640px) {
+  .inline-add-task {
+    display: none;
+  }
 }
 
 .row-header:focus-visible {

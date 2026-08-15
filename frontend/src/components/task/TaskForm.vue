@@ -1,27 +1,39 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import BaseInput from '@/components/common/BaseInput.vue'
 import BaseTextarea from '@/components/common/BaseTextarea.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import type { ApiError } from '@/types/apiError'
 import type { TaskResponse } from '@/types/task'
+import type { TaskGroupResponse } from '@/types/taskGroup'
 
 const props = withDefaults(
   defineProps<{
     task?: TaskResponse | null
     submitting?: boolean
     error?: ApiError | null
+    taskGroups?: TaskGroupResponse[]
+    showTaskGroupSelector?: boolean
   }>(),
   {
     task: null,
     submitting: false,
     error: null,
+    taskGroups: () => [],
+    showTaskGroupSelector: false,
   },
 )
 
 const emit = defineEmits<{
-  submit: [payload: { title: string; description: string | null; estimatedMinutes?: number }]
+  submit: [
+    payload: {
+      title: string
+      description: string | null
+      estimatedMinutes?: number
+      taskGroupId?: number | null
+    },
+  ]
   cancel: []
 }>()
 
@@ -29,6 +41,8 @@ const title = ref(props.task?.title ?? '')
 const description = ref(props.task?.description ?? '')
 // 見積時間は登録時のみ入力する。更新時は別API・別UI（§4.4）のためここでは扱わない。
 const estimatedMinutes = ref(props.task?.estimatedMinutes?.toString() ?? '')
+const selectedTaskGroupId = ref<number | ''>('')
+const taskGroupSelectId = useId()
 
 watch(
   () => props.task,
@@ -54,6 +68,9 @@ function handleSubmit() {
     title: title.value,
     description: description.value === '' ? null : description.value,
     ...(props.task ? {} : { estimatedMinutes: Number(estimatedMinutes.value) }),
+    ...(props.showTaskGroupSelector
+      ? { taskGroupId: selectedTaskGroupId.value === '' ? null : Number(selectedTaskGroupId.value) }
+      : {}),
   })
 }
 </script>
@@ -82,6 +99,15 @@ function handleSubmit() {
       type="number"
       :error="error?.fieldErrors.estimatedMinutes"
     />
+    <div v-if="!task && showTaskGroupSelector" class="select-field">
+      <label :for="taskGroupSelectId">作成先</label>
+      <select :id="taskGroupSelectId" v-model="selectedTaskGroupId" :disabled="submitting">
+        <option value="">プロジェクト直下（タスクグループに属さない）</option>
+        <option v-for="taskGroup in taskGroups" :key="taskGroup.id" :value="taskGroup.id">
+          {{ taskGroup.title }}
+        </option>
+      </select>
+    </div>
     <div class="actions">
       <BaseButton type="button" variant="secondary" @click="emit('cancel')">
         キャンセル
@@ -98,6 +124,32 @@ function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 1em;
+}
+
+.select-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.select-field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.select-field select {
+  padding: 0.5em 0.7em;
+  border: 1px solid var(--color-surface-muted);
+  border-radius: 6px;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.select-field select:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
 }
 
 .actions {

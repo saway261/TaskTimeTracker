@@ -14,6 +14,7 @@ defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'add-task': []
   'move-up': []
   'move-down': []
 }>()
@@ -31,6 +32,11 @@ function moveDown() {
   emit('move-down')
   close()
 }
+
+function addTask() {
+  emit('add-task')
+  close()
+}
 </script>
 
 <template>
@@ -40,6 +46,7 @@ function moveDown() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="menu-list">
+      <BaseButton @click="addTask">＋ タスク追加</BaseButton>
       <RouterLink :to="detailTo" class="detail-link" @click="close">
         タスクグループの詳細・編集・メモへ →
       </RouterLink>
