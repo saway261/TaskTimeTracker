@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useReflectionStore } from '@/stores/reflectionStore'
+import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
+import type { ReflectionRequest, ReflectionTaskResponse } from '@/types/reflection'
+import type { ApiError } from '@/types/apiError'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
 import ReflectionTaskRow from '@/components/reflection/ReflectionTaskRow.vue'
 import ReflectionTaskGroupSection from '@/components/reflection/ReflectionTaskGroupSection.vue'
+import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
 
 const props = defineProps<{
   projectId: string
 }>()
 
 const reflectionStore = useReflectionStore()
+const notification = useNotificationStore()
 
 const invalidId = ref(false)
 const numericId = computed(() => toPositiveInt(props.projectId))
@@ -43,6 +48,41 @@ function toggleGroup(id: number) {
   expandedGroupIds.value = next
 }
 
+// --- 振り返りモーダル ---
+const activeTask = ref<ReflectionTaskResponse | null>(null)
+const submittingReflection = ref(false)
+const reflectionError = ref<ApiError | null>(null)
+
+function openReflectionModal(task: ReflectionTaskResponse) {
+  reflectionError.value = null
+  activeTask.value = task
+}
+
+function closeReflectionModal() {
+  activeTask.value = null
+}
+
+async function handleReflectionSubmit(payload: ReflectionRequest) {
+  const task = activeTask.value
+  if (!task) return
+  submittingReflection.value = true
+  reflectionError.value = null
+  try {
+    if (task.reflection) {
+      await reflectionStore.updateReflection(task.id, payload)
+      notification.success('振り返りを更新しました。')
+    } else {
+      await reflectionStore.createReflection(task.id, payload)
+      notification.success('振り返りを登録しました。')
+    }
+    activeTask.value = null
+  } catch (e) {
+    reflectionError.value = e as ApiError
+  } finally {
+    submittingReflection.value = false
+  }
+}
+
 async function load() {
   const id = numericId.value
   if (id === null) {
@@ -51,6 +91,7 @@ async function load() {
   }
   invalidId.value = false
   expandedGroupIds.value = new Set()
+  closeReflectionModal()
   await reflectionStore.fetchOverview(id).catch(() => {})
 }
 
@@ -70,16 +111,31 @@ watch(() => props.projectId, load)
 
       <p v-if="isEmpty" class="empty">このプロジェクトには完了したタスクがまだありません。</p>
       <div v-else class="reflection-rows">
-        <ReflectionTaskRow v-for="task in overview.tasks" :key="`task-${task.id}`" :task="task" />
+        <ReflectionTaskRow
+          v-for="task in overview.tasks"
+          :key="`task-${task.id}`"
+          :task="task"
+          @open="openReflectionModal(task)"
+        />
         <ReflectionTaskGroupSection
           v-for="group in overview.taskGroups"
           :key="`group-${group.id}`"
           :task-group="group"
           :is-open="expandedGroupIds.has(group.id)"
           @toggle="toggleGroup(group.id)"
+          @open="openReflectionModal"
         />
       </div>
     </template>
+
+    <ReflectionModal
+      :model-value="activeTask !== null"
+      :task="activeTask"
+      :submitting="submittingReflection"
+      :error="reflectionError"
+      @update:model-value="closeReflectionModal"
+      @submit="handleReflectionSubmit"
+    />
   </div>
 </template>
 

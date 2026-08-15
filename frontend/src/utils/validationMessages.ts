@@ -20,6 +20,8 @@ const EXACT_MATCHES: Record<string, string> = {
   'work session end not allowed': 'このセッションは終了できません。',
   'invalid item order':
     '他の場所で変更があったため、並び順を更新できませんでした。最新の状態を読み込み直します。',
+  'reflection already exists': 'この振り返りは既に登録されています。画面を読み込み直してください。',
+  'reflection operation not allowed': 'このタスクは未完了のため、振り返りを保存できません。',
 
   // 認証
   'email or password is incorrect': 'メールアドレスまたはパスワードが正しくありません。',

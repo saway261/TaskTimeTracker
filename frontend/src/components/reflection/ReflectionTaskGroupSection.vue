@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useId } from 'vue'
-import type { ReflectionTaskGroupResponse } from '@/types/reflection'
+import type { ReflectionTaskGroupResponse, ReflectionTaskResponse } from '@/types/reflection'
 import ReflectionTaskRow from './ReflectionTaskRow.vue'
 
 defineProps<{
@@ -10,6 +10,7 @@ defineProps<{
 
 const emit = defineEmits<{
   toggle: []
+  open: [task: ReflectionTaskResponse]
 }>()
 
 const panelId = useId()
@@ -32,7 +33,12 @@ const panelId = useId()
     </div>
 
     <div v-if="isOpen" :id="panelId" class="child-tasks">
-      <ReflectionTaskRow v-for="task in taskGroup.tasks" :key="task.id" :task="task" />
+      <ReflectionTaskRow
+        v-for="task in taskGroup.tasks"
+        :key="task.id"
+        :task="task"
+        @open="emit('open', task)"
+      />
     </div>
   </div>
 </template>
