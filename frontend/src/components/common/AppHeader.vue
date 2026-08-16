@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import BaseButton from '@/components/common/BaseButton.vue'
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
@@ -106,13 +103,6 @@ onBeforeUnmount(() => {
       </nav>
     </div>
     <div class="header-actions">
-      <template v-if="authStore.isAuthenticated">
-        <span class="user-email">{{ authStore.currentUser?.email }}</span>
-        <RouterLink to="/password-change" class="password-link">パスワード変更</RouterLink>
-        <BaseButton variant="secondary" :disabled="loggingOut" @click="logout">
-          {{ loggingOut ? 'ログアウト中…' : 'ログアウト' }}
-        </BaseButton>
-      </template>
       <ThemeToggle class="theme-toggle-slot" />
       <div v-if="authStore.isAuthenticated" ref="menuRoot" class="user-menu">
         <button
@@ -352,10 +342,6 @@ onBeforeUnmount(() => {
   .header-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
-  }
-
-  .user-email {
-    display: none;
   }
 }
 </style>
