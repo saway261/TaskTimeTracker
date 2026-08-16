@@ -26,6 +26,7 @@ public class AuthenticatedUser implements UserDetails {
   private final boolean enabled;
   private final boolean passwordChangeRequired;
   private final LocalDateTime temporaryPasswordExpiresAt;
+  private final boolean emailVerified;
 
   public AuthenticatedUser(AppUser user) {
     this.userId = user.getId();
@@ -34,6 +35,7 @@ public class AuthenticatedUser implements UserDetails {
     this.enabled = Boolean.TRUE.equals(user.getIsEnabled());
     this.passwordChangeRequired = Boolean.TRUE.equals(user.getPasswordChangeRequired());
     this.temporaryPasswordExpiresAt = user.getTemporaryPasswordExpiresAt();
+    this.emailVerified = user.getEmailVerifiedAt() != null;
   }
 
   public int getUserId() {
@@ -50,6 +52,10 @@ public class AuthenticatedUser implements UserDetails {
 
   public LocalDateTime getTemporaryPasswordExpiresAt() {
     return temporaryPasswordExpiresAt;
+  }
+
+  public boolean isEmailVerified() {
+    return emailVerified;
   }
 
   @Override

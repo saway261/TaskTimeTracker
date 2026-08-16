@@ -12,7 +12,8 @@ public class WithMockAuthenticatedUserSecurityContextFactory
   @Override
   public SecurityContext createSecurityContext(WithMockAuthenticatedUser annotation) {
     AuthenticatedUser principal = AuthenticatedUserTestFactory.create(
-        annotation.userId(), annotation.email(), annotation.passwordChangeRequired());
+        annotation.userId(), annotation.email(), annotation.passwordChangeRequired(),
+        annotation.emailVerified());
 
     UsernamePasswordAuthenticationToken authentication =
         UsernamePasswordAuthenticationToken.authenticated(

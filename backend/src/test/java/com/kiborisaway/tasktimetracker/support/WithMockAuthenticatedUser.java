@@ -21,4 +21,6 @@ public @interface WithMockAuthenticatedUser {
   String email() default "user1@example.com";
 
   boolean passwordChangeRequired() default false;
+
+  boolean emailVerified() default true;
 }

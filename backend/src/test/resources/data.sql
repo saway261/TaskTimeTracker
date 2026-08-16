@@ -1,18 +1,18 @@
 INSERT INTO app_users(
   email, password_hash, is_enabled, password_change_required,
-  temporary_password_expires_at, created_at, updated_at
+  temporary_password_expires_at, created_at, updated_at, email_verified_at
 ) VALUES (
   'user-a@example.com',
   '{bcrypt}$2a$12$eXVmZkrzhJ4W18gvvloeBOtdTxZafS3hoF0JPQgGeoaJn4100Ss7u',
-  TRUE, FALSE, NULL, '2026-08-13 00:00:00', '2026-08-13 00:00:00'
+  TRUE, FALSE, NULL, '2026-08-13 00:00:00', '2026-08-13 00:00:00', '2026-08-13 00:00:00'
 );
 INSERT INTO app_users(
   email, password_hash, is_enabled, password_change_required,
-  temporary_password_expires_at, created_at, updated_at
+  temporary_password_expires_at, created_at, updated_at, email_verified_at
 ) VALUES (
   'user-b@example.com',
   '{bcrypt}$2a$12$CcqglFlqf6yLLjmvKVE05uZ7XiphBYiNIw7eQ3Nr.H2ne0ehZSS0W',
-  TRUE, FALSE, NULL, '2026-08-13 00:00:00', '2026-08-13 00:00:00'
+  TRUE, FALSE, NULL, '2026-08-13 00:00:00', '2026-08-13 00:00:00', '2026-08-13 00:00:00'
 );
 
 INSERT INTO projects(user_id, title, description, is_finished) VALUES (1, 'タスク管理アプリ開発','A社から受託した開発', false);

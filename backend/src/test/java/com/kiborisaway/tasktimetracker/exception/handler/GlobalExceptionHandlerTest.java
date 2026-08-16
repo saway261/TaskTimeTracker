@@ -3,6 +3,9 @@ package com.kiborisaway.tasktimetracker.exception.handler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import com.kiborisaway.tasktimetracker.exception.EmailChangeNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.EmailChangeRequestInvalidException;
+import com.kiborisaway.tasktimetracker.exception.EmailVerificationInvalidException;
 import java.sql.SQLException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -66,6 +69,41 @@ class GlobalExceptionHandlerTest {
     assertThat(actual.getBody().getMessage()).isEqualTo("internal server error");
     assertThat(actual.getBody().getErrors()).isEmpty();
     assertThat(actual.getBody().getMessage()).doesNotContain("sensitive detail");
+  }
+
+  @Test
+  void メール確認例外_400を返すこと() {
+    ResponseEntity<ErrorResponse> actual =
+        sut.handleEmailVerificationInvalidException(new EmailVerificationInvalidException());
+
+    assertThat(actual.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(actual.getBody()).isNotNull();
+    assertThat(actual.getBody().getMessage())
+        .isEqualTo("email verification request is invalid or expired");
+    assertThat(actual.getBody().getErrors()).isEmpty();
+  }
+
+  @Test
+  void メール変更要求例外_400を返すこと() {
+    ResponseEntity<ErrorResponse> actual =
+        sut.handleEmailChangeRequestInvalidException(new EmailChangeRequestInvalidException());
+
+    assertThat(actual.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(actual.getBody()).isNotNull();
+    assertThat(actual.getBody().getMessage())
+        .isEqualTo("email change request is invalid or expired");
+    assertThat(actual.getBody().getErrors()).isEmpty();
+  }
+
+  @Test
+  void メール変更不許可例外_400を返すこと() {
+    ResponseEntity<ErrorResponse> actual = sut.handleEmailChangeNotAllowedException(
+        EmailChangeNotAllowedException.currentPasswordIncorrect());
+
+    assertThat(actual.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(actual.getBody()).isNotNull();
+    assertThat(actual.getBody().getMessage()).isEqualTo("current password is incorrect");
+    assertThat(actual.getBody().getErrors()).isEmpty();
   }
 
   private DataIntegrityViolationException createException(String sqlState, String detail) {

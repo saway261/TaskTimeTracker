@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.kiborisaway.tasktimetracker.data.entity.AppUser;
+import com.kiborisaway.tasktimetracker.repository.EmailChangeRequestRepository;
 import com.kiborisaway.tasktimetracker.repository.UserRepository;
 import com.kiborisaway.tasktimetracker.service.SessionInvalidationService;
 import java.io.ByteArrayOutputStream;
@@ -38,6 +39,7 @@ class TemporaryPasswordCommandTest {
   private UserRepository userRepository;
   private PasswordEncoder passwordEncoder;
   private SessionInvalidationService sessionInvalidationService;
+  private EmailChangeRequestRepository emailChangeRequestRepository;
   private TransactionOperations transactionOperations;
   private SecureRandom secureRandom;
   private ByteArrayOutputStream output;
@@ -48,6 +50,7 @@ class TemporaryPasswordCommandTest {
     userRepository = mock(UserRepository.class);
     passwordEncoder = mock(PasswordEncoder.class);
     sessionInvalidationService = mock(SessionInvalidationService.class);
+    emailChangeRequestRepository = mock(EmailChangeRequestRepository.class);
     transactionOperations = mock(TransactionOperations.class);
     secureRandom = mock(SecureRandom.class);
     output = new ByteArrayOutputStream();
@@ -78,6 +81,7 @@ class TemporaryPasswordCommandTest {
         "{bcrypt}hash",
         LocalDateTime.of(2026, 8, 17, 0, 0),
         LocalDateTime.of(2026, 8, 14, 0, 0));
+    verify(emailChangeRequestRepository).invalidateAllForUser(7, LocalDateTime.of(2026, 8, 14, 0, 0));
     verify(sessionInvalidationService).invalidateAll(7);
     verify(applicationContext).close();
     assertThat(output.toString(StandardCharsets.UTF_8))
@@ -126,6 +130,7 @@ class TemporaryPasswordCommandTest {
         userRepository,
         passwordEncoder,
         sessionInvalidationService,
+        emailChangeRequestRepository,
         CLOCK,
         transactionOperations,
         secureRandom,

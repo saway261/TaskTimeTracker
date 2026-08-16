@@ -20,16 +20,19 @@ public class UserService {
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final PasswordPolicy passwordPolicy;
+  private final EmailVerificationService emailVerificationService;
   private final Clock clock;
 
   public UserService(
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
       PasswordPolicy passwordPolicy,
+      EmailVerificationService emailVerificationService,
       Clock clock) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.passwordPolicy = passwordPolicy;
+    this.emailVerificationService = emailVerificationService;
     this.clock = clock;
   }
 
@@ -52,12 +55,14 @@ public class UserService {
         false,
         null,
         now,
-        now);
+        now,
+        null);
     try {
       userRepository.insert(user);
     } catch (DataIntegrityViolationException ex) {
       throw new EmailUnavailableException();
     }
+    emailVerificationService.issueForRegistration(user.getId(), email);
     return new AuthenticatedUser(user);
   }
 

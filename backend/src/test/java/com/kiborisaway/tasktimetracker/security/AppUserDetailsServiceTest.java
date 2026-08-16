@@ -30,7 +30,7 @@ class AppUserDetailsServiceTest {
   void ユーザー検索_メールを正規化して内部IDをPrincipal名に設定すること() {
     AppUser user = new AppUser(
         7, "user@example.com", "{bcrypt}hash", true, false, null,
-        LocalDateTime.now(), LocalDateTime.now());
+        LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now());
     when(userRepository.findByEmail("user@example.com")).thenReturn(user);
     AppUserDetailsService sut = new AppUserDetailsService(userRepository, CLOCK);
 
@@ -42,6 +42,7 @@ class AppUserDetailsServiceTest {
     assertThat(actual.getPassword()).isEqualTo("{bcrypt}hash");
     assertThat(actual.isEnabled()).isTrue();
     assertThat(actual.isPasswordChangeRequired()).isFalse();
+    assertThat(actual.isEmailVerified()).isTrue();
     verify(userRepository).findByEmail("user@example.com");
   }
 
@@ -60,7 +61,7 @@ class AppUserDetailsServiceTest {
     AppUser user = new AppUser(
         7, "user@example.com", "{bcrypt}hash", true, true,
         LocalDateTime.of(2026, 8, 13, 0, 0),
-        LocalDateTime.now(CLOCK), LocalDateTime.now(CLOCK));
+        LocalDateTime.now(CLOCK), LocalDateTime.now(CLOCK), null);
     when(userRepository.findByEmail("user@example.com")).thenReturn(user);
     AppUserDetailsService sut = new AppUserDetailsService(userRepository, CLOCK);
 

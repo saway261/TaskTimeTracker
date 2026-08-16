@@ -16,12 +16,18 @@ public final class AuthenticatedUserTestFactory {
   }
 
   public static AuthenticatedUser create(int userId, String email, boolean passwordChangeRequired) {
+    return create(userId, email, passwordChangeRequired, true);
+  }
+
+  public static AuthenticatedUser create(
+      int userId, String email, boolean passwordChangeRequired, boolean emailVerified) {
     AppUser appUser = new AppUser();
     appUser.setId(userId);
     appUser.setEmail(email);
     appUser.setPasswordHash("{bcrypt}$2a$12$dummydummydummydummydummydummydummydummydummydu");
     appUser.setIsEnabled(true);
     appUser.setPasswordChangeRequired(passwordChangeRequired);
+    appUser.setEmailVerifiedAt(emailVerified ? java.time.LocalDateTime.now() : null);
     return new AuthenticatedUser(appUser);
   }
 }

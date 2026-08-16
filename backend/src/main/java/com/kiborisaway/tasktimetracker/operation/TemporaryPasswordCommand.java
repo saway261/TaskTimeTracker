@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.operation;
 
 import com.kiborisaway.tasktimetracker.data.entity.AppUser;
+import com.kiborisaway.tasktimetracker.repository.EmailChangeRequestRepository;
 import com.kiborisaway.tasktimetracker.repository.UserRepository;
 import com.kiborisaway.tasktimetracker.service.SessionInvalidationService;
 import com.kiborisaway.tasktimetracker.service.UserService;
@@ -36,6 +37,7 @@ public class TemporaryPasswordCommand implements ApplicationRunner {
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final SessionInvalidationService sessionInvalidationService;
+  private final EmailChangeRequestRepository emailChangeRequestRepository;
   private final Clock clock;
   private final TransactionOperations transactionOperations;
   private final SecureRandom secureRandom;
@@ -48,6 +50,7 @@ public class TemporaryPasswordCommand implements ApplicationRunner {
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
       SessionInvalidationService sessionInvalidationService,
+      EmailChangeRequestRepository emailChangeRequestRepository,
       Clock clock,
       PlatformTransactionManager transactionManager,
       ConfigurableApplicationContext applicationContext,
@@ -56,6 +59,7 @@ public class TemporaryPasswordCommand implements ApplicationRunner {
         userRepository,
         passwordEncoder,
         sessionInvalidationService,
+        emailChangeRequestRepository,
         clock,
         new TransactionTemplate(transactionManager),
         new SecureRandom(),
@@ -68,6 +72,7 @@ public class TemporaryPasswordCommand implements ApplicationRunner {
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
       SessionInvalidationService sessionInvalidationService,
+      EmailChangeRequestRepository emailChangeRequestRepository,
       Clock clock,
       TransactionOperations transactionOperations,
       SecureRandom secureRandom,
@@ -77,6 +82,7 @@ public class TemporaryPasswordCommand implements ApplicationRunner {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.sessionInvalidationService = sessionInvalidationService;
+    this.emailChangeRequestRepository = emailChangeRequestRepository;
     this.clock = clock;
     this.transactionOperations = transactionOperations;
     this.secureRandom = secureRandom;
@@ -110,6 +116,7 @@ public class TemporaryPasswordCommand implements ApplicationRunner {
       if (updatedRows != 1) {
         throw new IllegalStateException("temporary password update failed");
       }
+      emailChangeRequestRepository.invalidateAllForUser(user.getId(), now);
       sessionInvalidationService.invalidateAll(user.getId());
     });
 

@@ -12,23 +12,19 @@ import lombok.Setter;
 @EqualsAndHashCode
 @AllArgsConstructor
 @NoArgsConstructor
-public class AppUser {
+public class EmailChangeRequest {
 
   private Integer id;
 
-  private String email;
+  private Integer userId;
 
-  private String passwordHash;
+  private String newEmail;
 
-  private Boolean isEnabled;
+  private String tokenHash;
 
-  private Boolean passwordChangeRequired;
+  private LocalDateTime expiresAt;
 
-  private LocalDateTime temporaryPasswordExpiresAt;
+  private LocalDateTime usedAt;
 
   private LocalDateTime createdAt;
-
-  private LocalDateTime updatedAt;
-
-  private LocalDateTime emailVerifiedAt;
 }
