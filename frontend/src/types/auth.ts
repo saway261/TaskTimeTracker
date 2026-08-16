@@ -20,6 +20,19 @@ export interface PasswordChangeRequest {
   newPassword: string
 }
 
+export interface PasswordResetRequest {
+  email: string
+}
+
+export interface PasswordResetRequestResponse {
+  message: string
+}
+
+export interface PasswordResetConfirmRequest {
+  token: string
+  newPassword: string
+}
+
 export interface CsrfTokenResponse {
   token: string
   headerName: string

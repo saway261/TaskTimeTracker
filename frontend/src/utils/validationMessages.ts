@@ -34,6 +34,8 @@ const EXACT_MATCHES: Record<string, string> = {
     '確認リンクが無効か、有効期限が切れています。',
   'email change request is invalid or expired':
     'メールアドレス変更リンクが無効か、有効期限が切れています。',
+  'password reset request is invalid or expired':
+    'パスワード再設定リンクが無効か、有効期限が切れています。',
   'current password is incorrect': '現在のパスワードが正しくありません。',
   'new password must be different': '現在とは異なるパスワードを設定してください。',
   'new email must be different': '現在とは異なるメールアドレスを入力してください。',

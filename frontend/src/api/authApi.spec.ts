@@ -45,6 +45,11 @@ describe('authApi', () => {
       currentPassword: 'password1234',
       newPassword: 'new-password1234',
     })
+    await authApi.requestPasswordReset({ email: 'user@example.com' })
+    await authApi.resetPassword({
+      token: 'password-reset-token',
+      newPassword: 'new-password1234',
+    })
     await authApi.verifyEmail('verification-token')
     await authApi.resendVerificationEmail()
     await authApi.requestEmailChange({
@@ -60,6 +65,8 @@ describe('authApi', () => {
       { method: 'post', url: '/auth/logout' },
       { method: 'get', url: '/auth/me' },
       { method: 'put', url: '/auth/password' },
+      { method: 'post', url: '/auth/password-reset-requests' },
+      { method: 'post', url: '/auth/password-resets' },
       { method: 'post', url: '/auth/email-verifications' },
       { method: 'post', url: '/auth/email-verifications/resend' },
       { method: 'put', url: '/auth/email' },

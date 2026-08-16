@@ -26,6 +26,18 @@ const routes = [
     component: () => import('@/views/PasswordChangeView.vue'),
   },
   {
+    path: '/password-reset-request',
+    name: 'password-reset-request',
+    component: () => import('@/views/PasswordResetRequestView.vue'),
+    meta: { public: true },
+  },
+  {
+    path: '/password-reset',
+    name: 'password-reset',
+    component: () => import('@/views/PasswordResetView.vue'),
+    meta: { public: true },
+  },
+  {
     path: '/verify-email',
     name: 'verify-email',
     component: () => import('@/views/VerifyEmailView.vue'),
@@ -118,6 +130,8 @@ router.beforeEach(async (to) => {
 
   const restrictionExemptRoutes = new Set([
     'password-change',
+    'password-reset-request',
+    'password-reset',
     'email-change',
     'verify-email',
     'verify-email-change',
@@ -135,6 +149,8 @@ router.beforeEach(async (to) => {
     'email-verification-pending',
     'email-change',
     'password-change',
+    'password-reset-request',
+    'password-reset',
     'verify-email',
     'verify-email-change',
   ])

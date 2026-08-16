@@ -127,6 +127,47 @@ class EmailChangeIntegrationTest {
   }
 
   @Test
+  void 誤登録救済_未確認ユーザーがアドレスを変更して確認後に業務APIを利用できること()
+      throws Exception {
+    String incorrectEmail = "rescue-incorrect@example.com";
+    String correctedEmail = "rescue-corrected@example.com";
+    String password = "register-passphrase";
+    Cookie registrationSession = register(incorrectEmail, password);
+
+    mockMvc.perform(get("/projects").cookie(registrationSession))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("email verification required"));
+
+    mockMvc.perform(put("/auth/email")
+            .cookie(registrationSession)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(
+                "{\"newEmail\":\"" + correctedEmail + "\",\"currentPassword\":\""
+                    + password + "\"}"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.pendingEmail").value(correctedEmail));
+
+    String confirmToken = capturedRawToken();
+    mockMvc.perform(post("/auth/email-changes")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"token\":\"" + confirmToken + "\"}"))
+        .andExpect(status().isNoContent());
+
+    mockMvc.perform(get("/auth/me").cookie(registrationSession))
+        .andExpect(status().isUnauthorized());
+    loginExpectingStatus(incorrectEmail, password, 401);
+    Cookie correctedSession = login(correctedEmail, password);
+    mockMvc.perform(get("/auth/me").cookie(correctedSession))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value(correctedEmail))
+        .andExpect(jsonPath("$.emailVerified").value(true));
+    mockMvc.perform(get("/projects").cookie(correctedSession))
+        .andExpect(status().isOk());
+  }
+
+  @Test
   void 変更確定失敗_不正なトークンは400を返すこと() throws Exception {
     mockMvc.perform(post("/auth/email-changes")
             .with(csrf())

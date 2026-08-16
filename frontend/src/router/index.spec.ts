@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as authApi from '@/api/authApi'
 import { useAuthStore } from '@/stores/authStore'
 import { router } from './index'
 
@@ -14,6 +15,7 @@ const user = {
 
 describe('authentication navigation guard', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
     setActivePinia(createPinia())
     useAuthStore().initialized = true
   })
@@ -79,6 +81,26 @@ describe('authentication navigation guard', () => {
 
     await router.push('/verify-email-change?token=email-change-token')
     expect(router.currentRoute.value.name).toBe('verify-email-change')
+  })
+
+  it('allows unauthenticated users to open password reset routes', async () => {
+    await router.push('/password-reset-request')
+    expect(router.currentRoute.value.name).toBe('password-reset-request')
+
+    await router.push('/password-reset?token=password-reset-token')
+    expect(router.currentRoute.value.name).toBe('password-reset')
+  })
+
+  it('keeps the password reset route after initial session detection returns 401', async () => {
+    const authStore = useAuthStore()
+    await router.push('/login')
+    authStore.initialized = false
+    vi.spyOn(authApi, 'fetchMe').mockRejectedValue({ status: 401 })
+
+    await router.push('/password-reset?token=direct-access-token')
+
+    expect(router.currentRoute.value.name).toBe('password-reset')
+    expect(router.currentRoute.value.query.token).toBe('direct-access-token')
   })
 
   it('allows authenticated users to open the password change route', async () => {
