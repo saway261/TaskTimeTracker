@@ -12,6 +12,8 @@ import type { TaskCreateRequest } from '@/types/task'
 import type { ApiError } from '@/types/apiError'
 import { sortByItemOrder } from '@/utils/sort'
 import { insertStubAt } from '@/utils/dragReorder'
+import { formatMinutes } from '@/utils/duration'
+import { sumEstimatedMinutes } from '@/utils/task'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
@@ -51,6 +53,7 @@ async function toggle() {
 const childTasks = computed(() =>
   taskStore.tasks.filter((t) => t.taskGroupId === props.taskGroup.id),
 )
+const estimatedMinutes = computed(() => sumEstimatedMinutes(childTasks.value))
 
 const containerKey = computed(() => taskGroupContainerKey(props.taskGroup.id))
 
@@ -268,6 +271,8 @@ async function handleCreateTask(payload: {
             ＋ タスク追加
           </BaseButton>
 
+          <span class="estimate">見積 {{ formatMinutes(estimatedMinutes) }}</span>
+
           <span class="status" :class="{ finished: taskGroup.isFinished }">
             {{ taskGroup.isFinished ? '完了' : '未完了' }}
           </span>
@@ -441,6 +446,13 @@ async function handleCreateTask(payload: {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.estimate {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
 }
 
 .status {

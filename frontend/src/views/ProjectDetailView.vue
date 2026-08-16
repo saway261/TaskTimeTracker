@@ -12,6 +12,8 @@ import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
 import { sortProjectItemsByOrder } from '@/utils/sort'
 import { insertStubAt } from '@/utils/dragReorder'
+import { formatMinutes } from '@/utils/duration'
+import { sumEstimatedMinutes } from '@/utils/task'
 import type { ApiError } from '@/types/apiError'
 import type { ProjectUpdateRequest } from '@/types/project'
 import type { TaskGroupCreateRequest, TaskGroupResponse } from '@/types/taskGroup'
@@ -56,6 +58,7 @@ const breadcrumbItems = computed(() => {
 })
 
 const directTasks = computed(() => taskStore.tasks.filter((t) => t.projectId !== null))
+const projectEstimatedMinutes = computed(() => sumEstimatedMinutes(taskStore.tasks))
 
 type OrderedItem =
   | { kind: 'TASK_GROUP'; id: number; taskGroup: TaskGroupResponse }
@@ -281,9 +284,15 @@ async function handleItemDrop() {
       <div class="header">
         <div>
           <h1>{{ projectStore.currentProject.title }}</h1>
-          <span class="status" :class="{ finished: projectStore.currentProject.isFinished }">
-            {{ projectStore.currentProject.isFinished ? '完了' : '未完了' }}
-          </span>
+          <div class="project-meta">
+            <span class="status" :class="{ finished: projectStore.currentProject.isFinished }">
+              {{ projectStore.currentProject.isFinished ? '完了' : '未完了' }}
+            </span>
+            <div class="project-estimate">
+              <span>プロジェクト全体の見積</span>
+              <strong>{{ formatMinutes(projectEstimatedMinutes) }}</strong>
+            </div>
+          </div>
         </div>
         <BaseButton variant="secondary" @click="openEditModal">編集</BaseButton>
       </div>
@@ -408,6 +417,13 @@ async function handleItemDrop() {
   margin: 0 0 0.3em;
 }
 
+.project-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  flex-wrap: wrap;
+}
+
 .status {
   font-size: 0.85rem;
   color: var(--color-text-muted);
@@ -415,6 +431,24 @@ async function handleItemDrop() {
 
 .status.finished {
   color: var(--color-success);
+}
+
+.project-estimate {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.55em;
+  padding: 0.45em 0.75em;
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.project-estimate strong {
+  color: var(--color-accent);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .section-header {
