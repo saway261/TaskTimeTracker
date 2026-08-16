@@ -23,6 +23,7 @@ const emit = defineEmits<{
 
 const notification = useNotificationStore()
 
+const showCreateModal = ref(false)
 const creating = ref(false)
 const createError = ref<ApiError | null>(null)
 
@@ -35,6 +36,11 @@ function previewOf(comment: string): string {
   return comment.length > PREVIEW_LENGTH ? `${comment.slice(0, PREVIEW_LENGTH)}…` : comment
 }
 
+function openCreateModal() {
+  createError.value = null
+  showCreateModal.value = true
+}
+
 async function handleCreate(req: MemoRequest) {
   creating.value = true
   createError.value = null
@@ -42,6 +48,7 @@ async function handleCreate(req: MemoRequest) {
     const memo = await props.onCreate(req)
     emit('created', memo)
     notification.success('メモを追加しました。')
+    showCreateModal.value = false
   } catch (e) {
     createError.value = e as ApiError
   } finally {
@@ -89,7 +96,7 @@ async function handleDelete() {
 
 <template>
   <section class="memo-list" aria-label="メモ">
-    <div v-if="memos.length > 0" class="memo-notes">
+    <div class="memo-notes">
       <button
         v-for="memo in memos"
         :key="memo.id"
@@ -99,9 +106,26 @@ async function handleDelete() {
       >
         {{ previewOf(memo.comment) }}
       </button>
+      <button
+        type="button"
+        class="add-memo"
+        :class="{ empty: memos.length === 0 }"
+        aria-label="メモを追加"
+        @click="openCreateModal"
+      >
+        ＋<span v-if="memos.length === 0" class="add-memo-label">メモを追加</span>
+      </button>
     </div>
 
-    <MemoForm mode="create" :submitting="creating" :error="createError" @submit="handleCreate" />
+    <BaseModal v-model="showCreateModal" title="メモを追加">
+      <MemoForm
+        mode="create"
+        :submitting="creating"
+        :error="createError"
+        @submit="handleCreate"
+        @cancel="showCreateModal = false"
+      />
+    </BaseModal>
 
     <BaseModal v-model="showEditModal" title="メモを編集">
       <MemoForm
@@ -138,6 +162,7 @@ async function handleDelete() {
 
 .memo-notes {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 0.8em 0.6em;
   padding-top: 0.2em;
@@ -178,6 +203,52 @@ async function handleDelete() {
 }
 
 .memo-note:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.add-memo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px dashed var(--color-text-muted);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.add-memo.empty {
+  width: auto;
+  padding: 0 1rem;
+  border-radius: 1.375rem;
+  font-size: 1rem;
+}
+
+.add-memo-label {
+  margin-left: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.add-memo:hover {
+  border-color: var(--color-accent);
+  background: var(--color-surface-muted);
+  color: var(--color-accent);
+  transform: scale(1.05);
+}
+
+.add-memo:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }

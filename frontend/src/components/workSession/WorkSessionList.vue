@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useWorkSessionStore } from '@/stores/workSessionStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useNotificationStore } from '@/stores/notificationStore'
@@ -16,11 +16,21 @@ const props = defineProps<{
   taskId: number
   // 完了済みタスクではセッション操作UIを表示しない（読み取り専用の一覧のみ、Q5-A）。
   taskFinished: boolean
+  // 操作モーダルでは、稼働中タイマーを「過去の記録」から除外する。
+  excludeActive?: boolean
 }>()
 
 const workSessionStore = useWorkSessionStore()
 const taskStore = useTaskStore()
 const notification = useNotificationStore()
+
+const visibleSessions = computed(() =>
+  props.excludeActive
+    ? workSessionStore.workSessions.filter(
+        (session) => session.type !== 'TIMER' || session.endedAt !== null,
+      )
+    : workSessionStore.workSessions,
+)
 
 const editingSession = ref<WorkSession | null>(null)
 const showEditModal = ref(false)
@@ -37,7 +47,7 @@ function openEdit(session: WorkSession) {
 async function refreshAfterMutation() {
   await Promise.all([
     workSessionStore.fetchTotalMinutes(props.taskId),
-    taskStore.fetchTask(props.taskId),
+    taskStore.fetchTaskForInteraction(props.taskId),
   ])
 }
 
@@ -82,12 +92,10 @@ async function handleDelete() {
   <div class="work-session-list">
     <LoadingIndicator v-if="workSessionStore.loading" />
     <ErrorMessage v-else-if="workSessionStore.error" :error="workSessionStore.error" />
-    <p v-else-if="workSessionStore.workSessions.length === 0" class="empty">
-      作業セッションがまだありません。
-    </p>
+    <p v-else-if="visibleSessions.length === 0" class="empty">作業セッションがまだありません。</p>
     <div v-else class="sessions">
       <WorkSessionListItem
-        v-for="session in workSessionStore.workSessions"
+        v-for="session in visibleSessions"
         :key="session.id"
         :session="session"
         :editable="!taskFinished"

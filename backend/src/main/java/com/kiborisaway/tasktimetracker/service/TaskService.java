@@ -14,6 +14,7 @@ import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
@@ -33,6 +34,7 @@ public class TaskService {
   private TaskGroupRepository tgRepository;
   private ProjectRepository pjRepository;
   private MemoRepository memoRepository;
+  private ReflectionRepository reflectionRepository;
   private ProjectItemOrderRepository pjItemOrderRepository;
   private TaskGroupItemOrderRepository tgItemOrderRepository;
 
@@ -43,6 +45,7 @@ public class TaskService {
       TaskGroupRepository tgRepository,
       ProjectRepository pjRepository,
       MemoRepository memoRepository,
+      ReflectionRepository reflectionRepository,
       ProjectItemOrderRepository pjItemOrderRepository,
       TaskGroupItemOrderRepository tgItemOrderRepository
   ) {
@@ -51,6 +54,7 @@ public class TaskService {
     this.tgRepository = tgRepository;
     this.pjRepository = pjRepository;
     this.memoRepository = memoRepository;
+    this.reflectionRepository = reflectionRepository;
     this.pjItemOrderRepository = pjItemOrderRepository;
     this.tgItemOrderRepository = tgItemOrderRepository;
   }
@@ -279,6 +283,9 @@ public class TaskService {
     }
 
     int updated = tsRepository.updateFinished(id, isFinished, userId);
+    if (!isFinished) {
+      reflectionRepository.deleteByTaskId(id);
+    }
     if (updated == 0) {
       throw new TargetNotFoundException("task.id",
           "完了状態更新対象のタスクが見つかりませんでした");
@@ -300,6 +307,7 @@ public class TaskService {
     }
     wsRepository.deleteAllByTaskId(id);
     memoRepository.deleteAllInTask(id);
+    reflectionRepository.deleteByTaskId(id);
     pjItemOrderRepository.deleteByTaskId(id);
     tgItemOrderRepository.deleteByTaskId(id);
     int deleted = tsRepository.deleteById(id, userId);

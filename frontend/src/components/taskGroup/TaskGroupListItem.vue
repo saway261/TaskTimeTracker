@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useTaskStore } from '@/stores/taskStore'
 import {
   projectContainerKey,
@@ -13,6 +12,8 @@ import type { TaskCreateRequest } from '@/types/task'
 import type { ApiError } from '@/types/apiError'
 import { sortByItemOrder } from '@/utils/sort'
 import { insertStubAt } from '@/utils/dragReorder'
+import { formatMinutes } from '@/utils/duration'
+import { sumEstimatedMinutes } from '@/utils/task'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
@@ -52,6 +53,7 @@ async function toggle() {
 const childTasks = computed(() =>
   taskStore.tasks.filter((t) => t.taskGroupId === props.taskGroup.id),
 )
+const estimatedMinutes = computed(() => sumEstimatedMinutes(childTasks.value))
 
 const containerKey = computed(() => taskGroupContainerKey(props.taskGroup.id))
 
@@ -226,87 +228,95 @@ async function handleCreateTask(payload: {
 </script>
 
 <template>
-  <div class="task-group-row-wrapper" :class="{ 'drag-over': isDragOverAsGroup }">
-    <span
-      class="drag-handle"
-      draggable="true"
-      role="button"
-      tabindex="-1"
-      aria-label="ドラッグして並べ替え"
-      @dragstart="handleSelfDragStart"
-      @dragend="handleSelfDragEnd"
-      @click.prevent
-    >
-      ⠿
-    </span>
-
-    <div
-      class="task-group-row"
-      :class="{ finished: taskGroup.isFinished, 'task-drop-target': showTaskDropHighlight }"
-    >
-      <button
-        type="button"
-        class="row-header"
-        :aria-expanded="isOpen"
-        @click="toggle"
-        @dragover="handleHeaderDragOver"
-        @dragleave="handleHeaderDragLeave"
-        @drop="handleHeaderDrop"
+  <div class="task-group-wrapper" :class="{ 'drag-over': isDragOverAsGroup }">
+    <div class="task-group-header-row">
+      <span
+        class="drag-handle"
+        draggable="true"
+        role="button"
+        tabindex="-1"
+        aria-label="ドラッグして並べ替え"
+        @dragstart="handleSelfDragStart"
+        @dragend="handleSelfDragEnd"
+        @click.prevent
       >
-        <span class="chevron" :class="{ open: isOpen }" aria-hidden="true">›</span>
-        <span class="label">タスクグループ</span>
-        <span class="title">{{ taskGroup.title }}</span>
-        <span class="status" :class="{ finished: taskGroup.isFinished }">
-          {{ taskGroup.isFinished ? '完了' : '未完了' }}
-        </span>
-      </button>
+        ⠿
+      </span>
 
-      <button
-        type="button"
-        class="menu-button"
-        aria-label="タスクグループを操作"
-        @click="showRowMenu = true"
+      <div
+        class="task-group-card"
+        :class="{ finished: taskGroup.isFinished, 'task-drop-target': showTaskDropHighlight }"
       >
-        ⋮
-      </button>
+        <div class="card-header">
+          <button
+            type="button"
+            class="row-header"
+            :aria-expanded="isOpen"
+            @click="toggle"
+            @dragover="handleHeaderDragOver"
+            @dragleave="handleHeaderDragLeave"
+            @drop="handleHeaderDrop"
+          >
+            <span class="chevron" :class="{ open: isOpen }" aria-hidden="true">›</span>
+            <span class="label">グループ</span>
+            <span class="title">{{ taskGroup.title }}</span>
+          </button>
+
+          <BaseButton
+            v-if="isOpen"
+            variant="secondary"
+            class="inline-add-task"
+            @click="openCreateTaskModal"
+          >
+            ＋ タスク追加
+          </BaseButton>
+
+          <span class="estimate">見積 {{ formatMinutes(estimatedMinutes) }}</span>
+
+          <span class="status" :class="{ finished: taskGroup.isFinished }">
+            {{ taskGroup.isFinished ? '完了' : '未完了' }}
+          </span>
+
+          <button
+            type="button"
+            class="menu-button"
+            aria-label="タスクグループを操作"
+            @click="showRowMenu = true"
+          >
+            ⋮
+          </button>
+        </div>
+
+        <p v-if="isOpen && taskGroup.description" class="description">
+          {{ taskGroup.description }}
+        </p>
+      </div>
     </div>
 
-    <div v-if="isOpen" class="row-body">
-      <p v-if="taskGroup.description" class="description">{{ taskGroup.description }}</p>
-
-      <div class="child-tasks">
-        <p v-if="orderedChildTasks.length === 0" class="empty">タスクがまだありません。</p>
-        <TaskListItem
-          v-for="(task, index) in orderedChildTasks"
-          :key="task.id"
-          :task="task"
-          :to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}/tasks/${task.id}`"
-          :project-id="taskGroup.projectId"
-          :container-key="containerKey"
-          :task-groups="taskGroups"
-          :can-move-up="index > 0"
-          :can-move-down="index < orderedChildTasks.length - 1"
-          @move-up="handleChildMoveUp(index)"
-          @move-down="handleChildMoveDown(index)"
-          @item-drop="handleChildDrop"
-        />
-      </div>
-
-      <div class="row-body-actions">
-        <RouterLink
-          :to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}`"
-          class="detail-link"
-        >
-          タスクグループの詳細・編集・メモへ →
-        </RouterLink>
-        <BaseButton variant="secondary" @click="openCreateTaskModal">＋ タスク追加</BaseButton>
-      </div>
+    <div v-if="isOpen" class="child-tasks">
+      <p v-if="orderedChildTasks.length === 0" class="empty">タスクがまだありません。</p>
+      <TaskListItem
+        v-for="(task, index) in orderedChildTasks"
+        :key="task.id"
+        :task="task"
+        :to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}/tasks/${task.id}`"
+        :project-id="taskGroup.projectId"
+        :container-key="containerKey"
+        :task-groups="taskGroups"
+        :can-move-up="index > 0"
+        :can-move-down="index < orderedChildTasks.length - 1"
+        @move-up="handleChildMoveUp(index)"
+        @move-down="handleChildMoveDown(index)"
+        @item-drop="handleChildDrop"
+      />
     </div>
 
     <TaskGroupRowMenu
       v-model="showRowMenu"
+      :detail-to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}`"
       :can-move-up="canMoveUp"
       :can-move-down="canMoveDown"
+      @add-task="openCreateTaskModal"
       @move-up="emit('move-up')"
       @move-down="emit('move-down')"
     />
@@ -323,15 +333,21 @@ async function handleCreateTask(payload: {
 </template>
 
 <style scoped>
-.task-group-row-wrapper {
+.task-group-wrapper {
   display: flex;
-  align-items: stretch;
-  gap: 0.3em;
+  flex-direction: column;
+  gap: 0.5em;
   border-top: 2px solid transparent;
 }
 
-.task-group-row-wrapper.drag-over {
+.task-group-wrapper.drag-over {
   border-top-color: var(--color-accent);
+}
+
+.task-group-header-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.3em;
 }
 
 .drag-handle {
@@ -348,7 +364,7 @@ async function handleCreateTask(payload: {
   cursor: grabbing;
 }
 
-.task-group-row {
+.task-group-card {
   flex: 1;
   min-width: 0;
   border-radius: 8px;
@@ -356,17 +372,21 @@ async function handleCreateTask(payload: {
   border: 1px solid var(--color-surface-muted);
   border-left: 4px solid var(--color-accent);
   overflow: hidden;
-  display: flex;
-  align-items: stretch;
 }
 
-.task-group-row.finished {
+.task-group-card.finished {
   border-left-color: var(--color-text-muted);
 }
 
-.task-group-row.task-drop-target {
+.task-group-card.task-drop-target {
   border-left-color: var(--color-task-accent);
   background-color: var(--color-surface-muted);
+}
+
+.card-header {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6em;
 }
 
 .row-header {
@@ -382,6 +402,17 @@ async function handleCreateTask(payload: {
   text-align: left;
   color: var(--color-text);
   font: inherit;
+}
+
+.inline-add-task {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+@media (max-width: 640px) {
+  .inline-add-task {
+    display: none;
+  }
 }
 
 .row-header:focus-visible {
@@ -417,8 +448,17 @@ async function handleCreateTask(payload: {
   white-space: nowrap;
 }
 
+.estimate {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
 .status {
   flex-shrink: 0;
+  align-self: center;
+  padding-right: 0.4em;
   font-size: 0.8rem;
   color: var(--color-text-muted);
 }
@@ -446,15 +486,9 @@ async function handleCreateTask(payload: {
   outline-offset: 2px;
 }
 
-.row-body {
-  padding: 0 1em 1em 2.6em;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5em;
-}
-
 .description {
   margin: 0;
+  padding: 0 1em 1em;
   color: var(--color-text);
   font-size: 0.9rem;
 }
@@ -463,34 +497,12 @@ async function handleCreateTask(payload: {
   display: flex;
   flex-direction: column;
   gap: 0.5em;
+  padding-left: 2em;
 }
 
 .empty {
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;
-}
-
-.row-body-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8em;
-  flex-wrap: wrap;
-}
-
-.detail-link {
-  color: var(--color-accent);
-  font-size: 0.9rem;
-  text-decoration: none;
-}
-
-.detail-link:hover {
-  text-decoration: underline;
-}
-
-.detail-link:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
 }
 </style>

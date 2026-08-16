@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 
@@ -6,12 +7,14 @@ import BaseButton from '@/components/common/BaseButton.vue'
 // TaskRowMenuと違い上下の並べ替えのみを提供する。
 defineProps<{
   modelValue: boolean
+  detailTo: string
   canMoveUp: boolean
   canMoveDown: boolean
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'add-task': []
   'move-up': []
   'move-down': []
 }>()
@@ -29,6 +32,11 @@ function moveDown() {
   emit('move-down')
   close()
 }
+
+function addTask() {
+  emit('add-task')
+  close()
+}
 </script>
 
 <template>
@@ -38,6 +46,10 @@ function moveDown() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="menu-list">
+      <BaseButton @click="addTask">＋ タスク追加</BaseButton>
+      <RouterLink :to="detailTo" class="detail-link" @click="close">
+        タスクグループの詳細・編集・メモへ →
+      </RouterLink>
       <BaseButton v-if="canMoveUp" variant="secondary" @click="moveUp">↑ 上へ移動</BaseButton>
       <BaseButton v-if="canMoveDown" variant="secondary" @click="moveDown">↓ 下へ移動</BaseButton>
       <p v-if="!canMoveUp && !canMoveDown" class="empty">これ以上移動できません。</p>
@@ -56,5 +68,29 @@ function moveDown() {
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.9rem;
+}
+
+.detail-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.5em 1.2em;
+  border-radius: 6px;
+  border: 1px solid var(--color-text-muted);
+  background-color: transparent;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.detail-link:hover {
+  background-color: var(--color-surface-muted);
+}
+
+.detail-link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 </style>

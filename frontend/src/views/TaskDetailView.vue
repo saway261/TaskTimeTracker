@@ -192,6 +192,17 @@ async function toggleFinished() {
   }
 }
 
+// 作業中へ戻す方向のときだけ、振り返りが破棄されることの確認を挟む（完了にする方向は従来どおり確認なし）。
+const showReopenConfirm = ref(false)
+
+function handleToggleFinishedClick() {
+  if (finished.value) {
+    showReopenConfirm.value = true
+  } else {
+    toggleFinished()
+  }
+}
+
 const showDeleteConfirm = ref(false)
 
 async function handleDelete() {
@@ -255,7 +266,7 @@ function handleMemoCreate(req: MemoRequest) {
           <BaseButton
             variant="secondary"
             :disabled="finishing || (!finished && hasActiveTimer)"
-            @click="toggleFinished"
+            @click="handleToggleFinishedClick"
           >
             {{ finished ? '完了を解除する' : '完了にする' }}
           </BaseButton>
@@ -355,6 +366,15 @@ function handleMemoCreate(req: MemoRequest) {
       confirm-label="削除する"
       danger
       @confirm="handleDelete"
+    />
+
+    <ConfirmDialog
+      v-model="showReopenConfirm"
+      title="タスクを作業中に戻す"
+      message="このタスクを作業中に戻します。保存済みの振り返りがある場合は削除され、元に戻せません。"
+      confirm-label="作業中に戻す"
+      danger
+      @confirm="toggleFinished"
     />
   </div>
 </template>

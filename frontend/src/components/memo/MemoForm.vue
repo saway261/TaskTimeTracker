@@ -31,9 +31,6 @@ const comment = ref(props.initialComment)
 function handleSubmit() {
   if (comment.value.trim() === '') return
   emit('submit', { comment: comment.value })
-  if (props.mode === 'create') {
-    comment.value = ''
-  }
 }
 </script>
 
@@ -48,7 +45,7 @@ function handleSubmit() {
       :error="error?.fieldErrors.comment"
     />
     <div class="actions">
-      <BaseButton v-if="mode === 'edit'" type="button" variant="secondary" @click="emit('cancel')">
+      <BaseButton type="button" variant="secondary" @click="emit('cancel')">
         キャンセル
       </BaseButton>
       <BaseButton type="submit" :disabled="submitting || comment.trim() === ''">
