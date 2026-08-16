@@ -67,6 +67,18 @@ public class MailService {
     send(new MailMessage(to, subject, html, text));
   }
 
+  public void sendPasswordReset(String to, String rawToken) {
+    String url = buildFrontendUrl("/password-reset", rawToken);
+    String subject = "[Task Time Tracker] パスワード再設定";
+    String html = "<p>以下のURLからパスワードの再設定を行ってください（有効期限30分）。</p>"
+        + "<p><a href=\"" + url + "\">" + url + "</a></p>"
+        + "<p>心当たりがない場合は、このメールを無視してください。</p>";
+    String text = "以下のURLからパスワードの再設定を行ってください（有効期限30分）。\n"
+        + url + "\n\n"
+        + "心当たりがない場合は、このメールを無視してください。";
+    send(new MailMessage(to, subject, html, text));
+  }
+
   private String mask(String email) {
     int atIndex = email.indexOf('@');
     if (atIndex <= 0) {

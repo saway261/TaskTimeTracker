@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import com.kiborisaway.tasktimetracker.event.EmailChangeConfirmationRequestedEvent;
 import com.kiborisaway.tasktimetracker.event.EmailChangeNotificationRequestedEvent;
 import com.kiborisaway.tasktimetracker.event.EmailVerificationRequestedEvent;
+import com.kiborisaway.tasktimetracker.event.PasswordResetRequestedEvent;
 import org.junit.jupiter.api.Test;
 
 class AuthMailEventListenerTest {
@@ -55,5 +56,16 @@ class AuthMailEventListenerTest {
         new EmailChangeNotificationRequestedEvent("old@example.com", "new@example.com"));
 
     verify(mailService).sendEmailChangeNotification("old@example.com", "new@example.com");
+  }
+
+  @Test
+  void パスワードリセットメールイベント_MailServiceを呼び出すこと() {
+    MailService mailService = mock(MailService.class);
+    AuthMailEventListener sut = new AuthMailEventListener(mailService);
+
+    sut.onPasswordResetRequested(
+        new PasswordResetRequestedEvent(1, "user@example.com", "raw-token"));
+
+    verify(mailService).sendPasswordReset("user@example.com", "raw-token");
   }
 }

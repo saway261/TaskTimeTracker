@@ -3,6 +3,7 @@ package com.kiborisaway.tasktimetracker.service;
 import com.kiborisaway.tasktimetracker.event.EmailChangeConfirmationRequestedEvent;
 import com.kiborisaway.tasktimetracker.event.EmailChangeNotificationRequestedEvent;
 import com.kiborisaway.tasktimetracker.event.EmailVerificationRequestedEvent;
+import com.kiborisaway.tasktimetracker.event.PasswordResetRequestedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -49,6 +50,15 @@ public class AuthMailEventListener {
       mailService.sendEmailChangeNotification(event.oldEmail(), event.newEmail());
     } catch (RuntimeException ex) {
       logger.error("Failed to send email change notification mail", ex);
+    }
+  }
+
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  public void onPasswordResetRequested(PasswordResetRequestedEvent event) {
+    try {
+      mailService.sendPasswordReset(event.email(), event.rawToken());
+    } catch (RuntimeException ex) {
+      logger.error("Failed to send password reset mail: userId={}", event.userId(), ex);
     }
   }
 }

@@ -79,4 +79,21 @@ class MailServiceTest {
     assertThat(message.htmlBody()).doesNotContain("newaddress@example.com");
     assertThat(message.htmlBody()).doesNotContain("http");
   }
+
+  @Test
+  void パスワード再設定メール送信_再設定URLを含めて送信すること() {
+    MailDeliveryClient mailDeliveryClient = mock(MailDeliveryClient.class);
+    MailService sut = new MailService(mailDeliveryClient, "https://app.example.com");
+
+    sut.sendPasswordReset("user@example.com", "raw-token");
+
+    ArgumentCaptor<MailMessage> captor = ArgumentCaptor.forClass(MailMessage.class);
+    verify(mailDeliveryClient).send(captor.capture());
+    MailMessage message = captor.getValue();
+    assertThat(message.to()).isEqualTo("user@example.com");
+    assertThat(message.htmlBody())
+        .contains("https://app.example.com/password-reset?token=raw-token");
+    assertThat(message.textBody())
+        .contains("https://app.example.com/password-reset?token=raw-token");
+  }
 }

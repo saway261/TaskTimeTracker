@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import com.kiborisaway.tasktimetracker.exception.EmailChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.EmailChangeRequestInvalidException;
 import com.kiborisaway.tasktimetracker.exception.EmailVerificationInvalidException;
+import com.kiborisaway.tasktimetracker.exception.PasswordResetInvalidException;
 import java.sql.SQLException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -103,6 +104,18 @@ class GlobalExceptionHandlerTest {
     assertThat(actual.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(actual.getBody()).isNotNull();
     assertThat(actual.getBody().getMessage()).isEqualTo("current password is incorrect");
+    assertThat(actual.getBody().getErrors()).isEmpty();
+  }
+
+  @Test
+  void パスワードリセット例外_400を返すこと() {
+    ResponseEntity<ErrorResponse> actual =
+        sut.handlePasswordResetInvalidException(new PasswordResetInvalidException());
+
+    assertThat(actual.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(actual.getBody()).isNotNull();
+    assertThat(actual.getBody().getMessage())
+        .isEqualTo("password reset request is invalid or expired");
     assertThat(actual.getBody().getErrors()).isEmpty();
   }
 

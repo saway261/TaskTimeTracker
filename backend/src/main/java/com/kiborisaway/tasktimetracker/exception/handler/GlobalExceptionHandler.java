@@ -10,6 +10,7 @@ import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationExceptio
 import com.kiborisaway.tasktimetracker.exception.PasswordChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.PasswordResetInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -278,6 +279,13 @@ public class GlobalExceptionHandler {
   @org.springframework.web.bind.annotation.ExceptionHandler(EmailChangeNotAllowedException.class)
   public ResponseEntity<ErrorResponse> handleEmailChangeNotAllowedException(
       EmailChangeNotAllowedException ex) {
+    return ResponseEntity.badRequest()
+        .body(new ErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), List.of()));
+  }
+
+  @org.springframework.web.bind.annotation.ExceptionHandler(PasswordResetInvalidException.class)
+  public ResponseEntity<ErrorResponse> handlePasswordResetInvalidException(
+      PasswordResetInvalidException ex) {
     return ResponseEntity.badRequest()
         .body(new ErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), List.of()));
   }

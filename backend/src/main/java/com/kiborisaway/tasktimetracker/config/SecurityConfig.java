@@ -71,6 +71,8 @@ public class SecurityConfig {
             .authenticated()
             .requestMatchers(HttpMethod.PUT, "/auth/email").authenticated()
             .requestMatchers(HttpMethod.POST, "/auth/email-changes").permitAll()
+            .requestMatchers(HttpMethod.POST, "/auth/password-reset-requests").permitAll()
+            .requestMatchers(HttpMethod.POST, "/auth/password-resets").permitAll()
             // パスワード変更・メールアドレス確認完了時に全セッションを失効させるため、古いPrincipalの
             // passwordChangeRequired/emailVerifiedが変更後も残り続けることはありません。
             .anyRequest().access(restrictedAccountAuthorizationManager))
