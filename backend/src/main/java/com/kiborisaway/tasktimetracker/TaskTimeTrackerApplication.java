@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @OpenAPIDefinition(info = @Info(
     title = "タスク見積精度改善アプリ TaskTimeTracker",
@@ -14,6 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         """,
     version = "1.0"))
 @SpringBootApplication
+@EnableScheduling
 public class TaskTimeTrackerApplication {
 
   public static void main(String[] args) {

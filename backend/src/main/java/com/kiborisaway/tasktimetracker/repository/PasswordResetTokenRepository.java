@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.repository;
 
 import com.kiborisaway.tasktimetracker.data.entity.PasswordResetToken;
 import java.time.LocalDateTime;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
@@ -33,4 +34,10 @@ public interface PasswordResetTokenRepository {
       WHERE user_id = #{userId} AND used_at IS NULL
       """)
   int invalidateAllForUser(@Param("userId") int userId, @Param("usedAt") LocalDateTime usedAt);
+
+  @Delete("""
+      DELETE FROM password_reset_tokens
+      WHERE expires_at < #{threshold} OR (used_at IS NOT NULL AND used_at < #{threshold})
+      """)
+  int deleteExpiredOrUsed(@Param("threshold") LocalDateTime threshold);
 }

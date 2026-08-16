@@ -75,4 +75,26 @@ class PasswordResetTokenRepositoryTest {
     assertThat(sut.findValidForUpdate("hash-a-2", NOW)).isNull();
     assertThat(sut.findValidForUpdate("hash-b-1", NOW)).isNotNull();
   }
+
+  @Test
+  void 期限切れ削除_24時間以上前に期限切れ_使用済みのレコードだけを削除すること() {
+    LocalDateTime threshold = NOW;
+    sut.insert(new PasswordResetToken(
+        null, USER_A, "hash-expired", threshold.minusMinutes(1), null, threshold.minusHours(25)));
+    sut.insert(new PasswordResetToken(
+        null, USER_A, "hash-used-long-ago", threshold.plusMinutes(30), null,
+        threshold.minusHours(25)));
+    sut.invalidateAllForUser(USER_A, threshold.minusHours(25));
+    sut.insert(new PasswordResetToken(
+        null, USER_B, "hash-still-valid", threshold.plusMinutes(30), null, threshold));
+
+    int actual = sut.deleteExpiredOrUsed(threshold);
+
+    assertThat(actual).isEqualTo(2);
+    // 削除されていれば同じハッシュで再登録でき、UNIQUE制約に抵触しないことで確認する。
+    sut.insert(new PasswordResetToken(
+        null, USER_A, "hash-expired", threshold.plusMinutes(30), null, threshold));
+    sut.insert(new PasswordResetToken(
+        null, USER_A, "hash-used-long-ago", threshold.plusMinutes(30), null, threshold));
+  }
 }

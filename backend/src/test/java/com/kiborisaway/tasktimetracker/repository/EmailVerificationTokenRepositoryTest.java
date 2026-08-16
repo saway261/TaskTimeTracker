@@ -60,4 +60,24 @@ class EmailVerificationTokenRepositoryTest {
     assertThat(sut.findByTokenHashForUpdate("hash-a-2").getUsedAt()).isEqualTo(usedAt);
     assertThat(sut.findByTokenHashForUpdate("hash-b-1").getUsedAt()).isNull();
   }
+
+  @Test
+  void 期限切れ削除_24時間以上前に期限切れ_使用済みのレコードだけを削除すること() {
+    LocalDateTime threshold = NOW;
+    sut.insert(new EmailVerificationToken(
+        null, USER_A, "hash-expired", threshold.minusMinutes(1), null, threshold.minusHours(25)));
+    EmailVerificationToken usedLongAgo = new EmailVerificationToken(
+        null, USER_A, "hash-used-long-ago", threshold.plusHours(24), null, threshold.minusHours(25));
+    sut.insert(usedLongAgo);
+    sut.invalidateAllForUser(USER_A, threshold.minusHours(25));
+    sut.insert(new EmailVerificationToken(
+        null, USER_B, "hash-still-valid", threshold.plusHours(24), null, threshold));
+
+    int actual = sut.deleteExpiredOrUsed(threshold);
+
+    assertThat(actual).isEqualTo(2);
+    assertThat(sut.findByTokenHashForUpdate("hash-expired")).isNull();
+    assertThat(sut.findByTokenHashForUpdate("hash-used-long-ago")).isNull();
+    assertThat(sut.findByTokenHashForUpdate("hash-still-valid")).isNotNull();
+  }
 }
