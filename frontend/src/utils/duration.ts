@@ -31,3 +31,14 @@ export function formatGapRate(gapRatePercent: number): string {
   const sign = gapRatePercent > 0 ? '+' : ''
   return `${sign}${rounded}%`
 }
+
+export type EstimateOutcome = 'early' | 'on-time' | 'late' | 'unknown'
+
+/** 誤差比から、見積に対する完了結果を分類する。±10%以内はおおむね見積どおりとする。 */
+export function estimateOutcome(gapRatePercent: number | null | undefined): EstimateOutcome {
+  if (gapRatePercent === null || gapRatePercent === undefined) return 'unknown'
+  if (Math.abs(gapRatePercent) <= 10) return 'on-time'
+  if (gapRatePercent < -10) return 'early'
+  if (gapRatePercent > 10) return 'late'
+  return 'on-time'
+}

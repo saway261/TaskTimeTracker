@@ -11,6 +11,7 @@ import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
 import ReflectionTaskRow from '@/components/reflection/ReflectionTaskRow.vue'
 import ReflectionTaskGroupSection from '@/components/reflection/ReflectionTaskGroupSection.vue'
 import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
+import ReflectionAggregateSummary from '@/components/reflection/ReflectionAggregateSummary.vue'
 
 const props = defineProps<{
   projectId: string
@@ -23,6 +24,11 @@ const invalidId = ref(false)
 const numericId = computed(() => toPositiveInt(props.projectId))
 
 const overview = computed(() => reflectionStore.overview)
+const allTasks = computed(() => {
+  const currentOverview = overview.value
+  if (!currentOverview) return []
+  return [...currentOverview.tasks, ...currentOverview.taskGroups.flatMap((group) => group.tasks)]
+})
 const isEmpty = computed(
   (): boolean =>
     overview.value !== null &&
@@ -110,22 +116,29 @@ watch(() => props.projectId, load)
       <h1>{{ overview.projectTitle }}</h1>
 
       <p v-if="isEmpty" class="empty">このプロジェクトには完了したタスクがまだありません。</p>
-      <div v-else class="reflection-rows">
-        <ReflectionTaskRow
-          v-for="task in overview.tasks"
-          :key="`task-${task.id}`"
-          :task="task"
-          @open="openReflectionModal(task)"
-        />
-        <ReflectionTaskGroupSection
-          v-for="group in overview.taskGroups"
-          :key="`group-${group.id}`"
-          :task-group="group"
-          :is-open="expandedGroupIds.has(group.id)"
-          @toggle="toggleGroup(group.id)"
-          @open="openReflectionModal"
-        />
-      </div>
+      <template v-else>
+        <section class="project-summary" aria-labelledby="project-summary-title">
+          <h2 id="project-summary-title">プロジェクト全体</h2>
+          <ReflectionAggregateSummary :tasks="allTasks" show-actual prominent />
+        </section>
+
+        <div class="reflection-rows">
+          <ReflectionTaskRow
+            v-for="task in overview.tasks"
+            :key="`task-${task.id}`"
+            :task="task"
+            @open="openReflectionModal(task)"
+          />
+          <ReflectionTaskGroupSection
+            v-for="group in overview.taskGroups"
+            :key="`group-${group.id}`"
+            :task-group="group"
+            :is-open="expandedGroupIds.has(group.id)"
+            @toggle="toggleGroup(group.id)"
+            @open="openReflectionModal"
+          />
+        </div>
+      </template>
     </template>
 
     <ReflectionModal
@@ -153,6 +166,17 @@ watch(() => props.projectId, load)
 
 .empty {
   color: var(--color-text-muted);
+}
+
+.project-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.project-summary h2 {
+  margin: 0;
+  font-size: 1.05rem;
 }
 
 .reflection-rows {

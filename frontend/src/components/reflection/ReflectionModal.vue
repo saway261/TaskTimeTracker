@@ -6,7 +6,8 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import type { ReflectionRequest, ReflectionTaskResponse } from '@/types/reflection'
 import type { ApiError } from '@/types/apiError'
-import { formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
+import { estimateOutcome, formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
+import EstimateOutcomeIcon from '@/components/common/EstimateOutcomeIcon.vue'
 
 const CAUSE_MAX_LENGTH = 200
 const NEXT_ACTION_MAX_LENGTH = 1000
@@ -57,6 +58,7 @@ const gapRateText = computed(() => {
   const rate = props.task?.gapRateCached
   return rate === undefined || rate === null ? '-' : formatGapRate(rate)
 })
+const outcome = computed(() => estimateOutcome(props.task?.gapRateCached))
 
 // バックエンドと同条件の事前検証（§10）。文字数上限はBaseTextareaのmaxlengthでも防いでいる。
 const canSubmit = computed(
@@ -91,11 +93,14 @@ function close() {
           <dt>実績時間</dt>
           <dd>{{ actualText }}</dd>
         </div>
-        <div>
+        <div class="outcome-reference" :class="outcome">
           <dt>誤差</dt>
-          <dd>{{ gapText }}</dd>
+          <dd class="outcome-value">
+            <EstimateOutcomeIcon :gap-rate="task.gapRateCached" />
+            <span>{{ gapText }}</span>
+          </dd>
         </div>
-        <div>
+        <div class="outcome-reference" :class="outcome">
           <dt>誤差比</dt>
           <dd>{{ gapRateText }}</dd>
         </div>
@@ -160,6 +165,24 @@ function close() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.outcome-value {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.outcome-reference.early dd {
+  color: var(--color-task-accent);
+}
+
+.outcome-reference.late dd {
+  color: var(--color-danger);
+}
+
+.outcome-reference.on-time dd {
+  color: var(--color-success);
 }
 
 .reflection-form {

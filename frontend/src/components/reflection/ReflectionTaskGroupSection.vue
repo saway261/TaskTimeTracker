@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useId } from 'vue'
 import type { ReflectionTaskGroupResponse, ReflectionTaskResponse } from '@/types/reflection'
+import ReflectionAggregateSummary from './ReflectionAggregateSummary.vue'
 import ReflectionTaskRow from './ReflectionTaskRow.vue'
 
 defineProps<{
@@ -33,6 +34,7 @@ const panelId = useId()
     </div>
 
     <div v-if="isOpen" :id="panelId" class="child-tasks">
+      <ReflectionAggregateSummary :tasks="taskGroup.tasks" />
       <ReflectionTaskRow
         v-for="task in taskGroup.tasks"
         :key="task.id"

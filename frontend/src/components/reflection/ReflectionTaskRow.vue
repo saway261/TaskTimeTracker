@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ReflectionTaskResponse } from '@/types/reflection'
-import { formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
+import { estimateOutcome, formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
 import { truncateForPreview } from '@/utils/reflectionPreview'
+import EstimateOutcomeIcon from '@/components/common/EstimateOutcomeIcon.vue'
 
 const props = defineProps<{
   task: ReflectionTaskResponse
@@ -24,6 +25,7 @@ const gapText = computed(() =>
 const gapRateText = computed(() =>
   props.task.gapRateCached === null ? '-' : formatGapRate(props.task.gapRateCached),
 )
+const outcome = computed(() => estimateOutcome(props.task.gapRateCached))
 
 const causePreview = computed(() => truncateForPreview(props.task.reflection?.cause ?? null))
 const nextActionPreview = computed(() => {
@@ -60,8 +62,13 @@ const actionLabel = computed(() =>
     </div>
 
     <div class="row-meta">
-      <span class="meta-item meta-gap">誤差 {{ gapText }}</span>
-      <span class="meta-item meta-gap-rate">誤差比 {{ gapRateText }}</span>
+      <span class="meta-item meta-gap outcome-meta" :class="outcome">
+        <EstimateOutcomeIcon :gap-rate="task.gapRateCached" size="small" />
+        <span class="meta-gap-text">誤差 {{ gapText }}</span>
+      </span>
+      <span class="meta-item meta-gap-rate outcome-meta" :class="outcome">
+        誤差比 {{ gapRateText }}
+      </span>
       <span class="meta-item meta-actual">実績 {{ actualText }}</span>
     </div>
   </div>
@@ -162,8 +169,26 @@ const actionLabel = computed(() =>
   white-space: nowrap;
 }
 
-/* §5.2のレスポンシブ優先順位（1タイトル 2操作 3プレビュー 4誤差 5誤差比 6実績時間）に沿って、
-   優先度の低いものから順に非表示にする。max-widthは重ね掛けされるため、狭いほど累積して消える。 */
+.outcome-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.outcome-meta.early {
+  color: var(--color-task-accent);
+}
+
+.outcome-meta.late {
+  color: var(--color-danger);
+}
+
+.outcome-meta.on-time {
+  color: var(--color-success);
+}
+
+/* §5.2のレスポンシブ優先順位に沿って低優先度の情報を順に省略する。
+   狭い画面でも見積結果の表情アイコンだけは残す。 */
 @media (max-width: 900px) {
   .meta-actual {
     display: none;
@@ -177,7 +202,7 @@ const actionLabel = computed(() =>
 }
 
 @media (max-width: 640px) {
-  .meta-gap {
+  .meta-gap-text {
     display: none;
   }
 }
