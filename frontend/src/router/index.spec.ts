@@ -9,6 +9,7 @@ const user = {
   id: 1,
   email: 'user@example.com',
   passwordChangeRequired: false,
+  emailVerified: true,
 }
 
 describe('authentication navigation guard', () => {
@@ -33,11 +34,51 @@ describe('authentication navigation guard', () => {
   })
 
   it('forces users who must change their password to the password change route', async () => {
-    useAuthStore().currentUser = { ...user, passwordChangeRequired: true }
+    useAuthStore().currentUser = {
+      ...user,
+      passwordChangeRequired: true,
+      emailVerified: false,
+    }
 
     await router.push('/projects/10')
 
     expect(router.currentRoute.value.name).toBe('password-change')
+  })
+
+  it('forces unverified users to the email verification pending route', async () => {
+    useAuthStore().currentUser = { ...user, emailVerified: false }
+
+    await router.push('/projects/10')
+
+    expect(router.currentRoute.value.name).toBe('email-verification-pending')
+  })
+
+  it('allows unverified users to open the email change route', async () => {
+    useAuthStore().currentUser = { ...user, emailVerified: false }
+
+    await router.push('/email-change')
+
+    expect(router.currentRoute.value.name).toBe('email-change')
+  })
+
+  it('allows password-change-required users to open the email change route', async () => {
+    useAuthStore().currentUser = {
+      ...user,
+      passwordChangeRequired: true,
+      emailVerified: false,
+    }
+
+    await router.push('/email-change')
+
+    expect(router.currentRoute.value.name).toBe('email-change')
+  })
+
+  it('allows unauthenticated users to open email confirmation routes', async () => {
+    await router.push('/verify-email?token=verification-token')
+    expect(router.currentRoute.value.name).toBe('verify-email')
+
+    await router.push('/verify-email-change?token=email-change-token')
+    expect(router.currentRoute.value.name).toBe('verify-email-change')
   })
 
   it('allows authenticated users to open the password change route', async () => {

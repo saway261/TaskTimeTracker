@@ -26,6 +26,28 @@ const routes = [
     component: () => import('@/views/PasswordChangeView.vue'),
   },
   {
+    path: '/verify-email',
+    name: 'verify-email',
+    component: () => import('@/views/VerifyEmailView.vue'),
+    meta: { public: true },
+  },
+  {
+    path: '/email-verification-pending',
+    name: 'email-verification-pending',
+    component: () => import('@/views/EmailVerificationPendingView.vue'),
+  },
+  {
+    path: '/email-change',
+    name: 'email-change',
+    component: () => import('@/views/EmailChangeView.vue'),
+  },
+  {
+    path: '/verify-email-change',
+    name: 'verify-email-change',
+    component: () => import('@/views/VerifyEmailChangeView.vue'),
+    meta: { public: true },
+  },
+  {
     path: '/projects',
     name: 'project-list',
     component: () => import('@/views/ProjectListView.vue'),
@@ -94,12 +116,35 @@ router.beforeEach(async (to) => {
     useNotificationStore().error((e as ApiError).message)
   }
 
+  const restrictionExemptRoutes = new Set([
+    'password-change',
+    'email-change',
+    'verify-email',
+    'verify-email-change',
+  ])
+
   if (
     authStore.isAuthenticated &&
     authStore.currentUser?.passwordChangeRequired &&
-    to.name !== 'password-change'
+    !restrictionExemptRoutes.has(String(to.name))
   ) {
     return { name: 'password-change' }
+  }
+
+  const emailVerificationRoutes = new Set([
+    'email-verification-pending',
+    'email-change',
+    'password-change',
+    'verify-email',
+    'verify-email-change',
+  ])
+
+  if (
+    authStore.isAuthenticated &&
+    authStore.currentUser?.emailVerified === false &&
+    !emailVerificationRoutes.has(String(to.name))
+  ) {
+    return { name: 'email-verification-pending' }
   }
 
   if (!authStore.isAuthenticated && !to.meta.public) {

@@ -45,6 +45,13 @@ describe('authApi', () => {
       currentPassword: 'password1234',
       newPassword: 'new-password1234',
     })
+    await authApi.verifyEmail('verification-token')
+    await authApi.resendVerificationEmail()
+    await authApi.requestEmailChange({
+      newEmail: 'new@example.com',
+      currentPassword: 'password1234',
+    })
+    await authApi.confirmEmailChange('email-change-token')
 
     expect(requests).toEqual([
       { method: 'get', url: '/auth/csrf' },
@@ -53,6 +60,10 @@ describe('authApi', () => {
       { method: 'post', url: '/auth/logout' },
       { method: 'get', url: '/auth/me' },
       { method: 'put', url: '/auth/password' },
+      { method: 'post', url: '/auth/email-verifications' },
+      { method: 'post', url: '/auth/email-verifications/resend' },
+      { method: 'put', url: '/auth/email' },
+      { method: 'post', url: '/auth/email-changes' },
     ])
   })
 })

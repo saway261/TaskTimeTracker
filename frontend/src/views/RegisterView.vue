@@ -43,8 +43,8 @@ async function handleSubmit() {
   error.value = null
   try {
     await authStore.register({ email: email.value.trim(), password: password.value })
-    notification.success('ユーザー登録が完了しました。')
-    await router.replace('/projects')
+    notification.success('確認メールを送信しました。')
+    await router.replace('/email-verification-pending')
   } catch (e) {
     error.value = e as ApiError
   } finally {

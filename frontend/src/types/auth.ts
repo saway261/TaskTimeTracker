@@ -12,6 +12,7 @@ export interface AuthenticatedUserResponse {
   id: number
   email: string
   passwordChangeRequired: boolean
+  emailVerified: boolean
 }
 
 export interface PasswordChangeRequest {
@@ -22,4 +23,13 @@ export interface PasswordChangeRequest {
 export interface CsrfTokenResponse {
   token: string
   headerName: string
+}
+
+export interface EmailChangeRequest {
+  newEmail: string
+  currentPassword: string
+}
+
+export interface PendingEmailResponse {
+  pendingEmail: string
 }
