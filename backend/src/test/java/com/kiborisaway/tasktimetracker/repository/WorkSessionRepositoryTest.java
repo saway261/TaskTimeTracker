@@ -24,12 +24,29 @@ class WorkSessionRepositoryTest {
   private WorkSessionRepository sut;
 
   @Test
-  void 合計取得_指定したタスクIDに紐づく作業セッションのminutes合計を取得できること() {
+  void 合計取得_指定したタスクIDに紐づく作業セッションの合計分を取得できること() {
     // Act
     int actual = sut.sumMinutesByTaskId(4, USER_A);
 
     // Assert
     assertThat(actual).isEqualTo(75);
+  }
+
+  @Test
+  void 合計取得_各セッションでは切り捨てられる秒数も合計してから分へ切り捨てること() {
+    // Arrange
+    WorkSession first = insertTimerSession(2, 30);
+    WorkSession second = insertTimerSession(2, 30);
+
+    // Act
+    int actual = sut.sumMinutesByTaskId(2, USER_A);
+
+    // Assert
+    assertThat(first.getDurationSeconds()).isEqualTo(30);
+    assertThat(first.getMinutes()).isZero();
+    assertThat(second.getDurationSeconds()).isEqualTo(30);
+    assertThat(second.getMinutes()).isZero();
+    assertThat(actual).isEqualTo(1);
   }
 
   @Test
@@ -42,7 +59,7 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
-  void 合計取得_指定したタスクIDに紐づくminutesがnullのみの場合は0を返すこと() {
+  void 合計取得_指定したタスクIDに紐づくdurationSecondsがnullのみの場合は0を返すこと() {
     // Act
     int actual = sut.sumMinutesByTaskId(1, USER_A);
 
@@ -51,7 +68,7 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
-  void 合計取得_指定したタスクグループ配下の作業セッションのminutes合計を取得できること() {
+  void 合計取得_指定したタスクグループ配下の作業セッションの合計分を取得できること() {
     // Arrange
     WorkSession workSession = new WorkSession();
     workSession.setTaskId(1);
@@ -67,7 +84,17 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
-  void 合計取得_指定したプロジェクト配下の直下タスクとタスクグループ配下タスクのminutes合計を取得できること() {
+  void 合計取得_タスクグループ内の異なるタスクの秒数を合計してから分へ切り捨てること() {
+    // Arrange
+    insertTimerSession(1, 30);
+    insertTimerSession(2, 30);
+
+    // Act & Assert
+    assertThat(sut.sumMinutesByTaskGroupId(1, USER_A)).isEqualTo(1);
+  }
+
+  @Test
+  void 合計取得_指定したプロジェクト配下の直下タスクとタスクグループ配下タスクの合計分を取得できること() {
     // Arrange
     WorkSession workSession = new WorkSession();
     workSession.setTaskId(1);
@@ -80,6 +107,16 @@ class WorkSessionRepositoryTest {
 
     // Assert
     assertThat(actual).isEqualTo(100);
+  }
+
+  @Test
+  void 合計取得_プロジェクト内の異なるタスクの秒数を合計してから分へ切り捨てること() {
+    // Arrange
+    insertTimerSession(1, 30);
+    insertTimerSession(2, 30);
+
+    // Act & Assert
+    assertThat(sut.sumMinutesByProjectId(1, USER_A)).isEqualTo(76);
   }
 
   @Test
@@ -207,7 +244,7 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
-  void 未終了作業セッション存在チェック_minutesがnullの作業セッションがあるならtrueを返すこと() {
+  void 未終了作業セッション存在チェック_endedAtがnullのTIMERがあるならtrueを返すこと() {
     // Arrange
     int taskId = 1;
 
@@ -219,7 +256,7 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
-  void 未終了作業セッション存在チェック_minutesがnullの作業セッションがないならfalseを返すこと() {
+  void 未終了作業セッション存在チェック_endedAtがnullのTIMERがないならfalseを返すこと() {
     // Arrange
     int taskId = 4;
 
@@ -254,6 +291,7 @@ class WorkSessionRepositoryTest {
     WorkSession registered = sut.findById(workSession.getId(), USER_A);
     assertThat(registered.getTaskId()).isEqualTo(2);
     assertThat(registered.getMinutes()).isNull();
+    assertThat(registered.getDurationSeconds()).isNull();
     assertThat(registered.getStartedAt()).isNotNull();
     assertThat(registered.getEndedAt()).isNull();
     assertThat(registered.getCreatedAt()).isNotNull();
@@ -277,6 +315,7 @@ class WorkSessionRepositoryTest {
     WorkSession registered = sut.findById(workSession.getId(), USER_A);
     assertThat(registered.getTaskId()).isEqualTo(2);
     assertThat(registered.getMinutes()).isEqualTo(40);
+    assertThat(registered.getDurationSeconds()).isEqualTo(2400);
     assertThat(registered.getStartedAt()).isNull();
     assertThat(registered.getEndedAt()).isNull();
     assertThat(registered.getCreatedAt()).isNotNull();
@@ -332,9 +371,9 @@ class WorkSessionRepositoryTest {
     assertThat(actual).isEqualTo(1);
     WorkSession updated = sut.findById(1, USER_A);
     assertThat(updated.getEndedAt()).isNotNull();
-    assertThat(updated.getMinutes())
-        .isEqualTo(
-            (int) Duration.between(updated.getStartedAt(), updated.getEndedAt()).toMinutes());
+    Duration duration = Duration.between(updated.getStartedAt(), updated.getEndedAt());
+    assertThat(updated.getDurationSeconds()).isEqualTo(duration.getSeconds());
+    assertThat(updated.getMinutes()).isEqualTo((int) duration.toMinutes());
     assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(before.getUpdatedAt());
     assertThat(updated.getTaskId()).isEqualTo(before.getTaskId());
     assertThat(updated.getType()).isEqualTo(before.getType());
@@ -362,6 +401,7 @@ class WorkSessionRepositoryTest {
     WorkSession after = sut.findById(2, USER_A);
     assertThat(after.getEndedAt()).isEqualTo(before.getEndedAt());
     assertThat(after.getMinutes()).isEqualTo(before.getMinutes());
+    assertThat(after.getDurationSeconds()).isEqualTo(before.getDurationSeconds());
     assertThat(after.getUpdatedAt()).isEqualTo(before.getUpdatedAt());
   }
 
@@ -375,7 +415,7 @@ class WorkSessionRepositoryTest {
   }
 
   @Test
-  void 更新成功_startedAtとendedAtを指定すると差分からminutesを計算して更新できること() {
+  void 更新成功_startedAtとendedAtを指定すると差分からdurationSecondsを計算して更新できること() {
     // Arrange
     WorkSession before = sut.findById(2, USER_A);
     WorkSession workSession = new WorkSession();
@@ -383,7 +423,7 @@ class WorkSessionRepositoryTest {
     workSession.setTaskId(1);
     workSession.setMinutes(999);
     workSession.setStartedAt(LocalDateTime.of(2026, 1, 3, 9, 0));
-    workSession.setEndedAt(LocalDateTime.of(2026, 1, 3, 10, 15));
+    workSession.setEndedAt(LocalDateTime.of(2026, 1, 3, 10, 15, 30));
     workSession.setCreatedAt(LocalDateTime.of(2026, 1, 1, 0, 0));
     workSession.setUpdatedAt(LocalDateTime.of(2026, 1, 1, 0, 0));
     workSession.setType(WorkSessionType.MANUAL);
@@ -395,8 +435,9 @@ class WorkSessionRepositoryTest {
     assertThat(actual).isEqualTo(1);
     WorkSession updated = sut.findById(2, USER_A);
     assertThat(updated.getMinutes()).isEqualTo(75);
+    assertThat(updated.getDurationSeconds()).isEqualTo(4530);
     assertThat(updated.getStartedAt()).isEqualTo(LocalDateTime.of(2026, 1, 3, 9, 0));
-    assertThat(updated.getEndedAt()).isEqualTo(LocalDateTime.of(2026, 1, 3, 10, 15));
+    assertThat(updated.getEndedAt()).isEqualTo(LocalDateTime.of(2026, 1, 3, 10, 15, 30));
     assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(before.getUpdatedAt());
     assertThat(updated.getTaskId()).isEqualTo(before.getTaskId());
     assertThat(updated.getCreatedAt()).isEqualTo(before.getCreatedAt());
@@ -406,10 +447,15 @@ class WorkSessionRepositoryTest {
   @Test
   void 更新成功_minutesのみを指定すると受け取ったminutesを更新し日時はnullにできること() {
     // Arrange
-    WorkSession before = sut.findById(2, USER_A);
+    WorkSession manual = new WorkSession();
+    manual.setTaskId(2);
+    manual.setMinutes(40);
+    manual.setType(WorkSessionType.MANUAL);
+    sut.insert(manual);
+    WorkSession before = sut.findById(manual.getId(), USER_A);
     WorkSession workSession = new WorkSession();
-    workSession.setId(2);
-    workSession.setTaskId(1);
+    workSession.setId(manual.getId());
+    workSession.setTaskId(2);
     workSession.setMinutes(60);
     workSession.setCreatedAt(LocalDateTime.of(2026, 1, 1, 0, 0));
     workSession.setUpdatedAt(LocalDateTime.of(2026, 1, 1, 0, 0));
@@ -420,8 +466,9 @@ class WorkSessionRepositoryTest {
 
     // Assert
     assertThat(actual).isEqualTo(1);
-    WorkSession updated = sut.findById(2, USER_A);
+    WorkSession updated = sut.findById(manual.getId(), USER_A);
     assertThat(updated.getMinutes()).isEqualTo(60);
+    assertThat(updated.getDurationSeconds()).isEqualTo(3600);
     assertThat(updated.getStartedAt()).isNull();
     assertThat(updated.getEndedAt()).isNull();
     assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(before.getUpdatedAt());
@@ -531,6 +578,19 @@ class WorkSessionRepositoryTest {
 
     // Assert
     assertThat(actual).isZero();
+  }
+
+  private WorkSession insertTimerSession(int taskId, int seconds) {
+    WorkSession workSession = new WorkSession();
+    workSession.setTaskId(taskId);
+    workSession.setType(WorkSessionType.TIMER);
+    sut.insert(workSession);
+
+    LocalDateTime startedAt = LocalDateTime.of(2026, 1, 3, 9, 0);
+    workSession.setStartedAt(startedAt);
+    workSession.setEndedAt(startedAt.plusSeconds(seconds));
+    sut.update(workSession, USER_A);
+    return sut.findById(workSession.getId(), USER_A);
   }
 
 }

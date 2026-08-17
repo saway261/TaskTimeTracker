@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.data.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -34,9 +35,13 @@ public class WorkSession {
   private Integer taskId;
 
   @Schema(description = """
-      作業セッションの実績作業時間 終了状態のセッションにおいてはtypeがTIMERでもMANUALでも値を持つ
+      作業セッションの実績作業時間(分) DBで保持する秒数をセッション単位で切り捨てた表示用の値
       """, example = "15")
   private Integer minutes;
+
+  @JsonIgnore
+  @Schema(hidden = true)
+  private Long durationSeconds;
 
   @Schema(description = "作業セッション開始日時 typeがTIMERなら必ず値を持つ", example = "2026-01-01T09:00:00+09:00")
   private LocalDateTime startedAt;

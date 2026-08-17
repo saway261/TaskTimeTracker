@@ -241,7 +241,7 @@ public interface TaskRepository {
           END,
           actual_minutes_cached = CASE
               WHEN #{isFinished} THEN (
-                  SELECT COALESCE(SUM(minutes), 0)
+                  SELECT CAST(FLOOR(COALESCE(SUM(duration_seconds), 0) / 60.0) AS INTEGER)
                   FROM work_sessions
                   WHERE task_id = #{id}
               )
@@ -250,7 +250,7 @@ public interface TaskRepository {
           gap_minutes_cached = CASE
               WHEN #{isFinished} THEN (
                   (
-                      SELECT COALESCE(SUM(minutes), 0)
+                      SELECT CAST(FLOOR(COALESCE(SUM(duration_seconds), 0) / 60.0) AS INTEGER)
                       FROM work_sessions
                       WHERE task_id = #{id}
                   ) - estimated_minutes
@@ -262,7 +262,7 @@ public interface TaskRepository {
               WHEN estimated_minutes IS NULL OR estimated_minutes = 0 THEN NULL
               ELSE (
                   (
-                      SELECT COALESCE(SUM(minutes), 0)
+                      SELECT CAST(FLOOR(COALESCE(SUM(duration_seconds), 0) / 60.0) AS INTEGER)
                       FROM work_sessions
                       WHERE task_id = #{id}
                   ) - estimated_minutes

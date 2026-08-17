@@ -4,7 +4,7 @@ export type WorkSessionType = 'TIMER' | 'MANUAL'
 export interface WorkSession {
   id: number
   taskId: number
-  minutes: number | null // 稼働中TIMERは null
+  minutes: number | null // DB上の秒数をセッション単位で切り捨てた表示値。稼働中TIMERは null
   startedAt: string | null // MANUAL は null
   endedAt: string | null // 稼働中TIMERは null
   createdAt: string
