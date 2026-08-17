@@ -9,6 +9,8 @@ import com.kiborisaway.tasktimetracker.data.dto.auth.PasswordChangeRequest;
 import com.kiborisaway.tasktimetracker.data.entity.AppUser;
 import com.kiborisaway.tasktimetracker.exception.PasswordChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationException;
+import com.kiborisaway.tasktimetracker.repository.EmailChangeRequestRepository;
+import com.kiborisaway.tasktimetracker.repository.PasswordResetTokenRepository;
 import com.kiborisaway.tasktimetracker.repository.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -35,6 +37,10 @@ class PasswordChangeServiceTest {
   private PasswordPolicy passwordPolicy;
   @Mock
   private SessionInvalidationService sessionInvalidationService;
+  @Mock
+  private EmailChangeRequestRepository emailChangeRequestRepository;
+  @Mock
+  private PasswordResetTokenRepository passwordResetTokenRepository;
 
   private PasswordChangeService sut;
   private AppUser user;
@@ -42,10 +48,11 @@ class PasswordChangeServiceTest {
   @BeforeEach
   void setUp() {
     sut = new PasswordChangeService(
-        userRepository, passwordEncoder, passwordPolicy, sessionInvalidationService, CLOCK);
+        userRepository, passwordEncoder, passwordPolicy, sessionInvalidationService,
+        emailChangeRequestRepository, passwordResetTokenRepository, CLOCK);
     user = new AppUser(
         1, "user@example.com", "{bcrypt}current", true, false, null,
-        LocalDateTime.now(CLOCK), LocalDateTime.now(CLOCK));
+        LocalDateTime.now(CLOCK), LocalDateTime.now(CLOCK), LocalDateTime.now(CLOCK));
     when(userRepository.findById(1)).thenReturn(user);
   }
 
@@ -62,6 +69,10 @@ class PasswordChangeServiceTest {
 
     verify(userRepository).updatePassword(
         1, "{bcrypt}new", LocalDateTime.of(2026, 8, 14, 0, 0));
+    verify(emailChangeRequestRepository).invalidateAllForUser(
+        1, LocalDateTime.of(2026, 8, 14, 0, 0));
+    verify(passwordResetTokenRepository).invalidateAllForUser(
+        1, LocalDateTime.of(2026, 8, 14, 0, 0));
     verify(sessionInvalidationService).invalidateAll(1);
   }
 

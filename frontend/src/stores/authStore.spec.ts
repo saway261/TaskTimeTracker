@@ -11,6 +11,7 @@ const user = {
   id: 1,
   email: 'user@example.com',
   passwordChangeRequired: false,
+  emailVerified: true,
 }
 
 describe('authStore', () => {

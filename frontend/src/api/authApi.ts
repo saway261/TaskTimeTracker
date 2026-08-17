@@ -2,8 +2,13 @@ import { httpClient } from './httpClient'
 import type {
   AuthenticatedUserResponse,
   CsrfTokenResponse,
+  EmailChangeRequest,
   LoginRequest,
   PasswordChangeRequest,
+  PasswordResetConfirmRequest,
+  PasswordResetRequest,
+  PasswordResetRequestResponse,
+  PendingEmailResponse,
   RegisterRequest,
 } from '@/types/auth'
 
@@ -29,4 +34,28 @@ export function fetchMe() {
 
 export function changePassword(req: PasswordChangeRequest) {
   return httpClient.put<void>('/auth/password', req)
+}
+
+export function requestPasswordReset(req: PasswordResetRequest) {
+  return httpClient.post<PasswordResetRequestResponse>('/auth/password-reset-requests', req)
+}
+
+export function resetPassword(req: PasswordResetConfirmRequest) {
+  return httpClient.post<void>('/auth/password-resets', req)
+}
+
+export function verifyEmail(token: string) {
+  return httpClient.post<void>('/auth/email-verifications', { token })
+}
+
+export function resendVerificationEmail() {
+  return httpClient.post<void>('/auth/email-verifications/resend')
+}
+
+export function requestEmailChange(req: EmailChangeRequest) {
+  return httpClient.put<PendingEmailResponse>('/auth/email', req)
+}
+
+export function confirmEmailChange(token: string) {
+  return httpClient.post<void>('/auth/email-changes', { token })
 }

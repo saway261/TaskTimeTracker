@@ -29,4 +29,6 @@ public class AppUser {
   private LocalDateTime createdAt;
 
   private LocalDateTime updatedAt;
+
+  private LocalDateTime emailVerifiedAt;
 }

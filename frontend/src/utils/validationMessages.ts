@@ -29,11 +29,20 @@ const EXACT_MATCHES: Record<string, string> = {
   'authentication required': 'ログインが必要です。',
   forbidden: 'この操作は許可されていません。',
   'password change required': 'パスワードを変更してください。',
+  'email verification required': 'メールアドレスの確認が必要です。',
+  'email verification request is invalid or expired':
+    '確認リンクが無効か、有効期限が切れています。',
+  'email change request is invalid or expired':
+    'メールアドレス変更リンクが無効か、有効期限が切れています。',
+  'password reset request is invalid or expired':
+    'パスワード再設定リンクが無効か、有効期限が切れています。',
   'current password is incorrect': '現在のパスワードが正しくありません。',
   'new password must be different': '現在とは異なるパスワードを設定してください。',
+  'new email must be different': '現在とは異なるメールアドレスを入力してください。',
   'password does not meet policy':
     'パスワードは12文字以上、UTF-8換算で72バイト以内とし、メールアドレスとは異なる値を設定してください。',
   'too many failed attempts': '試行回数が上限に達しました。しばらく待ってからお試しください。',
+  'too many requests': '操作回数が上限に達しました。しばらく待ってからお試しください。',
 }
 
 // "size must be between 0 and 20" → 上限値だけ抜き出して組み立てる

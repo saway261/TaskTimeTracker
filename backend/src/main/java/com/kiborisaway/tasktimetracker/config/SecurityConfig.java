@@ -3,7 +3,7 @@ package com.kiborisaway.tasktimetracker.config;
 import com.kiborisaway.tasktimetracker.security.AbsoluteSessionTimeoutFilter;
 import com.kiborisaway.tasktimetracker.security.JsonAccessDeniedHandler;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
-import com.kiborisaway.tasktimetracker.security.PasswordChangeRequiredAuthorizationManager;
+import com.kiborisaway.tasktimetracker.security.RestrictedAccountAuthorizationManager;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Arrays;
@@ -46,7 +46,7 @@ public class SecurityConfig {
       JsonAccessDeniedHandler accessDeniedHandler,
       SecurityContextRepository securityContextRepository,
       AbsoluteSessionTimeoutFilter absoluteSessionTimeoutFilter,
-      PasswordChangeRequiredAuthorizationManager passwordChangeRequiredAuthorizationManager)
+      RestrictedAccountAuthorizationManager restrictedAccountAuthorizationManager)
       throws Exception {
     HttpSessionCsrfTokenRepository csrfTokenRepository = new HttpSessionCsrfTokenRepository();
     CsrfTokenRequestAttributeHandler csrfTokenRequestHandler =
@@ -61,14 +61,21 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/auth/csrf").permitAll()
             .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login")
-            .access(passwordChangeRequiredAuthorizationManager
+            .access(restrictedAccountAuthorizationManager
                 ::authorizePublicAuthenticationEndpoint)
             .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
             .requestMatchers(HttpMethod.PUT, "/auth/password").authenticated()
             .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
-            // パスワード変更成功時に全セッションを失効させるため、古いPrincipalの
-            // passwordChangeRequiredが変更後も残り続けることはありません。
-            .anyRequest().access(passwordChangeRequiredAuthorizationManager))
+            .requestMatchers(HttpMethod.POST, "/auth/email-verifications").permitAll()
+            .requestMatchers(HttpMethod.POST, "/auth/email-verifications/resend")
+            .authenticated()
+            .requestMatchers(HttpMethod.PUT, "/auth/email").authenticated()
+            .requestMatchers(HttpMethod.POST, "/auth/email-changes").permitAll()
+            .requestMatchers(HttpMethod.POST, "/auth/password-reset-requests").permitAll()
+            .requestMatchers(HttpMethod.POST, "/auth/password-resets").permitAll()
+            // パスワード変更・メールアドレス確認完了時に全セッションを失効させるため、古いPrincipalの
+            // passwordChangeRequired/emailVerifiedが変更後も残り続けることはありません。
+            .anyRequest().access(restrictedAccountAuthorizationManager))
         .exceptionHandling(exceptions -> exceptions
             .authenticationEntryPoint(authenticationEntryPoint)
             .accessDeniedHandler(accessDeniedHandler))

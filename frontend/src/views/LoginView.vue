@@ -21,6 +21,9 @@ const canSubmit = computed(() => email.value.trim() !== '' && password.value !==
 
 function redirectAfterLogin() {
   if (authStore.currentUser?.passwordChangeRequired) return '/password-change'
+  if (authStore.currentUser && !authStore.currentUser.emailVerified) {
+    return '/email-verification-pending'
+  }
 
   const redirect = route.query.redirect
   if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
@@ -74,8 +77,13 @@ async function handleSubmit() {
       </BaseButton>
     </form>
     <template #footer>
-      アカウントをお持ちでない方は
-      <RouterLink to="/register">ユーザー登録</RouterLink>
+      <div class="auth-links">
+        <RouterLink to="/password-reset-request">パスワードをお忘れですか</RouterLink>
+        <span>
+          アカウントをお持ちでない方は
+          <RouterLink to="/register">ユーザー登録</RouterLink>
+        </span>
+      </div>
     </template>
   </AuthCard>
 </template>
@@ -85,5 +93,11 @@ async function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 1em;
+}
+
+.auth-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
 }
 </style>

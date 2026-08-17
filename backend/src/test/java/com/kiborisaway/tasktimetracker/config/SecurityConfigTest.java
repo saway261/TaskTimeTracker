@@ -5,16 +5,23 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kiborisaway.tasktimetracker.data.entity.AppUser;
+import com.kiborisaway.tasktimetracker.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 
 @SpringBootTest(properties = {
@@ -29,6 +36,9 @@ class SecurityConfigTest {
 
   @Autowired
   private PasswordEncoder passwordEncoder;
+
+  @Autowired
+  private UserRepository userRepository;
 
   @Test
   void パスワードエンコード_BCryptプレフィックスとstrength12を使用すること() {
@@ -113,6 +123,66 @@ class SecurityConfigTest {
   }
 
   @Test
+  void 未確認ユーザー_業務APIで403のJSONを返すこと() throws Exception {
+    Cookie session = register("unverified-user@example.com", "register-passphrase");
+
+    mockMvc.perform(get("/projects").cookie(session))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("email verification required"));
+  }
+
+  @Test
+  void 両制限同時_パスワード変更を優先すること() throws Exception {
+    Cookie session = registerWithTemporaryPassword(
+        "both-restricted@example.com", "temporary-passphrase");
+
+    mockMvc.perform(get("/projects").cookie(session))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("password change required"));
+  }
+
+  @Test
+  void 変更必須ユーザー_確認メール再送URLは許可されること() throws Exception {
+    Cookie session = registerWithTemporaryPassword(
+        "resend-restricted@example.com", "temporary-passphrase");
+
+    mockMvc.perform(post("/auth/email-verifications/resend").cookie(session).with(csrf()))
+        .andExpect(status().isNoContent());
+  }
+
+  @Test
+  void 変更必須ユーザー_メールアドレス変更要求URLは許可されること() throws Exception {
+    Cookie session = registerWithTemporaryPassword(
+        "change-restricted@example.com", "temporary-passphrase");
+
+    mockMvc.perform(put("/auth/email")
+            .cookie(session)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"newEmail\":\"other@example.com\",\"currentPassword\":\"wrong\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("current password is incorrect"));
+  }
+
+  @Test
+  void メール確認実行URL_認証なしで到達できること() throws Exception {
+    mockMvc.perform(post("/auth/email-verifications")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"token\":\"invalid\"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void メール変更確定URL_認証なしで到達できること() throws Exception {
+    mockMvc.perform(post("/auth/email-changes")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"token\":\"invalid\"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void 本番Cookie_安全な属性と30日の有効期間を設定しDomainを指定しないこと() throws Exception {
     mockMvc.perform(get("/auth/csrf").secure(true))
         .andExpect(status().isOk())
@@ -125,5 +195,32 @@ class SecurityConfigTest {
                 org.hamcrest.Matchers.containsString("HttpOnly"),
                 org.hamcrest.Matchers.containsString("SameSite=Lax"),
                 org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Domain=")))));
+  }
+
+  private Cookie register(String email, String password) throws Exception {
+    MvcResult result = mockMvc.perform(post("/auth/register")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
+        .andExpect(status().isCreated())
+        .andReturn();
+    return result.getResponse().getCookie("JSESSIONID");
+  }
+
+  private Cookie registerWithTemporaryPassword(String email, String temporaryPassword)
+      throws Exception {
+    register(email, "original-passphrase");
+    AppUser user = userRepository.findByEmail(email);
+    userRepository.updateTemporaryPassword(
+        user.getId(), passwordEncoder.encode(temporaryPassword),
+        LocalDateTime.now().plusHours(72), LocalDateTime.now());
+
+    MvcResult login = mockMvc.perform(post("/auth/login")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"email\":\"" + email + "\",\"password\":\"" + temporaryPassword + "\"}"))
+        .andExpect(status().isOk())
+        .andReturn();
+    return login.getResponse().getCookie("JSESSIONID");
   }
 }

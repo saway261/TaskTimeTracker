@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import BaseButton from '@/components/common/BaseButton.vue'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
@@ -12,6 +11,36 @@ const router = useRouter()
 const authStore = useAuthStore()
 const notification = useNotificationStore()
 const loggingOut = ref(false)
+const menuOpen = ref(false)
+const menuRoot = ref<HTMLElement | null>(null)
+const menuButton = ref<HTMLButtonElement | null>(null)
+
+function toggleMenu() {
+  menuOpen.value = !menuOpen.value
+}
+
+function closeMenu() {
+  menuOpen.value = false
+}
+
+async function closeMenuAndRestoreFocus() {
+  closeMenu()
+  await nextTick()
+  menuButton.value?.focus()
+}
+
+function handlePointerDown(event: PointerEvent) {
+  if (menuOpen.value && !menuRoot.value?.contains(event.target as Node)) {
+    closeMenu()
+  }
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && menuOpen.value) {
+    event.preventDefault()
+    void closeMenuAndRestoreFocus()
+  }
+}
 
 // RouterLinkの既定のactiveクラスは完全一致以外にも付くが、aria-currentはexact一致時しか付かない。
 // タスク詳細等の配下ルートでも「タスク管理」が現在地だと分かるよう、パスの前方一致で自前判定する。
@@ -19,6 +48,7 @@ const isTaskManagementActive = computed(() => route.path.startsWith('/projects')
 const isReflectionActive = computed(() => route.path.startsWith('/reflections'))
 
 async function logout() {
+  closeMenu()
   loggingOut.value = true
   try {
     await authStore.logout()
@@ -30,6 +60,23 @@ async function logout() {
     loggingOut.value = false
   }
 }
+
+watch(
+  () => authStore.isAuthenticated,
+  (isAuthenticated) => {
+    if (!isAuthenticated) closeMenu()
+  },
+)
+
+onMounted(() => {
+  document.addEventListener('pointerdown', handlePointerDown)
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handlePointerDown)
+  window.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
@@ -56,14 +103,57 @@ async function logout() {
       </nav>
     </div>
     <div class="header-actions">
-      <template v-if="authStore.isAuthenticated">
-        <span class="user-email">{{ authStore.currentUser?.email }}</span>
-        <RouterLink to="/password-change" class="password-link">パスワード変更</RouterLink>
-        <BaseButton variant="secondary" :disabled="loggingOut" @click="logout">
-          {{ loggingOut ? 'ログアウト中…' : 'ログアウト' }}
-        </BaseButton>
-      </template>
       <ThemeToggle class="theme-toggle-slot" />
+      <div v-if="authStore.isAuthenticated" ref="menuRoot" class="user-menu">
+        <button
+          ref="menuButton"
+          type="button"
+          class="user-menu-trigger"
+          aria-label="ユーザーメニューを開く"
+          aria-haspopup="menu"
+          :aria-expanded="menuOpen"
+          aria-controls="user-menu-panel"
+          @click="toggleMenu"
+        >
+          <svg class="user-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10m0 2c-5.05 0-9 2.55-9 5.8C3 21.02 3.98 22 5.2 22h13.6c1.22 0 2.2-.98 2.2-2.2 0-3.25-3.95-5.8-9-5.8"
+            />
+          </svg>
+        </button>
+
+        <div v-if="menuOpen" id="user-menu-panel" class="user-menu-panel" role="menu">
+          <div class="user-menu-identity">
+            <span class="identity-label">ログイン中</span>
+            <span class="user-email" :title="authStore.currentUser?.email">
+              {{ authStore.currentUser?.email }}
+            </span>
+          </div>
+          <div class="user-menu-separator" role="separator"></div>
+          <RouterLink to="/email-change" class="user-menu-item" role="menuitem" @click="closeMenu">
+            メールアドレス変更
+          </RouterLink>
+          <RouterLink
+            to="/password-change"
+            class="user-menu-item"
+            role="menuitem"
+            @click="closeMenu"
+          >
+            パスワード変更
+          </RouterLink>
+          <div class="user-menu-separator" role="separator"></div>
+          <button
+            type="button"
+            class="user-menu-item logout-button"
+            role="menuitem"
+            :disabled="loggingOut"
+            @click="logout"
+          >
+            {{ loggingOut ? 'ログアウト中…' : 'ログアウト' }}
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 </template>
@@ -121,6 +211,68 @@ async function logout() {
   gap: 0.8em;
 }
 
+.user-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.user-menu-trigger {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-surface-muted);
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.user-menu-trigger:hover,
+.user-menu-trigger[aria-expanded='true'] {
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-muted);
+}
+
+.user-menu-trigger:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.user-icon {
+  width: 23px;
+  height: 23px;
+}
+
+.user-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.6em);
+  right: 0;
+  z-index: 100;
+  width: min(320px, calc(100vw - 2em));
+  padding: 0.5em;
+  border: 1px solid var(--color-surface-muted);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+}
+
+.user-menu-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  padding: 0.65em 0.75em;
+}
+
+.identity-label {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
 .user-email {
   max-width: 240px;
   overflow: hidden;
@@ -130,9 +282,44 @@ async function logout() {
   white-space: nowrap;
 }
 
-.password-link {
+.user-menu-separator {
+  height: 1px;
+  margin: 0.35em 0;
+  background-color: var(--color-surface-muted);
+}
+
+.user-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0.55em 0.75em;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
   color: var(--color-text);
   font-size: 0.9rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.user-menu-item:hover {
+  background-color: var(--color-surface-muted);
+}
+
+.user-menu-item:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.logout-button {
+  color: var(--color-danger);
+}
+
+.logout-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .brand {
@@ -155,10 +342,6 @@ async function logout() {
   .header-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
-  }
-
-  .user-email {
-    display: none;
   }
 }
 </style>

@@ -37,6 +37,7 @@ describe('httpClient authentication interceptors', () => {
       id: 1,
       email: 'user@example.com',
       passwordChangeRequired: false,
+      emailVerified: true,
     }
     await router.push('/projects')
   })
@@ -83,14 +84,31 @@ describe('httpClient authentication interceptors', () => {
     expect(second.config.headers.get('X-CSRF-TOKEN')).toBe('shared-token')
   })
 
-  it('clears authentication and navigates to login after a protected 401', async () => {
+  it('clears authentication and navigates to login after a protected API returns 401', async () => {
     const authStore = useAuthStore()
     authStore.currentUser = {
       id: 1,
       email: 'user@example.com',
       passwordChangeRequired: false,
+      emailVerified: true,
     }
     authStore.csrfToken = 'csrf-token'
+    httpClient.defaults.adapter = async (config) => {
+      throw unauthorized(config)
+    }
+
+    await expect(httpClient.get('/projects')).rejects.toMatchObject({ status: 401 })
+
+    expect(authStore.currentUser).toBeNull()
+    expect(authStore.csrfToken).toBeNull()
+    await expect.poll(() => router.currentRoute.value.path).toBe('/login')
+  })
+
+  it('keeps the current public page when the session probe returns 401', async () => {
+    const authStore = useAuthStore()
+    authStore.currentUser = null
+    authStore.csrfToken = null
+    await router.push('/password-reset?token=password-reset-token')
     httpClient.defaults.adapter = async (config) => {
       throw unauthorized(config)
     }
@@ -98,8 +116,7 @@ describe('httpClient authentication interceptors', () => {
     await expect(httpClient.get('/auth/me')).rejects.toMatchObject({ status: 401 })
 
     expect(authStore.currentUser).toBeNull()
-    expect(authStore.csrfToken).toBeNull()
-    await expect.poll(() => router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.fullPath).toBe('/password-reset?token=password-reset-token')
   })
 
   it('does not clear authentication or navigate after a login 401', async () => {
@@ -108,6 +125,7 @@ describe('httpClient authentication interceptors', () => {
       id: 1,
       email: 'user@example.com',
       passwordChangeRequired: false,
+      emailVerified: true,
     }
     authStore.csrfToken = 'csrf-token'
     httpClient.defaults.adapter = async (config) => {

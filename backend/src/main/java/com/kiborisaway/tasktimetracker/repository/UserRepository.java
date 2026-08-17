@@ -59,4 +59,28 @@ public interface UserRepository {
       @Param("passwordHash") String passwordHash,
       @Param("expiresAt") LocalDateTime expiresAt,
       @Param("updatedAt") LocalDateTime updatedAt);
+
+  @Update("""
+      UPDATE app_users
+      SET email_verified_at = #{verifiedAt},
+          updated_at = #{updatedAt}
+      WHERE id = #{userId}
+      """)
+  int updateEmailVerified(
+      @Param("userId") int userId,
+      @Param("verifiedAt") LocalDateTime verifiedAt,
+      @Param("updatedAt") LocalDateTime updatedAt);
+
+  @Update("""
+      UPDATE app_users
+      SET email = #{email},
+          email_verified_at = #{verifiedAt},
+          updated_at = #{updatedAt}
+      WHERE id = #{userId}
+      """)
+  int updateEmail(
+      @Param("userId") int userId,
+      @Param("email") String email,
+      @Param("verifiedAt") LocalDateTime verifiedAt,
+      @Param("updatedAt") LocalDateTime updatedAt);
 }

@@ -1,12 +1,16 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.EmailChangeNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.EmailChangeRequestInvalidException;
 import com.kiborisaway.tasktimetracker.exception.EmailUnavailableException;
+import com.kiborisaway.tasktimetracker.exception.EmailVerificationInvalidException;
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationException;
 import com.kiborisaway.tasktimetracker.exception.PasswordChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.PasswordResetInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -254,6 +258,34 @@ public class GlobalExceptionHandler {
       PasswordChangeNotAllowedException.class)
   public ResponseEntity<ErrorResponse> handlePasswordChangeNotAllowedException(
       PasswordChangeNotAllowedException ex) {
+    return ResponseEntity.badRequest()
+        .body(new ErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), List.of()));
+  }
+
+  @org.springframework.web.bind.annotation.ExceptionHandler(EmailVerificationInvalidException.class)
+  public ResponseEntity<ErrorResponse> handleEmailVerificationInvalidException(
+      EmailVerificationInvalidException ex) {
+    return ResponseEntity.badRequest()
+        .body(new ErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), List.of()));
+  }
+
+  @org.springframework.web.bind.annotation.ExceptionHandler(EmailChangeRequestInvalidException.class)
+  public ResponseEntity<ErrorResponse> handleEmailChangeRequestInvalidException(
+      EmailChangeRequestInvalidException ex) {
+    return ResponseEntity.badRequest()
+        .body(new ErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), List.of()));
+  }
+
+  @org.springframework.web.bind.annotation.ExceptionHandler(EmailChangeNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleEmailChangeNotAllowedException(
+      EmailChangeNotAllowedException ex) {
+    return ResponseEntity.badRequest()
+        .body(new ErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), List.of()));
+  }
+
+  @org.springframework.web.bind.annotation.ExceptionHandler(PasswordResetInvalidException.class)
+  public ResponseEntity<ErrorResponse> handlePasswordResetInvalidException(
+      PasswordResetInvalidException ex) {
     return ResponseEntity.badRequest()
         .body(new ErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), List.of()));
   }

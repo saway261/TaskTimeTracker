@@ -10,6 +10,7 @@ import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationExceptio
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.security.AbsoluteSessionTimeoutFilter;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
+import com.kiborisaway.tasktimetracker.security.EmailSendRateLimiter;
 import com.kiborisaway.tasktimetracker.security.LoginRateLimiter;
 import com.kiborisaway.tasktimetracker.service.PasswordChangeService;
 import com.kiborisaway.tasktimetracker.service.UserService;
@@ -47,6 +48,7 @@ public class AuthController {
   private final SecurityContextRepository securityContextRepository;
   private final PasswordChangeService passwordChangeService;
   private final LoginRateLimiter loginRateLimiter;
+  private final EmailSendRateLimiter emailSendRateLimiter;
   private final Clock clock;
 
   public AuthController(
@@ -55,12 +57,14 @@ public class AuthController {
       SecurityContextRepository securityContextRepository,
       PasswordChangeService passwordChangeService,
       LoginRateLimiter loginRateLimiter,
+      EmailSendRateLimiter emailSendRateLimiter,
       Clock clock) {
     this.userService = userService;
     this.authenticationManager = authenticationManager;
     this.securityContextRepository = securityContextRepository;
     this.passwordChangeService = passwordChangeService;
     this.loginRateLimiter = loginRateLimiter;
+    this.emailSendRateLimiter = emailSendRateLimiter;
     this.clock = clock;
   }
 
@@ -70,10 +74,15 @@ public class AuthController {
   }
 
   @PostMapping("/register")
-  public ResponseEntity<AuthenticatedUserResponse> register(
+  public ResponseEntity<?> register(
       @RequestBody @Valid RegisterRequest requestBody,
       HttpServletRequest request,
       HttpServletResponse response) {
+    String clientAddress = request.getRemoteAddr();
+    if (emailSendRateLimiter.isRegistrationBlocked(clientAddress)) {
+      return tooManyRequests("too many requests");
+    }
+    emailSendRateLimiter.recordRegistrationAttempt(clientAddress);
     AuthenticatedUser user = userService.register(requestBody);
     Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
         user, null, user.getAuthorities());
@@ -159,10 +168,11 @@ public class AuthController {
   }
 
   private ResponseEntity<ErrorResponse> tooManyRequests() {
+    return tooManyRequests("too many failed attempts");
+  }
+
+  private ResponseEntity<ErrorResponse> tooManyRequests(String message) {
     return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(
-        new ErrorResponse(
-            HttpStatus.TOO_MANY_REQUESTS,
-            "too many failed attempts",
-            List.of()));
+        new ErrorResponse(HttpStatus.TOO_MANY_REQUESTS, message, List.of()));
   }
 }

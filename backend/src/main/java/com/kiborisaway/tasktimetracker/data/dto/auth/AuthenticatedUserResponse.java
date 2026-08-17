@@ -5,9 +5,11 @@ import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 public record AuthenticatedUserResponse(
     int id,
     String email,
-    boolean passwordChangeRequired) {
+    boolean passwordChangeRequired,
+    boolean emailVerified) {
 
   public AuthenticatedUserResponse(AuthenticatedUser user) {
-    this(user.getUserId(), user.getEmail(), user.isPasswordChangeRequired());
+    this(user.getUserId(), user.getEmail(), user.isPasswordChangeRequired(),
+        user.isEmailVerified());
   }
 }

@@ -21,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
@@ -45,6 +46,9 @@ class AuthControllerIntegrationTest {
   @Autowired
   private SessionRepository<? extends Session> sessionRepository;
 
+  @Autowired
+  private JdbcTemplate jdbcTemplate;
+
   @Test
   void CSRF取得_トークンとヘッダー名を返すこと() throws Exception {
     mockMvc.perform(get("/auth/csrf"))
@@ -64,6 +68,7 @@ class AuthControllerIntegrationTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.email").value("new-user@example.com"))
         .andExpect(jsonPath("$.passwordChangeRequired").value(false))
+        .andExpect(jsonPath("$.emailVerified").value(false))
         .andReturn();
 
     AppUser saved = userRepository.findByEmail("new-user@example.com");
@@ -75,7 +80,25 @@ class AuthControllerIntegrationTest {
     mockMvc.perform(get("/auth/me").cookie(result.getResponse().getCookie("JSESSIONID")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(saved.getId()))
-        .andExpect(jsonPath("$.email").value("new-user@example.com"));
+        .andExpect(jsonPath("$.email").value("new-user@example.com"))
+        .andExpect(jsonPath("$.emailVerified").value(false));
+  }
+
+  @Test
+  void 登録成功_確認トークンが発行されること() throws Exception {
+    mockMvc.perform(post("/auth/register")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"email":"verification-target@example.com","password":"register-passphrase"}
+                """))
+        .andExpect(status().isCreated());
+
+    AppUser saved = userRepository.findByEmail("verification-target@example.com");
+    Integer tokenCount = jdbcTemplate.queryForObject(
+        "SELECT COUNT(*) FROM email_verification_tokens WHERE user_id = ?",
+        Integer.class, saved.getId());
+    assertThat(tokenCount).isEqualTo(1);
   }
 
   @Test
@@ -118,6 +141,7 @@ class AuthControllerIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1))
         .andExpect(jsonPath("$.email").value("user-a@example.com"))
+        .andExpect(jsonPath("$.emailVerified").value(true))
         .andReturn();
 
     Cookie authenticatedCookie = login.getResponse().getCookie("JSESSIONID");

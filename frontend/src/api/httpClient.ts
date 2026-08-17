@@ -41,24 +41,28 @@ httpClient.interceptors.request.use(async (config) => {
   return config
 })
 
-function isLoginRequest(error: AxiosError) {
+function requestPathEndsWith(error: AxiosError, expectedPath: string) {
   const url = error.config?.url
   if (!url) return false
 
   try {
     const baseUrl = error.config?.baseURL ?? window.location.origin
-    return new URL(url, new URL(baseUrl, window.location.origin)).pathname.endsWith('/auth/login')
+    return new URL(url, new URL(baseUrl, window.location.origin)).pathname.endsWith(expectedPath)
   } catch {
-    return url.split(/[?#]/, 1)[0].endsWith('/auth/login')
+    return url.split(/[?#]/, 1)[0].endsWith(expectedPath)
   }
 }
 
 httpClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    if (error.response?.status === 401 && !isLoginRequest(error)) {
+    const isLoginRequest = requestPathEndsWith(error, '/auth/login')
+    const isSessionProbeRequest = requestPathEndsWith(error, '/auth/me')
+
+    if (error.response?.status === 401 && !isLoginRequest) {
       useAuthStore().clear()
-      if (router.currentRoute.value.path !== '/login') {
+      // 初期化時の /auth/me 401 は通常の未ログイン判定。公開ページから遷移させない。
+      if (!isSessionProbeRequest && router.currentRoute.value.path !== '/login') {
         void router.push('/login')
       }
     }
