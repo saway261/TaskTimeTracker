@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.repository;
 
+import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import java.util.List;
 import org.apache.ibatis.annotations.Delete;
@@ -11,6 +12,28 @@ import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface WorkSessionRepository {
+
+  /**
+   * ログインユーザーが所有する全タスクから、未終了タイマーを取得します。
+   * タスク詳細への導線を組み立てられるよう親IDとタスク名も返します。
+   */
+  @Select("""
+      SELECT ws.id AS session_id,
+             t.id AS task_id,
+             t.title AS task_title,
+             p.id AS project_id,
+             t.task_group_id,
+             ws.started_at
+      FROM work_sessions ws
+      JOIN tasks t ON ws.task_id = t.id
+      LEFT JOIN task_groups tg ON tg.id = t.task_group_id
+      JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
+      WHERE ws.type = 'TIMER'
+        AND ws.ended_at IS NULL
+        AND p.user_id = #{userId}
+      ORDER BY ws.started_at, ws.id
+      """)
+  List<ActiveTimerResponse> findAllActiveByUserId(int userId);
 
   /**
    * 指定したタスクに紐づく作業セッションの作業時間合計を取得します。所有者が一致するプロジェクトのみを対象とします。

@@ -24,3 +24,12 @@ export interface WorkSessionUpdateRequest {
   startedAt?: string // TIMER 必須（startedAt/endedAt はセットで必須）
   endedAt?: string // TIMER 必須
 }
+
+export interface ActiveTimer {
+  sessionId: number
+  taskId: number
+  taskTitle: string
+  projectId: number
+  taskGroupId: number | null
+  startedAt: string
+}

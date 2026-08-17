@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSessionType;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
@@ -42,6 +43,18 @@ class WorkSessionServiceTest {
 
   @InjectMocks
   private WorkSessionService sut;
+
+  @Test
+  void 稼働中タイマー一覧取得成功_ログインユーザーを指定してリポジトリを呼び出すこと() {
+    ActiveTimerResponse timer = new ActiveTimerResponse();
+    timer.setSessionId(1);
+    when(repository.findAllActiveByUserId(USER_ID)).thenReturn(List.of(timer));
+
+    List<ActiveTimerResponse> actual = sut.getAllActive(USER_ID);
+
+    assertThat(actual).containsExactly(timer);
+    verify(repository).findAllActiveByUserId(USER_ID);
+  }
 
   @Test
   void タスク作業時間合計取得成功_リポジトリのタスクID指定合計取得を呼び出すこと() {

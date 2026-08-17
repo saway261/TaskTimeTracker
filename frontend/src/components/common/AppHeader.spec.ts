@@ -4,11 +4,13 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as authApi from '@/api/authApi'
+import * as workSessionsApi from '@/api/workSessionsApi'
 import { router } from '@/router'
 import { useAuthStore } from '@/stores/authStore'
 import AppHeader from './AppHeader.vue'
 
 vi.mock('@/api/authApi')
+vi.mock('@/api/workSessionsApi')
 
 const user = {
   id: 1,
@@ -27,6 +29,7 @@ describe('AppHeader user menu', () => {
     const authStore = useAuthStore()
     authStore.currentUser = user
     authStore.initialized = true
+    vi.mocked(workSessionsApi.fetchActiveTimers).mockResolvedValue({ data: [] } as never)
     await router.push('/projects')
   })
 

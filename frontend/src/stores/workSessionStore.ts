@@ -8,6 +8,7 @@ import type {
 import type { ApiError } from '@/types/apiError'
 import { sortById } from '@/utils/sort'
 import { toDatetimeLocalValue } from '@/utils/datetimeLocal'
+import { useActiveTimerStore } from '@/stores/activeTimerStore'
 
 export const useWorkSessionStore = defineStore('workSession', {
   state: () => ({
@@ -60,6 +61,9 @@ export const useWorkSessionStore = defineStore('workSession', {
       const res = await workSessionsApi.create(taskId, req)
       this.workSessions = sortById([...this.workSessions, res.data])
       this.updateActiveSession()
+      const activeTimerStore = useActiveTimerStore()
+      activeTimerStore.markTimerStarted()
+      void activeTimerStore.fetchActiveTimers().catch(() => {})
       return res.data
     },
 
@@ -70,6 +74,9 @@ export const useWorkSessionStore = defineStore('workSession', {
         this.workSessions[idx] = res.data
       }
       this.updateActiveSession()
+      const activeTimerStore = useActiveTimerStore()
+      activeTimerStore.markTimerStopped(workSessionId)
+      void activeTimerStore.fetchActiveTimers().catch(() => {})
       return res.data
     },
 

@@ -1,9 +1,14 @@
 import { httpClient } from './httpClient'
 import type {
+  ActiveTimer,
   WorkSession,
   WorkSessionCreateRequest,
   WorkSessionUpdateRequest,
 } from '@/types/workSession'
+
+export function fetchActiveTimers() {
+  return httpClient.get<ActiveTimer[]>('/work-sessions/active')
+}
 
 export function fetchAllInTask(taskId: number) {
   return httpClient.get<WorkSession[]>(`/tasks/${taskId}/work-sessions`)

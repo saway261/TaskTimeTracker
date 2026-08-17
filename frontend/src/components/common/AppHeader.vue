@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
+import ActiveTimerMenu from '@/components/common/ActiveTimerMenu.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import type { ApiError } from '@/types/apiError'
@@ -103,6 +104,7 @@ onBeforeUnmount(() => {
       </nav>
     </div>
     <div class="header-actions">
+      <ActiveTimerMenu v-if="authStore.isAuthenticated" />
       <ThemeToggle class="theme-toggle-slot" />
       <div v-if="authStore.isAuthenticated" ref="menuRoot" class="user-menu">
         <button

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
+import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSessionType;
 import java.time.Duration;
@@ -22,6 +23,38 @@ class WorkSessionRepositoryTest {
 
   @Autowired
   private WorkSessionRepository sut;
+
+  @Test
+  void 稼働中タイマー一覧取得_所有する全タスクの未終了タイマーと親情報を取得できること() {
+    // Arrange: データセットにはタスク1の稼働中タイマーがあり、別の直下タスクにも追加する。
+    WorkSession another = new WorkSession();
+    another.setTaskId(4);
+    another.setType(WorkSessionType.TIMER);
+    sut.insert(another);
+
+    // Act
+    List<ActiveTimerResponse> actual = sut.findAllActiveByUserId(USER_A);
+
+    // Assert
+    assertThat(actual)
+        .extracting(
+            ActiveTimerResponse::getTaskId,
+            ActiveTimerResponse::getTaskTitle,
+            ActiveTimerResponse::getProjectId,
+            ActiveTimerResponse::getTaskGroupId)
+        .containsExactly(
+            tuple(1, "カスタム例外作成", 1, 1),
+            tuple(4, "画面設計", 1, null));
+    assertThat(actual).allSatisfy(timer -> {
+      assertThat(timer.getSessionId()).isPositive();
+      assertThat(timer.getStartedAt()).isNotNull();
+    });
+  }
+
+  @Test
+  void 稼働中タイマー一覧取得_他ユーザーのタイマーを返さないこと() {
+    assertThat(sut.findAllActiveByUserId(USER_B)).isEmpty();
+  }
 
   @Test
   void 合計取得_指定したタスクIDに紐づく作業セッションの合計分を取得できること() {
