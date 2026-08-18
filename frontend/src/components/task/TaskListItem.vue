@@ -235,4 +235,25 @@ const showQuickActions = ref(false)
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
+
+@media (max-width: 640px) {
+  .drag-handle,
+  .label,
+  .estimate,
+  .status {
+    display: none;
+  }
+
+  .task-row-wrapper {
+    gap: 0;
+  }
+
+  .task-row {
+    padding: 0.75em 0.8em;
+  }
+
+  .menu-button {
+    width: 2.5em;
+  }
+}
 </style>

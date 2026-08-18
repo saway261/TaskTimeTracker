@@ -40,6 +40,30 @@ describe('MemoList', () => {
     expect(wrapper.get('.add-memo').text()).toContain('メモを追加')
   })
 
+  it('2行目以降のメモを折りたたみ、追加ボタンは常に表示する', async () => {
+    const memos = [
+      { id: 1, comment: '1件目' },
+      { id: 2, comment: '2件目' },
+      { id: 3, comment: '3件目' },
+    ]
+    const { wrapper } = mountMemoList(undefined, memos)
+    const notes = wrapper.findAll<HTMLElement>('.memo-note')
+    Object.defineProperty(notes[0].element, 'offsetTop', { configurable: true, value: 0 })
+    Object.defineProperty(notes[1].element, 'offsetTop', { configurable: true, value: 0 })
+    Object.defineProperty(notes[2].element, 'offsetTop', { configurable: true, value: 90 })
+
+    window.dispatchEvent(new Event('resize'))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.memo-items').classes()).toContain('collapsed')
+    expect(wrapper.get('.memo-expand').text()).toBe('さらに表示')
+    expect(wrapper.find('.add-memo').exists()).toBe(true)
+
+    await wrapper.get('.memo-expand').trigger('click')
+    expect(wrapper.get('.memo-items').classes()).not.toContain('collapsed')
+    expect(wrapper.get('.memo-expand').text()).toBe('閉じる')
+  })
+
   it('追加ボタンからモーダルを開き、メモ登録後に閉じる', async () => {
     const { wrapper, onCreate } = mountMemoList()
 

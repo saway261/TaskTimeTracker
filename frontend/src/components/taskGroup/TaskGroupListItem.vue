@@ -409,12 +409,6 @@ async function handleCreateTask(payload: {
   align-self: center;
 }
 
-@media (max-width: 640px) {
-  .inline-add-task {
-    display: none;
-  }
-}
-
 .row-header:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: -2px;
@@ -504,5 +498,37 @@ async function handleCreateTask(payload: {
   margin: 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .inline-add-task,
+  .task-group-header-row > .drag-handle,
+  .label,
+  .estimate,
+  .status {
+    display: none;
+  }
+
+  .task-group-header-row,
+  .card-header {
+    gap: 0;
+  }
+
+  .row-header {
+    gap: 0.45em;
+    padding: 0.75em 0.8em;
+  }
+
+  .menu-button {
+    width: 2.5em;
+  }
+
+  .description {
+    padding: 0 0.8em 0.8em;
+  }
+
+  .child-tasks {
+    padding-left: 0.75em;
+  }
 }
 </style>

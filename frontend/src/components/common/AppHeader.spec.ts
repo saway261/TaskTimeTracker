@@ -63,6 +63,30 @@ describe('AppHeader user menu', () => {
     wrapper.unmount()
   })
 
+  it('ハンバーガーメニューからタスク管理と振り返りへ移動できる', async () => {
+    const wrapper = mount(AppHeader, {
+      global: { plugins: [pinia, router] },
+    })
+    const trigger = wrapper.get('.mobile-nav-trigger')
+
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('.mobile-nav-panel').exists()).toBe(false)
+
+    await trigger.trigger('click')
+
+    const links = wrapper.findAll('.mobile-nav-item')
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(links).toHaveLength(2)
+    expect(links[0].text()).toBe('タスク管理')
+    expect(links[0].attributes('href')).toBe('/projects?isFinished=false')
+    expect(links[1].text()).toBe('振り返り')
+    expect(links[1].attributes('href')).toBe('/reflections')
+
+    await links[1].trigger('click')
+    expect(wrapper.find('.mobile-nav-panel').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('closes with Escape and restores focus to the user icon', async () => {
     const wrapper = mount(AppHeader, {
       attachTo: document.body,
