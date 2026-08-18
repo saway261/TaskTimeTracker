@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
       <RouterLink to="/projects" class="brand">Task Time Tracker</RouterLink>
       <nav class="main-nav" aria-label="メインナビゲーション">
         <RouterLink
-          to="/projects"
+          to="/projects?isFinished=false"
           class="nav-link"
           :class="{ active: isTaskManagementActive }"
           :aria-current="isTaskManagementActive ? 'page' : undefined"

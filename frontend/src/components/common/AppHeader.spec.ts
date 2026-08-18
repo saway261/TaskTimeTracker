@@ -54,6 +54,15 @@ describe('AppHeader user menu', () => {
     wrapper.unmount()
   })
 
+  it('タスク管理リンクは未完了プロジェクト一覧を開く', () => {
+    const wrapper = mount(AppHeader, {
+      global: { plugins: [pinia, router] },
+    })
+
+    expect(wrapper.get('.main-nav a').attributes('href')).toBe('/projects?isFinished=false')
+    wrapper.unmount()
+  })
+
   it('closes with Escape and restores focus to the user icon', async () => {
     const wrapper = mount(AppHeader, {
       attachTo: document.body,

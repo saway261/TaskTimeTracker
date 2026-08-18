@@ -29,7 +29,7 @@ function redirectAfterLogin() {
   if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
     return redirect
   }
-  return '/projects'
+  return '/projects?isFinished=false'
 }
 
 async function handleSubmit() {

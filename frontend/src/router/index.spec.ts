@@ -33,6 +33,16 @@ describe('authentication navigation guard', () => {
     await router.push('/register')
 
     expect(router.currentRoute.value.name).toBe('project-list')
+    expect(router.currentRoute.value.query.isFinished).toBe('false')
+  })
+
+  it('opens the unfinished project list from the application root', async () => {
+    useAuthStore().currentUser = user
+
+    await router.push('/')
+
+    expect(router.currentRoute.value.name).toBe('project-list')
+    expect(router.currentRoute.value.query.isFinished).toBe('false')
   })
 
   it('forces users who must change their password to the password change route', async () => {
