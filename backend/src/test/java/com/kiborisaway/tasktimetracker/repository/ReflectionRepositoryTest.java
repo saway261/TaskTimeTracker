@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import com.kiborisaway.tasktimetracker.data.entity.Reflection;
-import com.kiborisaway.tasktimetracker.data.entity.ReflectionCauseCategory;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -20,9 +19,6 @@ class ReflectionRepositoryTest {
 
   @Autowired
   private ReflectionRepository sut;
-
-  @Autowired
-  private ReflectionCauseCategoryRepository causeCategoryRepository;
 
   @Test
   void タスクID検索_指定したタスクの振り返りを取得できること() {
@@ -49,7 +45,7 @@ class ReflectionRepositoryTest {
 
   @Test
   void 登録成功_振り返りを登録でき採番されたidと日時が設定されること() {
-    Reflection reflection = new Reflection(null, 7, "見積もりが過大だった", null, null, null, null);
+    Reflection reflection = new Reflection(null, 7, "見積もりが過大だった", null, null, null);
 
     sut.insert(reflection);
 
@@ -65,8 +61,17 @@ class ReflectionRepositoryTest {
   }
 
   @Test
+  void 登録成功_causeがNULLでも登録できること() {
+    Reflection reflection = new Reflection(null, 7, null, null, null, null);
+
+    sut.insert(reflection);
+
+    assertThat(sut.findByTaskId(7).getCause()).isNull();
+  }
+
+  @Test
   void 登録失敗_同じタスクIDへ二回目の振り返りを登録すると一意制約違反になること() {
-    Reflection duplicate = new Reflection(null, 6, "重複登録", null, null, null, null);
+    Reflection duplicate = new Reflection(null, 6, "重複登録", null, null, null);
 
     assertThatThrownBy(() -> sut.insert(duplicate))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -74,15 +79,7 @@ class ReflectionRepositoryTest {
 
   @Test
   void 登録失敗_causeが空白文字だけの場合はチェック制約違反になること() {
-    Reflection reflection = new Reflection(null, 7, "   ", null, null, null, null);
-
-    assertThatThrownBy(() -> sut.insert(reflection))
-        .isInstanceOf(DataIntegrityViolationException.class);
-  }
-
-  @Test
-  void 登録失敗_存在しない原因カテゴリIDを指定すると外部キー違反になること() {
-    Reflection reflection = new Reflection(null, 7, "存在しないカテゴリを指定", null, 9999, null, null);
+    Reflection reflection = new Reflection(null, 7, "   ", null, null, null);
 
     assertThatThrownBy(() -> sut.insert(reflection))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -92,7 +89,7 @@ class ReflectionRepositoryTest {
   void 更新成功_タスクIDを指定して原因と改善アクションだけを更新できること() {
     Reflection before = sut.findByTaskId(6);
     Reflection reflection = new Reflection(
-        999, 6, "更新後の原因", null, null, LocalDateTime.MIN, LocalDateTime.MIN);
+        999, 6, "更新後の原因", null, LocalDateTime.MIN, LocalDateTime.MIN);
 
     int actual = sut.updateByTaskId(reflection);
 
@@ -107,8 +104,18 @@ class ReflectionRepositoryTest {
   }
 
   @Test
+  void 更新成功_causeをNULLへ更新できること() {
+    Reflection reflection = new Reflection(
+        999, 6, null, null, LocalDateTime.MIN, LocalDateTime.MIN);
+
+    sut.updateByTaskId(reflection);
+
+    assertThat(sut.findByTaskId(6).getCause()).isNull();
+  }
+
+  @Test
   void 更新失敗_存在しないタスクIDの場合は更新件数0件となること() {
-    Reflection reflection = new Reflection(null, 999, "更新されない原因", null, null, null, null);
+    Reflection reflection = new Reflection(null, 999, "更新されない原因", null, null, null);
 
     assertThat(sut.updateByTaskId(reflection)).isZero();
   }
@@ -185,57 +192,5 @@ class ReflectionRepositoryTest {
         LocalDateTime.of(2026, 8, 12, 12, 5));
     assertThat(withReflection.getReflectionUpdatedAt()).isEqualTo(
         LocalDateTime.of(2026, 8, 12, 12, 5));
-  }
-
-  @Test
-  void プロジェクト直下完了タスク検索_カテゴリが設定されたReflectionはコードとラベルを一緒に取得できること() {
-    ReflectionCauseCategory category = causeCategoryRepository.findActiveByCode("AS_PLANNED");
-    Reflection reflection = new Reflection(
-        null, 7, "見積もりどおりに進んだ", null, category.getId(), null, null);
-    sut.insert(reflection);
-
-    List<ReflectionTaskRow> actual =
-        sut.findDirectTasksInProject(PROJECT_WITH_REFLECTION_FIXTURES);
-
-    ReflectionTaskRow row = actual.stream()
-        .filter(r -> r.getTaskId() == 7)
-        .findFirst()
-        .orElseThrow();
-    assertThat(row.getCauseCategoryId()).isEqualTo(category.getId());
-    assertThat(row.getCauseCategoryCode()).isEqualTo("AS_PLANNED");
-    assertThat(row.getCauseCategoryLabel()).isEqualTo("おおむね見積もりどおりに進んだ");
-  }
-
-  @Test
-  void タスクグループ配下完了タスク検索_カテゴリが設定されたReflectionはコードとラベルを一緒に取得できること() {
-    ReflectionCauseCategory category = causeCategoryRepository.findActiveByCode("FATIGUE");
-    Reflection reflection = new Reflection(
-        null, 10, "疲れていた", null, category.getId(), null, null);
-    sut.insert(reflection);
-
-    List<ReflectionTaskRow> actual =
-        sut.findGroupedTasksInProject(PROJECT_WITH_REFLECTION_FIXTURES);
-
-    ReflectionTaskRow row = actual.stream()
-        .filter(r -> r.getTaskId() == 10)
-        .findFirst()
-        .orElseThrow();
-    assertThat(row.getCauseCategoryId()).isEqualTo(category.getId());
-    assertThat(row.getCauseCategoryCode()).isEqualTo("FATIGUE");
-    assertThat(row.getCauseCategoryLabel()).isEqualTo("疲れ・体調不良で本来の速度が出なかった");
-  }
-
-  @Test
-  void カテゴリ未設定Reflection検索_一覧クエリでカテゴリ列がNULLのまま返ること() {
-    List<ReflectionTaskRow> actual =
-        sut.findDirectTasksInProject(PROJECT_WITH_REFLECTION_FIXTURES);
-
-    ReflectionTaskRow row = actual.stream()
-        .filter(r -> r.getTaskId() == 6)
-        .findFirst()
-        .orElseThrow();
-    assertThat(row.getCauseCategoryId()).isNull();
-    assertThat(row.getCauseCategoryCode()).isNull();
-    assertThat(row.getCauseCategoryLabel()).isNull();
   }
 }

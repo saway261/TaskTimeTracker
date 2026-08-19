@@ -4,6 +4,7 @@ import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowed
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseRequiredException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
@@ -227,6 +228,23 @@ public class ErrorDetailsBuilder {
    * @return エラー発生個所とエラーメッセージ
    */
   public List<Map<String, String>> buildErrorDetails(ReflectionCauseCategoryInvalidException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * 選択した原因カテゴリでは原因の自由記述が必須であることをクライアントに返します。
+   *
+   * @param ex ReflectionCauseRequiredException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(ReflectionCauseRequiredException ex) {
     List<Map<String, String>> errors = new ArrayList<>();
 
     Map<String, String> error = new HashMap<>();

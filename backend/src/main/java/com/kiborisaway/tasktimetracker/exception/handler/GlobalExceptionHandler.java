@@ -10,6 +10,7 @@ import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationExceptio
 import com.kiborisaway.tasktimetracker.exception.PasswordChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseRequiredException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.PasswordResetInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
@@ -252,6 +253,20 @@ public class GlobalExceptionHandler {
       ReflectionCauseCategoryInvalidException ex) {
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
         "reflection cause category invalid", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+  }
+
+  /**
+   * 選択した原因カテゴリでは原因の自由記述が必須であるにもかかわらず未入力だったことをクライアントに返します。
+   *
+   * @param ex ReflectionCauseRequiredException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(ReflectionCauseRequiredException.class)
+  public ResponseEntity<ErrorResponse> handleReflectionCauseRequiredException(
+      ReflectionCauseRequiredException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "reflection cause required", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
   }
 

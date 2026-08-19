@@ -24,7 +24,8 @@ public class ReflectionCauseCategoryController {
 
   @Operation(
       summary = "原因カテゴリ一覧取得",
-      description = "振り返りの原因として選択できる、有効な原因カテゴリを表示順で返します。",
+      description = "振り返りの原因として選択できる、有効な原因カテゴリを表示順で返します。"
+          + "1件の振り返りには1〜3件を選択できます。",
       responses = {
           @ApiResponse(responseCode = "200", description = "取得成功",
               content = @Content(mediaType = "application/json",

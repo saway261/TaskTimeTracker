@@ -33,6 +33,16 @@ class ReflectionCauseCategoryRepositoryTest {
   }
 
   @Test
+  void 有効カテゴリ検索_OTHERのみrequiresCauseがtrueであること() {
+    List<ReflectionCauseCategory> actual = sut.findAllActive();
+
+    assertThat(actual)
+        .filteredOn(category -> Boolean.TRUE.equals(category.getRequiresCause()))
+        .extracting(ReflectionCauseCategory::getCode)
+        .containsExactly("OTHER");
+  }
+
+  @Test
   void 有効カテゴリ検索_無効化されたカテゴリは含まれないこと() {
     List<ReflectionCauseCategory> actual = sut.findAllActive();
 
@@ -49,6 +59,7 @@ class ReflectionCauseCategoryRepositoryTest {
     assertThat(actual.getDirection()).isEqualTo(CauseDirection.OVER);
     assertThat(actual.getNextActionHint()).isEqualTo("体調と時間帯を考慮して着手日を決める");
     assertThat(actual.getIsActive()).isTrue();
+    assertThat(actual.getRequiresCause()).isFalse();
   }
 
   @Test
@@ -57,6 +68,7 @@ class ReflectionCauseCategoryRepositoryTest {
 
     assertThat(actual.getNextActionHint()).isNull();
     assertThat(actual.getDirection()).isEqualTo(CauseDirection.BOTH);
+    assertThat(actual.getRequiresCause()).isTrue();
   }
 
   @Test

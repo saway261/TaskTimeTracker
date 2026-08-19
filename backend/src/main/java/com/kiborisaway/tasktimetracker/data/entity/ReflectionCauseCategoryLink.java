@@ -1,6 +1,5 @@
 package com.kiborisaway.tasktimetracker.data.entity;
 
-import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -12,17 +11,11 @@ import lombok.Setter;
 @EqualsAndHashCode
 @AllArgsConstructor
 @NoArgsConstructor
-public class Reflection {
+public class ReflectionCauseCategoryLink {
 
   private Integer id;
 
-  private Integer taskId;
+  private Integer reflectionId;
 
-  private String cause;
-
-  private String nextAction;
-
-  private LocalDateTime createdAt;
-
-  private LocalDateTime updatedAt;
+  private Integer causeCategoryId;
 }

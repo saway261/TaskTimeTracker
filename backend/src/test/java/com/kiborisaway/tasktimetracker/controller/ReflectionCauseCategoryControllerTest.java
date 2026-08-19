@@ -73,6 +73,6 @@ class ReflectionCauseCategoryControllerTest {
 
   private static ReflectionCauseCategory category(
       String code, String label, CauseDirection direction, String nextActionHint) {
-    return new ReflectionCauseCategory(1, code, label, direction, nextActionHint, 10, true);
+    return new ReflectionCauseCategory(1, code, label, direction, nextActionHint, false, 10, true);
   }
 }

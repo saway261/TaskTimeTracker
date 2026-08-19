@@ -67,28 +67,28 @@ INSERT INTO memos (task_id, comment)
 VALUES (1, '例外メッセージを見直す');-- id=3
 
 -- 原因カテゴリマスタ（本番と同じ定義。docs/sql/001_reflection_cause_categories.sql 参照）
-INSERT INTO reflection_cause_categories (code, label, direction, next_action_hint, display_order, is_active) VALUES
-  ('TASK_BREAKDOWN', '作業の洗い出しが足りなかった', 'OVER', '着手前に手順を書き出す', 10, TRUE),
-  ('UNEXPECTED_PROBLEM', '想定外の問題・エラーに対応した', 'OVER', '調査時間をバッファとして見込む', 20, TRUE),
-  ('KNOWLEDGE_GAP', '知識・技術が足りず調べながら進めた', 'OVER', '事前調査を別タスクに切り出す', 30, TRUE),
-  ('UNCLEAR_GOAL', 'ゴール・完了条件が曖昧だった', 'OVER', '着手前に完了条件を書き出す', 40, TRUE),
-  ('REWORK', '手戻り・やり直しが発生した', 'OVER', '早い段階で方針を確認する', 50, TRUE),
-  ('SCOPE_CREEP', '予定外の作業を追加した', 'OVER', 'タスクの範囲を決めて守る', 60, TRUE),
-  ('INTERRUPTION', '中断・割り込みが入った', 'OVER', '作業する時間帯や環境を見直す', 70, TRUE),
-  ('FATIGUE', '疲れ・体調不良で本来の速度が出なかった', 'OVER', '体調と時間帯を考慮して着手日を決める', 80, TRUE),
-  ('ESTIMATE_TOO_SHORT', '見積もりが根拠のない勘で、短すぎた', 'OVER', '過去の類似タスクの実績を参照する', 90, TRUE),
-  ('BUFFER_TOO_LARGE', '不安から見積もりに余裕を持たせすぎた', 'UNDER', 'バッファを見積もり本体と分けて置く', 110, TRUE),
-  ('WORK_UNNECESSARY', '必要だと思っていた作業が不要だった', 'UNDER', '着手前に本当に必要な作業か確かめる', 120, TRUE),
-  ('REUSE', '既存の資産や過去の成果を再利用できた', 'UNDER', '見積もり時に再利用できるものを洗い出す', 130, TRUE),
-  ('SKILL_ABOVE_EXPECTATION', '想像していたより自分が習熟していた', 'UNDER', '得意な領域の見積もりを下げる', 140, TRUE),
-  ('GOOD_CONDITION', '集中できた・体調や環境が良かった', 'UNDER', 'その条件が何だったかを記録して再現する', 150, TRUE),
-  ('QUALITY_TRADEOFF', '品質や範囲を落として早く終えた', 'UNDER', '完了条件を満たしているか見直す', 160, TRUE),
-  ('TASK_TOO_SMALL', 'タスクが想定より小さかった／一部が既に終わっていた', 'UNDER', '着手時点の状態をタスクに反映する', 170, TRUE),
-  ('AS_PLANNED', 'おおむね見積もりどおりに進んだ', 'BOTH', '何が良かったかを記録して再現する', 210, TRUE),
-  ('OTHER', 'その他', 'BOTH', NULL, 220, TRUE);
+INSERT INTO reflection_cause_categories (code, label, direction, next_action_hint, requires_cause, display_order, is_active) VALUES
+  ('TASK_BREAKDOWN', '作業の洗い出しが足りなかった', 'OVER', '着手前に手順を書き出す', FALSE, 10, TRUE),
+  ('UNEXPECTED_PROBLEM', '想定外の問題・エラーに対応した', 'OVER', '調査時間をバッファとして見込む', FALSE, 20, TRUE),
+  ('KNOWLEDGE_GAP', '知識・技術が足りず調べながら進めた', 'OVER', '事前調査を別タスクに切り出す', FALSE, 30, TRUE),
+  ('UNCLEAR_GOAL', 'ゴール・完了条件が曖昧だった', 'OVER', '着手前に完了条件を書き出す', FALSE, 40, TRUE),
+  ('REWORK', '手戻り・やり直しが発生した', 'OVER', '早い段階で方針を確認する', FALSE, 50, TRUE),
+  ('SCOPE_CREEP', '予定外の作業を追加した', 'OVER', 'タスクの範囲を決めて守る', FALSE, 60, TRUE),
+  ('INTERRUPTION', '中断・割り込みが入った', 'OVER', '作業する時間帯や環境を見直す', FALSE, 70, TRUE),
+  ('FATIGUE', '疲れ・体調不良で本来の速度が出なかった', 'OVER', '体調と時間帯を考慮して着手日を決める', FALSE, 80, TRUE),
+  ('ESTIMATE_TOO_SHORT', '見積もりが根拠のない勘で、短すぎた', 'OVER', '過去の類似タスクの実績を参照する', FALSE, 90, TRUE),
+  ('BUFFER_TOO_LARGE', '不安から見積もりに余裕を持たせすぎた', 'UNDER', 'バッファを見積もり本体と分けて置く', FALSE, 110, TRUE),
+  ('WORK_UNNECESSARY', '必要だと思っていた作業が不要だった', 'UNDER', '着手前に本当に必要な作業か確かめる', FALSE, 120, TRUE),
+  ('REUSE', '既存の資産や過去の成果を再利用できた', 'UNDER', '見積もり時に再利用できるものを洗い出す', FALSE, 130, TRUE),
+  ('SKILL_ABOVE_EXPECTATION', '想像していたより自分が習熟していた', 'UNDER', '得意な領域の見積もりを下げる', FALSE, 140, TRUE),
+  ('GOOD_CONDITION', '集中できた・体調や環境が良かった', 'UNDER', 'その条件が何だったかを記録して再現する', FALSE, 150, TRUE),
+  ('QUALITY_TRADEOFF', '品質や範囲を落として早く終えた', 'UNDER', '完了条件を満たしているか見直す', FALSE, 160, TRUE),
+  ('TASK_TOO_SMALL', 'タスクが想定より小さかった／一部が既に終わっていた', 'UNDER', '着手時点の状態をタスクに反映する', FALSE, 170, TRUE),
+  ('AS_PLANNED', 'おおむね見積もりどおりに進んだ', 'BOTH', '何が良かったかを記録して再現する', FALSE, 210, TRUE),
+  ('OTHER', 'その他', 'BOTH', NULL, TRUE, 220, TRUE);
 -- テスト専用: is_active=FALSEの除外・取得不可を検証するためのフィクスチャ（本番マスタには含めない）
-INSERT INTO reflection_cause_categories (code, label, direction, next_action_hint, display_order, is_active) VALUES
-  ('TEST_INACTIVE', 'テスト用無効カテゴリ', 'BOTH', NULL, 900, FALSE);
+INSERT INTO reflection_cause_categories (code, label, direction, next_action_hint, requires_cause, display_order, is_active) VALUES
+  ('TEST_INACTIVE', 'テスト用無効カテゴリ', 'BOTH', NULL, FALSE, 900, FALSE);
 
 INSERT INTO reflections (task_id, cause, next_action, created_at, updated_at)
 VALUES (6, '着手前の調査が不足していた', '類似タスクの実績を見積もり前に確認する', '2026-08-10 10:05:00', '2026-08-10 10:05:00');-- id=1
