@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.service;
 
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -67,6 +68,13 @@ public class WorkSessionService {
    */
   public List<WorkSession> getAllInTask(int userId, int taskId) {
     return wsRepository.findAllByTaskId(taskId, userId);
+  }
+
+  /**
+   * ログインユーザーが所有する全タスクの未終了タイマーを取得します。
+   */
+  public List<ActiveTimerResponse> getAllActive(int userId) {
+    return wsRepository.findAllActiveByUserId(userId);
   }
 
   /**

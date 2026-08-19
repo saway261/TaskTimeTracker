@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
+import ActiveTimerMenu from '@/components/common/ActiveTimerMenu.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import type { ApiError } from '@/types/apiError'
@@ -14,9 +15,13 @@ const loggingOut = ref(false)
 const menuOpen = ref(false)
 const menuRoot = ref<HTMLElement | null>(null)
 const menuButton = ref<HTMLButtonElement | null>(null)
+const navMenuOpen = ref(false)
+const navMenuRoot = ref<HTMLElement | null>(null)
+const navMenuButton = ref<HTMLButtonElement | null>(null)
 
 function toggleMenu() {
   menuOpen.value = !menuOpen.value
+  if (menuOpen.value) navMenuOpen.value = false
 }
 
 function closeMenu() {
@@ -29,16 +34,38 @@ async function closeMenuAndRestoreFocus() {
   menuButton.value?.focus()
 }
 
+function toggleNavMenu() {
+  navMenuOpen.value = !navMenuOpen.value
+  if (navMenuOpen.value) menuOpen.value = false
+}
+
+function closeNavMenu() {
+  navMenuOpen.value = false
+}
+
+async function closeNavMenuAndRestoreFocus() {
+  closeNavMenu()
+  await nextTick()
+  navMenuButton.value?.focus()
+}
+
 function handlePointerDown(event: PointerEvent) {
   if (menuOpen.value && !menuRoot.value?.contains(event.target as Node)) {
     closeMenu()
   }
+  if (navMenuOpen.value && !navMenuRoot.value?.contains(event.target as Node)) {
+    closeNavMenu()
+  }
 }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && menuOpen.value) {
+  if (event.key !== 'Escape') return
+  if (menuOpen.value) {
     event.preventDefault()
     void closeMenuAndRestoreFocus()
+  } else if (navMenuOpen.value) {
+    event.preventDefault()
+    void closeNavMenuAndRestoreFocus()
   }
 }
 
@@ -64,8 +91,16 @@ async function logout() {
 watch(
   () => authStore.isAuthenticated,
   (isAuthenticated) => {
-    if (!isAuthenticated) closeMenu()
+    if (!isAuthenticated) {
+      closeMenu()
+      closeNavMenu()
+    }
   },
+)
+
+watch(
+  () => route.fullPath,
+  () => closeNavMenu(),
 )
 
 onMounted(() => {
@@ -82,10 +117,13 @@ onBeforeUnmount(() => {
 <template>
   <header class="app-header">
     <div class="header-start">
-      <RouterLink to="/projects" class="brand">Task Time Tracker</RouterLink>
+      <RouterLink to="/projects" class="brand">
+        <span class="brand-full">Task Time Tracker</span>
+        <span class="brand-short">TTT</span>
+      </RouterLink>
       <nav class="main-nav" aria-label="メインナビゲーション">
         <RouterLink
-          to="/projects"
+          to="/projects?isFinished=false"
           class="nav-link"
           :class="{ active: isTaskManagementActive }"
           :aria-current="isTaskManagementActive ? 'page' : undefined"
@@ -103,6 +141,7 @@ onBeforeUnmount(() => {
       </nav>
     </div>
     <div class="header-actions">
+      <ActiveTimerMenu v-if="authStore.isAuthenticated" />
       <ThemeToggle class="theme-toggle-slot" />
       <div v-if="authStore.isAuthenticated" ref="menuRoot" class="user-menu">
         <button
@@ -154,6 +193,47 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
+      <div ref="navMenuRoot" class="mobile-navigation">
+        <button
+          ref="navMenuButton"
+          type="button"
+          class="mobile-nav-trigger"
+          aria-label="ナビゲーションメニューを開く"
+          aria-haspopup="true"
+          :aria-expanded="navMenuOpen"
+          aria-controls="mobile-nav-panel"
+          @click="toggleNavMenu"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
+          </svg>
+        </button>
+        <nav
+          v-if="navMenuOpen"
+          id="mobile-nav-panel"
+          class="mobile-nav-panel"
+          aria-label="モバイルナビゲーション"
+        >
+          <RouterLink
+            to="/projects?isFinished=false"
+            class="mobile-nav-item"
+            :class="{ active: isTaskManagementActive }"
+            :aria-current="isTaskManagementActive ? 'page' : undefined"
+            @click="closeNavMenu"
+          >
+            タスク管理
+          </RouterLink>
+          <RouterLink
+            to="/reflections"
+            class="mobile-nav-item"
+            :class="{ active: isReflectionActive }"
+            :aria-current="isReflectionActive ? 'page' : undefined"
+            @click="closeNavMenu"
+          >
+            振り返り
+          </RouterLink>
+        </nav>
+      </div>
     </div>
   </header>
 </template>
@@ -180,6 +260,11 @@ onBeforeUnmount(() => {
 .main-nav {
   display: flex;
   gap: 0.3em;
+}
+
+.mobile-navigation,
+.brand-short {
+  display: none;
 }
 
 .nav-link {
@@ -261,6 +346,69 @@ onBeforeUnmount(() => {
   box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
 }
 
+.mobile-nav-trigger {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-surface-muted);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.mobile-nav-trigger:hover,
+.mobile-nav-trigger[aria-expanded='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-surface-muted);
+}
+
+.mobile-nav-trigger:focus-visible,
+.mobile-nav-item:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.mobile-nav-trigger svg {
+  width: 23px;
+  height: 23px;
+}
+
+.mobile-nav-panel {
+  position: fixed;
+  top: 64px;
+  right: 0.75rem;
+  left: 0.75rem;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.55rem;
+  border: 1px solid var(--color-surface-muted);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+}
+
+.mobile-nav-item {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0.65rem 0.8rem;
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.mobile-nav-item:hover,
+.mobile-nav-item.active {
+  background: var(--color-surface-muted);
+}
+
 .user-menu-identity {
   display: flex;
   flex-direction: column;
@@ -336,12 +484,53 @@ onBeforeUnmount(() => {
 
 @media (max-width: 680px) {
   .app-header {
-    align-items: flex-start;
+    align-items: center;
+    flex-wrap: nowrap;
+    padding: 0.65em 0.75em;
+  }
+
+  .header-start {
+    min-width: 0;
+    flex: 1;
+    flex-wrap: nowrap;
+  }
+
+  .main-nav {
+    display: none;
   }
 
   .header-actions {
-    flex-wrap: wrap;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
     justify-content: flex-end;
+    gap: 0.45em;
+  }
+
+  .mobile-navigation {
+    display: block;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .user-menu-panel {
+    position: fixed;
+    top: 64px;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+    z-index: 120;
+  }
+}
+
+@media (max-width: 520px) {
+  .brand-full {
+    display: none;
+  }
+
+  .brand-short {
+    display: inline;
   }
 }
 </style>

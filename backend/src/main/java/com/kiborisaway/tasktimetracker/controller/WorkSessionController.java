@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.controller;
 
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
@@ -171,6 +172,23 @@ public class WorkSessionController {
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int taskId) {
     return service.getAllInTask(user.getUserId(), taskId);
+  }
+
+  @Operation(
+      summary = "稼働中タイマー一覧取得",
+      description = "ログインユーザーが所有する全タスクから、終了していないタイマーを返します。",
+      responses = {
+          @ApiResponse(
+              responseCode = "200", description = "取得成功",
+              content = @Content(mediaType = "application/json",
+                  array = @ArraySchema(schema = @Schema(implementation = ActiveTimerResponse.class)))
+          )
+      }
+  )
+  @GetMapping("/work-sessions/active")
+  public List<ActiveTimerResponse> getAllActive(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user) {
+    return service.getAllActive(user.getUserId());
   }
 
   @Operation(

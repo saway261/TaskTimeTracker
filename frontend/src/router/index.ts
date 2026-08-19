@@ -6,7 +6,7 @@ import type { ApiError } from '@/types/apiError'
 const routes = [
   {
     path: '/',
-    redirect: '/projects',
+    redirect: '/projects?isFinished=false',
   },
   {
     path: '/login',
@@ -168,7 +168,7 @@ router.beforeEach(async (to) => {
   }
 
   if (authStore.isAuthenticated && to.meta.guestOnly) {
-    return { name: 'project-list' }
+    return { name: 'project-list', query: { isFinished: 'false' } }
   }
 
   return true

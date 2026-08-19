@@ -4,11 +4,13 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as authApi from '@/api/authApi'
+import * as workSessionsApi from '@/api/workSessionsApi'
 import { router } from '@/router'
 import { useAuthStore } from '@/stores/authStore'
 import AppHeader from './AppHeader.vue'
 
 vi.mock('@/api/authApi')
+vi.mock('@/api/workSessionsApi')
 
 const user = {
   id: 1,
@@ -27,6 +29,7 @@ describe('AppHeader user menu', () => {
     const authStore = useAuthStore()
     authStore.currentUser = user
     authStore.initialized = true
+    vi.mocked(workSessionsApi.fetchActiveTimers).mockResolvedValue({ data: [] } as never)
     await router.push('/projects')
   })
 
@@ -48,6 +51,39 @@ describe('AppHeader user menu', () => {
     expect(wrapper.get('a[href="/email-change"]').text()).toBe('メールアドレス変更')
     expect(wrapper.get('a[href="/password-change"]').text()).toBe('パスワード変更')
     expect(wrapper.get('.logout-button').text()).toBe('ログアウト')
+    wrapper.unmount()
+  })
+
+  it('タスク管理リンクは未完了プロジェクト一覧を開く', () => {
+    const wrapper = mount(AppHeader, {
+      global: { plugins: [pinia, router] },
+    })
+
+    expect(wrapper.get('.main-nav a').attributes('href')).toBe('/projects?isFinished=false')
+    wrapper.unmount()
+  })
+
+  it('ハンバーガーメニューからタスク管理と振り返りへ移動できる', async () => {
+    const wrapper = mount(AppHeader, {
+      global: { plugins: [pinia, router] },
+    })
+    const trigger = wrapper.get('.mobile-nav-trigger')
+
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('.mobile-nav-panel').exists()).toBe(false)
+
+    await trigger.trigger('click')
+
+    const links = wrapper.findAll('.mobile-nav-item')
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(links).toHaveLength(2)
+    expect(links[0].text()).toBe('タスク管理')
+    expect(links[0].attributes('href')).toBe('/projects?isFinished=false')
+    expect(links[1].text()).toBe('振り返り')
+    expect(links[1].attributes('href')).toBe('/reflections')
+
+    await links[1].trigger('click')
+    expect(wrapper.find('.mobile-nav-panel').exists()).toBe(false)
     wrapper.unmount()
   })
 

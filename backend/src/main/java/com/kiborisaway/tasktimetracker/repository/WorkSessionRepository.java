@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.repository;
 
+import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import java.util.List;
 import org.apache.ibatis.annotations.Delete;
@@ -13,13 +14,35 @@ import org.apache.ibatis.annotations.Update;
 public interface WorkSessionRepository {
 
   /**
+   * ログインユーザーが所有する全タスクから、未終了タイマーを取得します。
+   * タスク詳細への導線を組み立てられるよう親IDとタスク名も返します。
+   */
+  @Select("""
+      SELECT ws.id AS session_id,
+             t.id AS task_id,
+             t.title AS task_title,
+             p.id AS project_id,
+             t.task_group_id,
+             ws.started_at
+      FROM work_sessions ws
+      JOIN tasks t ON ws.task_id = t.id
+      LEFT JOIN task_groups tg ON tg.id = t.task_group_id
+      JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
+      WHERE ws.type = 'TIMER'
+        AND ws.ended_at IS NULL
+        AND p.user_id = #{userId}
+      ORDER BY ws.started_at, ws.id
+      """)
+  List<ActiveTimerResponse> findAllActiveByUserId(int userId);
+
+  /**
    * 指定したタスクに紐づく作業セッションの作業時間合計を取得します。所有者が一致するプロジェクトのみを対象とします。
    *
    * @param taskId タスクのID
    * @return 作業時間合計(分)
    */
   @Select("""
-      SELECT COALESCE(SUM(ws.minutes), 0)
+      SELECT CAST(FLOOR(COALESCE(SUM(ws.duration_seconds), 0) / 60.0) AS INTEGER)
       FROM work_sessions ws
       JOIN tasks t ON ws.task_id = t.id
       LEFT JOIN task_groups tg ON tg.id = t.task_group_id
@@ -35,7 +58,7 @@ public interface WorkSessionRepository {
    * @return 作業時間合計(分)
    */
   @Select("""
-      SELECT COALESCE(SUM(ws.minutes), 0)
+      SELECT CAST(FLOOR(COALESCE(SUM(ws.duration_seconds), 0) / 60.0) AS INTEGER)
       FROM work_sessions ws
       JOIN tasks t ON ws.task_id = t.id
       JOIN task_groups tg ON tg.id = t.task_group_id
@@ -51,7 +74,7 @@ public interface WorkSessionRepository {
    * @return 作業時間合計(分)
    */
   @Select("""
-      SELECT COALESCE(SUM(ws.minutes), 0)
+      SELECT CAST(FLOOR(COALESCE(SUM(ws.duration_seconds), 0) / 60.0) AS INTEGER)
       FROM work_sessions ws
       JOIN tasks t ON ws.task_id = t.id
       LEFT JOIN task_groups tg ON tg.id = t.task_group_id
@@ -75,7 +98,11 @@ public interface WorkSessionRepository {
    * @return 作業セッション一覧
    */
   @Select("""
-      SELECT ws.* FROM work_sessions ws
+      SELECT ws.*,
+        CASE WHEN ws.duration_seconds IS NULL THEN NULL
+             ELSE CAST(FLOOR(ws.duration_seconds / 60.0) AS INTEGER)
+        END AS minutes
+      FROM work_sessions ws
       JOIN tasks t ON ws.task_id = t.id
       LEFT JOIN task_groups tg ON tg.id = t.task_group_id
       JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
@@ -91,7 +118,11 @@ public interface WorkSessionRepository {
    * @return 作業セッション
    */
   @Select("""
-      SELECT ws.* FROM work_sessions ws
+      SELECT ws.*,
+        CASE WHEN ws.duration_seconds IS NULL THEN NULL
+             ELSE CAST(FLOOR(ws.duration_seconds / 60.0) AS INTEGER)
+        END AS minutes
+      FROM work_sessions ws
       JOIN tasks t ON ws.task_id = t.id
       LEFT JOIN task_groups tg ON tg.id = t.task_group_id
       JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
@@ -146,7 +177,8 @@ public interface WorkSessionRepository {
         LEFT JOIN task_groups tg ON tg.id = t.task_group_id
         JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
         WHERE ws.task_id = #{taskId}
-          AND ws.minutes IS NULL
+          AND ws.type = 'TIMER'
+          AND ws.ended_at IS NULL
           AND p.user_id = #{userId}
       )
       """)
@@ -158,10 +190,10 @@ public interface WorkSessionRepository {
    * @param workSession 作業セッション
    */
   @Insert("""
-      INSERT INTO work_sessions(task_id, minutes, started_at, type, created_at, updated_at)
+      INSERT INTO work_sessions(task_id, duration_seconds, started_at, type, created_at, updated_at)
       VALUES(
         #{taskId},
-        #{minutes},
+        CASE WHEN #{type} = 'MANUAL' THEN CAST(#{minutes} AS BIGINT) * 60 ELSE NULL END,
         CASE WHEN #{type} = 'TIMER' THEN NOW() ELSE NULL END,
         #{type},
         NOW(),
@@ -194,7 +226,7 @@ public interface WorkSessionRepository {
   boolean canSetEnd(int wsId, int userId);
 
   /**
-   * 指定した作業セッションに終了日時を設定します。 また、開始日時との差からminutesを計算してセットします。秒数は切り捨てます。
+   * 指定した作業セッションに終了日時を設定します。 また、開始日時との差からdurationSecondsを計算してセットします。
    * 所有者が一致しない場合は更新されません。
    *
    * @param wsId 作業セッションのID
@@ -203,8 +235,8 @@ public interface WorkSessionRepository {
   @Update("""
       UPDATE work_sessions
       SET ended_at = LOCALTIMESTAMP,
-          minutes = CAST(FLOOR(EXTRACT(EPOCH FROM (LOCALTIMESTAMP - started_at)) / 60)
-              AS INTEGER),
+          duration_seconds = CAST(FLOOR(EXTRACT(EPOCH FROM (LOCALTIMESTAMP - started_at)))
+              AS BIGINT),
           updated_at = LOCALTIMESTAMP
       WHERE id = #{wsId}
         AND type = 'TIMER'
@@ -228,13 +260,13 @@ public interface WorkSessionRepository {
    */
   @Update("""
       UPDATE work_sessions
-      SET minutes = CASE
+      SET duration_seconds = CASE
               WHEN #{workSession.startedAt} IS NOT NULL AND #{workSession.endedAt} IS NOT NULL THEN
                 CAST(FLOOR(EXTRACT(EPOCH FROM (
                     CAST(#{workSession.endedAt} AS TIMESTAMP) - CAST(#{workSession.startedAt} AS TIMESTAMP)
-                )) / 60) AS INTEGER)
+                ))) AS BIGINT)
               ELSE
-                #{workSession.minutes}
+                CAST(#{workSession.minutes} AS BIGINT) * 60
           END,
           started_at = #{workSession.startedAt},
           ended_at = #{workSession.endedAt},

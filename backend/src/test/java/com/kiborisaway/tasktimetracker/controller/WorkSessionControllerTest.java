@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRequest;
+import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
@@ -51,6 +52,24 @@ class WorkSessionControllerTest {
 
   @MockitoBean
   private ErrorDetailsBuilder errorDetailsBuilder;
+
+  @Test
+  void 稼働中タイマー一覧取得成功_200とタスク情報を返すこと() throws Exception {
+    ActiveTimerResponse timer = new ActiveTimerResponse(
+        10, 4, "画面設計", 1, null, LocalDateTime.of(2026, 8, 18, 9, 0));
+    when(service.getAllActive(USER_ID)).thenReturn(List.of(timer));
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/work-sessions/active"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].sessionId").value(10))
+        .andExpect(jsonPath("$[0].taskId").value(4))
+        .andExpect(jsonPath("$[0].taskTitle").value("画面設計"))
+        .andExpect(jsonPath("$[0].projectId").value(1))
+        .andExpect(jsonPath("$[0].taskGroupId").isEmpty())
+        .andExpect(jsonPath("$[0].startedAt").exists());
+
+    verify(service).getAllActive(USER_ID);
+  }
 
   @Test
   void タスク作業時間合計取得成功_200を返しサービスを呼び出すこと() throws Exception {

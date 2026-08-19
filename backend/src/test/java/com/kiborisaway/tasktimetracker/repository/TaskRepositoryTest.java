@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import com.kiborisaway.tasktimetracker.data.entity.Task;
+import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
+import com.kiborisaway.tasktimetracker.data.entity.WorkSessionType;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
@@ -20,6 +23,9 @@ class TaskRepositoryTest {
   @Autowired
   private TaskRepository sut;
 
+  @Autowired
+  private WorkSessionRepository workSessionRepository;
+
   private static Task newTask(Integer projectId, Integer taskGroupId, String title,
       String description, Integer estimatedMinutes) {
     Task task = new Task();
@@ -29,6 +35,18 @@ class TaskRepositoryTest {
     task.setDescription(description);
     task.setEstimatedMinutes(estimatedMinutes);
     return task;
+  }
+
+  private void insertTimerSession(int taskId, int seconds) {
+    WorkSession workSession = new WorkSession();
+    workSession.setTaskId(taskId);
+    workSession.setType(WorkSessionType.TIMER);
+    workSessionRepository.insert(workSession);
+
+    LocalDateTime startedAt = LocalDateTime.of(2026, 1, 3, 9, 0);
+    workSession.setStartedAt(startedAt);
+    workSession.setEndedAt(startedAt.plusSeconds(seconds));
+    workSessionRepository.update(workSession, USER_A);
   }
 
   @Test
@@ -536,6 +554,23 @@ class TaskRepositoryTest {
     assertThat(updated.getActualMinutesCached()).isEqualTo(75);
     assertThat(updated.getGapMinutesCached()).isEqualTo(-105);
     assertThat(updated.getGapRateCached()).isEqualTo(-58.333333333333336);
+  }
+
+  @Test
+  void 完了更新成功_WorkSessionの秒数を合計してから分へ切り捨ててキャッシュすること() {
+    // Arrange
+    insertTimerSession(2, 30);
+    insertTimerSession(2, 30);
+
+    // Act
+    int actual = sut.updateFinished(2, true, USER_A);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+    Task updated = sut.findById(2, USER_A);
+    assertThat(updated.getActualMinutesCached()).isEqualTo(1);
+    assertThat(updated.getGapMinutesCached()).isEqualTo(-119);
+    assertThat(updated.getGapRateCached()).isEqualTo(-99.16666666666667);
   }
 
   @Test

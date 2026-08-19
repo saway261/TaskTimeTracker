@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as memosApi from '@/api/memosApi'
 import type { MemoRequest, MemoResponse } from '@/types/memo'
 import type { ApiError } from '@/types/apiError'
@@ -22,6 +22,42 @@ const emit = defineEmits<{
 }>()
 
 const notification = useNotificationStore()
+
+const memoItems = ref<HTMLElement | null>(null)
+const memosExpanded = ref(false)
+const hasHiddenMemos = ref(false)
+let resizeObserver: ResizeObserver | null = null
+
+function updateMemoOverflow() {
+  const notes = Array.from(memoItems.value?.querySelectorAll<HTMLElement>('.memo-note') ?? [])
+  const firstTop = notes[0]?.offsetTop
+  hasHiddenMemos.value =
+    firstTop !== undefined && notes.some((note) => note.offsetTop > firstTop + 2)
+  if (!hasHiddenMemos.value) memosExpanded.value = false
+}
+
+function toggleMemos() {
+  memosExpanded.value = !memosExpanded.value
+}
+
+onMounted(() => {
+  void nextTick(updateMemoOverflow)
+  if (typeof ResizeObserver !== 'undefined' && memoItems.value) {
+    resizeObserver = new ResizeObserver(updateMemoOverflow)
+    resizeObserver.observe(memoItems.value)
+  }
+  window.addEventListener('resize', updateMemoOverflow)
+})
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  window.removeEventListener('resize', updateMemoOverflow)
+})
+
+watch(
+  () => props.memos.map((memo) => memo.id).join(','),
+  () => void nextTick(updateMemoOverflow),
+)
 
 const showCreateModal = ref(false)
 const creating = ref(false)
@@ -97,15 +133,22 @@ async function handleDelete() {
 <template>
   <section class="memo-list" aria-label="メモ">
     <div class="memo-notes">
-      <button
-        v-for="memo in memos"
-        :key="memo.id"
-        type="button"
-        class="memo-note"
-        @click="openEditModal(memo)"
+      <div
+        v-if="memos.length > 0"
+        ref="memoItems"
+        class="memo-items"
+        :class="{ collapsed: !memosExpanded }"
       >
-        {{ previewOf(memo.comment) }}
-      </button>
+        <button
+          v-for="memo in memos"
+          :key="memo.id"
+          type="button"
+          class="memo-note"
+          @click="openEditModal(memo)"
+        >
+          {{ previewOf(memo.comment) }}
+        </button>
+      </div>
       <button
         type="button"
         class="add-memo"
@@ -116,6 +159,15 @@ async function handleDelete() {
         ＋<span v-if="memos.length === 0" class="add-memo-label">メモを追加</span>
       </button>
     </div>
+    <button
+      v-if="hasHiddenMemos"
+      type="button"
+      class="memo-expand"
+      :aria-expanded="memosExpanded"
+      @click="toggleMemos"
+    >
+      {{ memosExpanded ? '閉じる' : 'さらに表示' }}
+    </button>
 
     <BaseModal v-model="showCreateModal" title="メモを追加">
       <MemoForm
@@ -162,10 +214,25 @@ async function handleDelete() {
 
 .memo-notes {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  gap: 0.6em;
+  padding-top: 0.2em;
+}
+
+.memo-items {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 3.35rem);
+  display: flex;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 0.8em 0.6em;
-  padding-top: 0.2em;
+  padding: 0.15em 0.25em 0.45em;
+}
+
+.memo-items.collapsed {
+  max-height: 5.1rem;
+  overflow: hidden;
 }
 
 .memo-note {
@@ -208,6 +275,7 @@ async function handleDelete() {
 }
 
 .add-memo {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -262,5 +330,26 @@ async function handleDelete() {
   font-size: 0.85rem;
   color: var(--color-danger);
   text-decoration: underline;
+}
+
+.memo-expand {
+  align-self: flex-start;
+  padding: 0.35em 0.2em;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.memo-expand:hover {
+  text-decoration: underline;
+}
+
+.memo-expand:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 </style>
