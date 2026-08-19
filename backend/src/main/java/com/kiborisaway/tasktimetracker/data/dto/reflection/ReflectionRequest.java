@@ -11,6 +11,11 @@ import lombok.Setter;
 @Setter
 public class ReflectionRequest {
 
+  @Schema(description = "原因カテゴリコード", example = "TASK_BREAKDOWN")
+  @NotBlank
+  @Size(max = 40)
+  private String causeCategoryCode;
+
   @Schema(description = "見積もりと実績に差が生じた原因", example = "着手前の調査が不足していた")
   @NotBlank
   @Size(max = 200)

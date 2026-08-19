@@ -14,8 +14,8 @@ import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionRequest;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskResponse;
-import com.kiborisaway.tasktimetracker.data.entity.Reflection;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
@@ -43,6 +43,7 @@ class ReflectionControllerTest {
   private static final int TASK_ID = 10;
   private static final String VALID_REQUEST = """
       {
+        "causeCategoryCode": "TASK_BREAKDOWN",
         "cause": "着手前の調査が不足していた",
         "nextAction": "類似タスクの実績を確認する"
       }
@@ -62,6 +63,8 @@ class ReflectionControllerTest {
     ReflectionResponse reflection = new ReflectionResponse(
         20,
         6,
+        "TASK_BREAKDOWN",
+        "作業の洗い出しが足りなかった",
         "原因",
         "改善する",
         LocalDateTime.of(2026, 8, 10, 10, 5),
@@ -97,6 +100,9 @@ class ReflectionControllerTest {
         .andExpect(jsonPath("$.tasks[0].id").value(6))
         .andExpect(jsonPath("$.tasks[0].gapRateCached").value(50.0))
         .andExpect(jsonPath("$.tasks[0].reflection.id").value(20))
+        .andExpect(jsonPath("$.tasks[0].reflection.causeCategoryCode").value("TASK_BREAKDOWN"))
+        .andExpect(jsonPath("$.tasks[0].reflection.causeCategoryLabel")
+            .value("作業の洗い出しが足りなかった"))
         .andExpect(jsonPath("$.taskGroups[0].id").value(4))
         .andExpect(jsonPath("$.taskGroups[0].tasks[0].id").value(9))
         .andExpect(jsonPath("$.taskGroups[0].tasks[0].actualMinutesCached").isEmpty())
@@ -129,7 +135,7 @@ class ReflectionControllerTest {
   @Test
   void 登録成功_201と登録済み振り返りを返すこと() throws Exception {
     when(service.register(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class)))
-        .thenReturn(reflection());
+        .thenReturn(reflectionResponse());
 
     mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
             .with(csrf())
@@ -139,6 +145,8 @@ class ReflectionControllerTest {
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id").value(20))
         .andExpect(jsonPath("$.taskId").value(TASK_ID))
+        .andExpect(jsonPath("$.causeCategoryCode").value("TASK_BREAKDOWN"))
+        .andExpect(jsonPath("$.causeCategoryLabel").value("作業の洗い出しが足りなかった"))
         .andExpect(jsonPath("$.cause").value("着手前の調査が不足していた"))
         .andExpect(jsonPath("$.nextAction").value("類似タスクの実績を確認する"))
         .andExpect(jsonPath("$.createdAt").value("2026-08-10T10:05:00+09:00"))
@@ -150,7 +158,7 @@ class ReflectionControllerTest {
   @Test
   void 更新成功_200と更新済み振り返りを返すこと() throws Exception {
     when(service.update(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class)))
-        .thenReturn(reflection());
+        .thenReturn(reflectionResponse());
 
     mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/reflection", TASK_ID)
             .with(csrf())
@@ -158,7 +166,8 @@ class ReflectionControllerTest {
             .content(VALID_REQUEST))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(20))
-        .andExpect(jsonPath("$.taskId").value(TASK_ID));
+        .andExpect(jsonPath("$.taskId").value(TASK_ID))
+        .andExpect(jsonPath("$.causeCategoryCode").value("TASK_BREAKDOWN"));
 
     verify(service).update(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class));
   }
@@ -167,6 +176,7 @@ class ReflectionControllerTest {
   void 登録失敗_causeが空白文字だけの場合は400を返すこと() throws Exception {
     String invalidRequest = """
         {
+          "causeCategoryCode": "TASK_BREAKDOWN",
           "cause": "   ",
           "nextAction": null
         }
@@ -177,6 +187,36 @@ class ReflectionControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 登録失敗_causeCategoryCodeが未指定の場合は400を返すこと() throws Exception {
+    String invalidRequest = """
+        {
+          "cause": "着手前の調査が不足していた",
+          "nextAction": null
+        }
+        """;
+
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 登録失敗_原因カテゴリが存在しないまたは無効な場合は400を返すこと() throws Exception {
+    when(service.register(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class)))
+        .thenThrow(new ReflectionCauseCategoryInvalidException(
+            "reflection.causeCategoryCode", "指定した原因カテゴリは選択できません"));
+
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(VALID_REQUEST))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("reflection cause category invalid"));
   }
 
   @Test
@@ -231,13 +271,14 @@ class ReflectionControllerTest {
         .andExpect(jsonPath("$.message").value("reflection operation not allowed"));
   }
 
-  private static Reflection reflection() {
-    return new Reflection(
+  private static ReflectionResponse reflectionResponse() {
+    return new ReflectionResponse(
         20,
         TASK_ID,
+        "TASK_BREAKDOWN",
+        "作業の洗い出しが足りなかった",
         "着手前の調査が不足していた",
         "類似タスクの実績を確認する",
-        null,
         LocalDateTime.of(2026, 8, 10, 10, 5),
         LocalDateTime.of(2026, 8, 10, 10, 5));
   }

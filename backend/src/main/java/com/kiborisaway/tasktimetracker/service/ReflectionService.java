@@ -5,13 +5,16 @@ import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionRequest;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskResponse;
-import com.kiborisaway.tasktimetracker.data.entity.Reflection;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
+import com.kiborisaway.tasktimetracker.data.entity.Reflection;
+import com.kiborisaway.tasktimetracker.data.entity.ReflectionCauseCategory;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionTaskRow;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
@@ -26,15 +29,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReflectionService {
 
   private ReflectionRepository reflectionRepository;
+  private ReflectionCauseCategoryRepository causeCategoryRepository;
   private TaskRepository taskRepository;
   private ProjectRepository projectRepository;
 
   @Autowired
   public ReflectionService(
       ReflectionRepository reflectionRepository,
+      ReflectionCauseCategoryRepository causeCategoryRepository,
       TaskRepository taskRepository,
       ProjectRepository projectRepository) {
     this.reflectionRepository = reflectionRepository;
+    this.causeCategoryRepository = causeCategoryRepository;
     this.taskRepository = taskRepository;
     this.projectRepository = projectRepository;
   }
@@ -85,8 +91,9 @@ public class ReflectionService {
    * @return 登録した振り返り
    */
   @Transactional
-  public Reflection register(int userId, int taskId, ReflectionRequest request) {
+  public ReflectionResponse register(int userId, int taskId, ReflectionRequest request) {
     requireFinishedTask(userId, taskId);
+    ReflectionCauseCategory category = requireActiveCategory(request.getCauseCategoryCode());
 
     if (reflectionRepository.existsByTaskId(taskId)) {
       throw new ReflectionAlreadyExistsException(
@@ -98,11 +105,11 @@ public class ReflectionService {
         taskId,
         request.getCause().trim(),
         normalizeNextAction(request.getNextAction()),
-        null, // causeCategoryId: B2で設定する
+        category.getId(),
         null,
         null);
     reflectionRepository.insert(reflection);
-    return findByTaskId(taskId);
+    return new ReflectionResponse(findByTaskId(taskId), category);
   }
 
   /**
@@ -114,8 +121,9 @@ public class ReflectionService {
    * @return 更新した振り返り
    */
   @Transactional
-  public Reflection update(int userId, int taskId, ReflectionRequest request) {
+  public ReflectionResponse update(int userId, int taskId, ReflectionRequest request) {
     requireFinishedTask(userId, taskId);
+    ReflectionCauseCategory category = requireActiveCategory(request.getCauseCategoryCode());
 
     Reflection reflection = reflectionRepository.findByTaskId(taskId);
     if (reflection == null) {
@@ -125,12 +133,13 @@ public class ReflectionService {
 
     reflection.setCause(request.getCause().trim());
     reflection.setNextAction(normalizeNextAction(request.getNextAction()));
+    reflection.setCauseCategoryId(category.getId());
     int updated = reflectionRepository.updateByTaskId(reflection);
     if (updated == 0) {
       throw new TargetNotFoundException(
           "reflection.taskId", "更新対象の振り返りが見つかりませんでした");
     }
-    return findByTaskId(taskId);
+    return new ReflectionResponse(findByTaskId(taskId), category);
   }
 
   private void requireFinishedTask(int userId, int taskId) {
@@ -143,6 +152,15 @@ public class ReflectionService {
       throw new ReflectionOperationNotAllowedException(
           "task.finishedAt", "未完了のタスクには振り返りを登録・更新できません");
     }
+  }
+
+  private ReflectionCauseCategory requireActiveCategory(String causeCategoryCode) {
+    ReflectionCauseCategory category = causeCategoryRepository.findActiveByCode(causeCategoryCode);
+    if (category == null) {
+      throw new ReflectionCauseCategoryInvalidException(
+          "reflection.causeCategoryCode", "指定した原因カテゴリは選択できません");
+    }
+    return category;
   }
 
   private Reflection findByTaskId(int taskId) {
@@ -160,6 +178,8 @@ public class ReflectionService {
         : new ReflectionResponse(
             row.getReflectionId(),
             row.getTaskId(),
+            row.getCauseCategoryCode(),
+            row.getCauseCategoryLabel(),
             row.getCause(),
             row.getNextAction(),
             row.getReflectionCreatedAt(),

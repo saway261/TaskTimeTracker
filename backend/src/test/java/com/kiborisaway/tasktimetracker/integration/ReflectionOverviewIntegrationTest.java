@@ -68,6 +68,8 @@ class ReflectionOverviewIntegrationTest {
         .andExpect(jsonPath("$.tasks[1].gapRateCached").value(50.0))
         .andExpect(jsonPath("$.tasks[1].reflection.cause")
             .value("着手前の調査が不足していた"))
+        .andExpect(jsonPath("$.tasks[1].reflection.causeCategoryCode").isEmpty())
+        .andExpect(jsonPath("$.tasks[1].reflection.causeCategoryLabel").isEmpty())
         .andExpect(jsonPath("$.taskGroups.length()").value(2))
         .andExpect(jsonPath("$.taskGroups[0].id").value(5))
         .andExpect(jsonPath("$.taskGroups[0].tasks.length()").value(1))
@@ -77,7 +79,27 @@ class ReflectionOverviewIntegrationTest {
         .andExpect(jsonPath("$.taskGroups[1].tasks[0].id").value(10))
         .andExpect(jsonPath("$.taskGroups[1].tasks[0].reflection").isEmpty())
         .andExpect(jsonPath("$.taskGroups[1].tasks[1].id").value(9))
-        .andExpect(jsonPath("$.taskGroups[1].tasks[1].reflection.nextAction").isEmpty());
+        .andExpect(jsonPath("$.taskGroups[1].tasks[1].reflection.nextAction").isEmpty())
+        .andExpect(jsonPath("$.taskGroups[1].tasks[1].reflection.causeCategoryCode").isEmpty());
+
+    assertThat(queryCounter.getCount()).isEqualTo(3);
+  }
+
+  @Test
+  void 一覧取得成功_原因カテゴリが設定されたReflectionはコードとラベルを返すこと() throws Exception {
+    Integer categoryId = jdbcTemplate.queryForObject(
+        "SELECT id FROM reflection_cause_categories WHERE code = 'AS_PLANNED'", Integer.class);
+    jdbcTemplate.update(
+        "UPDATE reflections SET cause_category_id = ? WHERE task_id = 6", categoryId);
+    queryCounter.reset();
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/3/reflections")
+            .with(authenticatedUser(2, "user-b@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tasks[1].id").value(6))
+        .andExpect(jsonPath("$.tasks[1].reflection.causeCategoryCode").value("AS_PLANNED"))
+        .andExpect(jsonPath("$.tasks[1].reflection.causeCategoryLabel")
+            .value("おおむね見積もりどおりに進んだ"));
 
     assertThat(queryCounter.getCount()).isEqualTo(3);
   }

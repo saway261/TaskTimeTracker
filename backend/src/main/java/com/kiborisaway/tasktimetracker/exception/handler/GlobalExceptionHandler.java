@@ -9,6 +9,7 @@ import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationException;
 import com.kiborisaway.tasktimetracker.exception.PasswordChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.PasswordResetInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
@@ -237,6 +238,21 @@ public class GlobalExceptionHandler {
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.CONFLICT,
         "reflection operation not allowed", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+  }
+
+  /**
+   * 未知または無効化された原因カテゴリコードの指定をクライアントに返します。
+   *
+   * @param ex ReflectionCauseCategoryInvalidException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(
+      ReflectionCauseCategoryInvalidException.class)
+  public ResponseEntity<ErrorResponse> handleReflectionCauseCategoryInvalidException(
+      ReflectionCauseCategoryInvalidException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "reflection cause category invalid", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
   }
 
   @org.springframework.web.bind.annotation.ExceptionHandler(EmailUnavailableException.class)

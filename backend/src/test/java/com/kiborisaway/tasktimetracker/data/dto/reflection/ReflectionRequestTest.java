@@ -22,8 +22,41 @@ class ReflectionRequestTest {
   }
 
   @Test
+  void causeCategoryCodeがnullの場合はバリデーション違反になること() {
+    ReflectionRequest request = request(null, "原因", null);
+
+    Set<ConstraintViolation<ReflectionRequest>> violations = validator.validate(request);
+
+    assertThat(hasViolation(violations, "causeCategoryCode")).isTrue();
+  }
+
+  @ParameterizedTest(name = "[{index}]causeCategoryCodeに有効な文字がない場合はバリデーション違反になること: {0}")
+  @ValueSource(strings = {"", " ", "　"})
+  void causeCategoryCodeが空白文字だけの場合はバリデーション違反になること(String causeCategoryCode) {
+    ReflectionRequest request = request(causeCategoryCode, "原因", null);
+
+    Set<ConstraintViolation<ReflectionRequest>> violations = validator.validate(request);
+
+    assertThat(hasViolation(violations, "causeCategoryCode")).isTrue();
+  }
+
+  @ParameterizedTest(name = "[{index}]causeCategoryCodeが{0}文字の場合 violation={1}")
+  @CsvSource({
+      "39,false",
+      "40,false",
+      "41,true"
+  })
+  void causeCategoryCodeの文字数境界値テスト(int length, boolean expectViolation) {
+    ReflectionRequest request = request("A".repeat(length), "原因", null);
+
+    Set<ConstraintViolation<ReflectionRequest>> violations = validator.validate(request);
+
+    assertThat(hasViolation(violations, "causeCategoryCode")).isEqualTo(expectViolation);
+  }
+
+  @Test
   void causeがnullの場合はバリデーション違反になること() {
-    ReflectionRequest request = request(null, null);
+    ReflectionRequest request = request("TASK_BREAKDOWN", null, null);
 
     Set<ConstraintViolation<ReflectionRequest>> violations = validator.validate(request);
 
@@ -34,7 +67,7 @@ class ReflectionRequestTest {
   @ParameterizedTest(name = "[{index}]causeに有効な文字がない場合はバリデーション違反になること: {0}")
   @ValueSource(strings = {"", " ", "　"})
   void causeが空白文字だけの場合はバリデーション違反になること(String cause) {
-    ReflectionRequest request = request(cause, null);
+    ReflectionRequest request = request("TASK_BREAKDOWN", cause, null);
 
     Set<ConstraintViolation<ReflectionRequest>> violations = validator.validate(request);
 
@@ -49,7 +82,7 @@ class ReflectionRequestTest {
       "201,true"
   })
   void causeの文字数境界値テスト(int length, boolean expectViolation) {
-    ReflectionRequest request = request("あ".repeat(length), null);
+    ReflectionRequest request = request("TASK_BREAKDOWN", "あ".repeat(length), null);
 
     Set<ConstraintViolation<ReflectionRequest>> violations = validator.validate(request);
 
@@ -58,8 +91,8 @@ class ReflectionRequestTest {
 
   @Test
   void nextActionがnullまたは空白文字だけの場合はバリデーション違反にならないこと() {
-    assertThat(validator.validate(request("原因", null))).isEmpty();
-    assertThat(validator.validate(request("原因", "   "))).isEmpty();
+    assertThat(validator.validate(request("TASK_BREAKDOWN", "原因", null))).isEmpty();
+    assertThat(validator.validate(request("TASK_BREAKDOWN", "原因", "   "))).isEmpty();
   }
 
   @ParameterizedTest(name = "[{index}]nextActionが{0}文字の場合 violation={1}")
@@ -69,15 +102,17 @@ class ReflectionRequestTest {
       "1001,true"
   })
   void nextActionの文字数境界値テスト(int length, boolean expectViolation) {
-    ReflectionRequest request = request("原因", "あ".repeat(length));
+    ReflectionRequest request = request("TASK_BREAKDOWN", "原因", "あ".repeat(length));
 
     Set<ConstraintViolation<ReflectionRequest>> violations = validator.validate(request);
 
     assertThat(hasViolation(violations, "nextAction")).isEqualTo(expectViolation);
   }
 
-  private static ReflectionRequest request(String cause, String nextAction) {
+  private static ReflectionRequest request(
+      String causeCategoryCode, String cause, String nextAction) {
     ReflectionRequest request = new ReflectionRequest();
+    request.setCauseCategoryCode(causeCategoryCode);
     request.setCause(cause);
     request.setNextAction(nextAction);
     return request;
