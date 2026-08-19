@@ -22,6 +22,8 @@ public class Reflection {
 
   private String nextAction;
 
+  private Integer causeCategoryId;
+
   private LocalDateTime createdAt;
 
   private LocalDateTime updatedAt;

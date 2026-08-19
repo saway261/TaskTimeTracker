@@ -98,6 +98,7 @@ public class ReflectionService {
         taskId,
         request.getCause().trim(),
         normalizeNextAction(request.getNextAction()),
+        null, // causeCategoryId: B2で設定する
         null,
         null);
     reflectionRepository.insert(reflection);

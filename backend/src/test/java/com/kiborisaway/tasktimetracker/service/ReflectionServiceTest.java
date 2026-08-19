@@ -279,6 +279,7 @@ class ReflectionServiceTest {
         TASK_ID,
         cause,
         nextAction,
+        null,
         LocalDateTime.of(2026, 8, 10, 10, 5),
         LocalDateTime.of(2026, 8, 10, 10, 5));
   }
@@ -311,6 +312,9 @@ class ReflectionServiceTest {
         cause,
         nextAction,
         reflectionAt,
-        reflectionAt);
+        reflectionAt,
+        null,
+        null,
+        null);
   }
 }

@@ -237,6 +237,7 @@ class ReflectionControllerTest {
         TASK_ID,
         "着手前の調査が不足していた",
         "類似タスクの実績を確認する",
+        null,
         LocalDateTime.of(2026, 8, 10, 10, 5),
         LocalDateTime.of(2026, 8, 10, 10, 5));
   }

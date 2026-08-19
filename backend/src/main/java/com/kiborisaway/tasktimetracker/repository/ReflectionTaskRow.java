@@ -42,4 +42,10 @@ public class ReflectionTaskRow {
   private LocalDateTime reflectionCreatedAt;
 
   private LocalDateTime reflectionUpdatedAt;
+
+  private Integer causeCategoryId;
+
+  private String causeCategoryCode;
+
+  private String causeCategoryLabel;
 }

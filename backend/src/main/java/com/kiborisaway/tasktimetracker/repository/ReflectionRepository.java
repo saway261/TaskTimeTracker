@@ -36,8 +36,8 @@ public interface ReflectionRepository {
    * @param reflection 登録する振り返り
    */
   @Insert("""
-      INSERT INTO reflections(task_id, cause, next_action, created_at, updated_at)
-      VALUES(#{taskId}, #{cause}, #{nextAction}, NOW(), NOW())
+      INSERT INTO reflections(task_id, cause, next_action, cause_category_id, created_at, updated_at)
+      VALUES(#{taskId}, #{cause}, #{nextAction}, #{causeCategoryId}, NOW(), NOW())
       """)
   @Options(useGeneratedKeys = true, keyProperty = "id", keyColumn = "id")
   void insert(Reflection reflection);
@@ -52,6 +52,7 @@ public interface ReflectionRepository {
       UPDATE reflections
       SET cause = #{cause},
           next_action = #{nextAction},
+          cause_category_id = #{causeCategoryId},
           updated_at = NOW()
       WHERE task_id = #{taskId}
       """)
@@ -84,6 +85,9 @@ public interface ReflectionRepository {
         r.id AS reflection_id,
         r.cause,
         r.next_action,
+        r.cause_category_id,
+        rcc.code AS cause_category_code,
+        rcc.label AS cause_category_label,
         r.created_at AS reflection_created_at,
         r.updated_at AS reflection_updated_at
       FROM tasks t
@@ -91,6 +95,7 @@ public interface ReflectionRepository {
         ON pio.project_id = t.project_id
         AND pio.task_id = t.id
       LEFT JOIN reflections r ON r.task_id = t.id
+      LEFT JOIN reflection_cause_categories rcc ON rcc.id = r.cause_category_id
       WHERE t.project_id = #{projectId}
         AND t.finished_at IS NOT NULL
       ORDER BY COALESCE(pio.position, 2147483647), t.id
@@ -117,6 +122,9 @@ public interface ReflectionRepository {
         r.id AS reflection_id,
         r.cause,
         r.next_action,
+        r.cause_category_id,
+        rcc.code AS cause_category_code,
+        rcc.label AS cause_category_label,
         r.created_at AS reflection_created_at,
         r.updated_at AS reflection_updated_at
       FROM tasks t
@@ -128,6 +136,7 @@ public interface ReflectionRepository {
         ON tgio.task_group_id = tg.id
         AND tgio.task_id = t.id
       LEFT JOIN reflections r ON r.task_id = t.id
+      LEFT JOIN reflection_cause_categories rcc ON rcc.id = r.cause_category_id
       WHERE tg.project_id = #{projectId}
         AND t.finished_at IS NOT NULL
       ORDER BY
