@@ -221,6 +221,77 @@ class AnalyticsRepositoryTest {
   }
 
   @Test
+  void findScatterPoints_完了日時降順で上限プラス1件まで取得できること() {
+    int projectId = insertProject(USER_ID, "散布図検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    for (int i = 0; i < 5; i++) {
+      insertFinishedTaskWithEstimate(projectId, base.plusDays(i), 60, 90, 50.0);
+    }
+
+    List<AnalyticsScatterPointRow> actual =
+        sut.findScatterPoints(USER_ID, conditionFor(projectId), THRESHOLD, 3);
+
+    // limit=3に対しlimit+1=4件までしか返らない（5件挿入しても4件で頭打ち）。
+    assertThat(actual).hasSize(4);
+    assertThat(actual.get(0).getOutcome()).isEqualTo("LATE");
+    assertThat(actual.get(0).getGapRate()).isEqualTo(50.0);
+  }
+
+  @Test
+  void findScatterPoints_上限以下の場合はすべて取得できること() {
+    int projectId = insertProject(USER_ID, "散布図上限未満検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    insertFinishedTaskWithEstimate(projectId, base, 60, 60, 0.0);
+    insertFinishedTaskWithEstimate(projectId, base.plusDays(1), 60, 30, -50.0);
+
+    List<AnalyticsScatterPointRow> actual =
+        sut.findScatterPoints(USER_ID, conditionFor(projectId), THRESHOLD, 500);
+
+    assertThat(actual).hasSize(2);
+    assertThat(actual)
+        .extracting(AnalyticsScatterPointRow::getOutcome)
+        .containsExactly("EARLY", "ON_TIME"); // finished_at DESCなので新しい順
+  }
+
+  @Test
+  void findSizeBuckets_境界値ちょうどが下側の帯に分類され代表係数が手計算した期待値と一致すること() {
+    int projectId = insertProject(USER_ID, "サイズ帯境界値検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    // M15: 15分ちょうど。M30: 16分と30分。境界のみ確認できればよいため各1〜2件で十分。
+    insertFinishedTaskWithEstimate(projectId, base, 15, 100, 0.0);
+    insertFinishedTaskWithEstimate(projectId, base.plusDays(1), 16, 100, 0.0);
+    insertFinishedTaskWithEstimate(projectId, base.plusDays(2), 30, 100, 20.0);
+    insertFinishedTaskWithEstimate(projectId, base.plusDays(3), 121, 100, 0.0);
+
+    List<AnalyticsSizeBucketRow> actual =
+        sut.findSizeBuckets(USER_ID, conditionFor(projectId), THRESHOLD);
+
+    assertThat(actual)
+        .extracting(AnalyticsSizeBucketRow::getBucketCode, AnalyticsSizeBucketRow::getTaskCount)
+        .containsExactlyInAnyOrder(
+            tuple("M15", 1), tuple("M30", 2), tuple("OVER120", 1));
+    AnalyticsSizeBucketRow m30 = actual.stream()
+        .filter(row -> row.getBucketCode().equals("M30"))
+        .findFirst()
+        .orElseThrow();
+    // factor: 1.0（gapRate=0）と1.2（gapRate=20）の中央値 = 1.1
+    assertThat(m30.getFactorMedian()).isCloseTo(1.1, within(1e-9));
+    assertThat(m30.getOnTimeCount()).isEqualTo(1); // gapRate=20は超過、0のみオンタイム
+  }
+
+  @Test
+  void findSizeBuckets_該当0件の帯はレスポンスに現れないこと() {
+    int projectId = insertProject(USER_ID, "サイズ帯0件検証");
+    insertFinishedTaskWithEstimate(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 15, 100, 0.0);
+
+    List<AnalyticsSizeBucketRow> actual =
+        sut.findSizeBuckets(USER_ID, conditionFor(projectId), THRESHOLD);
+
+    assertThat(actual).extracting(AnalyticsSizeBucketRow::getBucketCode).containsExactly("M15");
+  }
+
+  @Test
   void タイムライン_完了日時の降順で振り返り未入力のタスクを含まずに返ること() {
     int projectId = insertProject(USER_ID, "タイムライン順序検証");
     LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
@@ -506,5 +577,16 @@ class AnalyticsRepositoryTest {
           finished_at, actual_minutes_cached, gap_minutes_cached, gap_rate_cached)
         VALUES (?, ?, 'フィクスチャ', 60, NOW(), ?, ?, 0, ?)
         """, projectId, taskGroupId, finishedAt, actualMinutes, gapRate);
+  }
+
+  private void insertFinishedTaskWithEstimate(
+      int projectId, LocalDateTime finishedAt, int estimatedMinutes, int actualMinutes,
+      double gapRate) {
+    jdbcTemplate.update("""
+        INSERT INTO tasks(
+          project_id, title, estimated_minutes, created_at,
+          finished_at, actual_minutes_cached, gap_minutes_cached, gap_rate_cached)
+        VALUES (?, 'フィクスチャ', ?, NOW(), ?, ?, 0, ?)
+        """, projectId, estimatedMinutes, finishedAt, actualMinutes, gapRate);
   }
 }

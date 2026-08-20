@@ -35,9 +35,9 @@ public interface AnalyticsRepository {
           AND t.actual_minutes_cached <> 0
           AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
                OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
-          AND (#{condition.from, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
-          AND (#{condition.to, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
       )
       SELECT
@@ -81,9 +81,9 @@ public interface AnalyticsRepository {
           AND t.actual_minutes_cached <> 0
           AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
                OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
-          AND (#{condition.from, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
-          AND (#{condition.to, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
       )
       SELECT
@@ -117,14 +117,109 @@ public interface AnalyticsRepository {
         AND t.finished_at IS NOT NULL
         AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
              OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
-        AND (#{condition.from, jdbcType=TIMESTAMP} IS NULL
+        AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
              OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
-        AND (#{condition.to, jdbcType=TIMESTAMP} IS NULL
+        AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
              OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
       """)
   ExcludedCountRow findExcludedCounts(
       @Param("userId") int userId,
       @Param("condition") AnalyticsQueryCondition condition);
+
+  /**
+   * 散布図用に、分析対象タスクを完了日時が新しい順に最大 {@code limit + 1} 件取得します。
+   * {@code limit + 1} 件取れた場合は表示上限を超えていることを示すため、呼び出し側で
+   * {@code limit} 件に切り詰めたうえで昇順へ並べ替えてください（返却順は降順のまま渡します）。
+   *
+   * @param userId    認証ユーザーID
+   * @param condition 絞り込み条件（projectId / from / to）
+   * @param threshold 判定区分しきい値（百分率）
+   * @param limit     表示上限件数（{@code SCATTER_MAX_POINTS}）
+   * @return 完了日時降順の散布図データ行。最大 {@code limit + 1} 件
+   */
+  @Select("""
+      SELECT
+        t.id AS task_id,
+        t.title AS task_title,
+        t.estimated_minutes,
+        t.actual_minutes_cached AS actual_minutes,
+        t.gap_rate_cached AS gap_rate,
+        CASE
+          WHEN t.gap_rate_cached >  #{threshold} THEN 'LATE'
+          WHEN t.gap_rate_cached < -#{threshold} THEN 'EARLY'
+          ELSE 'ON_TIME'
+        END AS outcome
+      FROM tasks t
+      LEFT JOIN task_groups tg ON tg.id = t.task_group_id
+      JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
+      WHERE p.user_id = #{userId}
+        AND t.finished_at IS NOT NULL
+        AND t.gap_rate_cached IS NOT NULL
+        AND t.actual_minutes_cached IS NOT NULL
+        AND t.actual_minutes_cached <> 0
+        AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
+             OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
+        AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+             OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
+        AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+             OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+      ORDER BY t.finished_at DESC, t.id DESC
+      LIMIT #{limit} + 1
+      """)
+  List<AnalyticsScatterPointRow> findScatterPoints(
+      @Param("userId") int userId,
+      @Param("condition") AnalyticsQueryCondition condition,
+      @Param("threshold") double threshold,
+      @Param("limit") int limit);
+
+  /**
+   * タスクサイズ帯（見積時間）ごとに件数・代表係数の中央値・オンタイム件数を1クエリで取得します。
+   * 該当タスクが0件の帯はこの結果に現れないため、呼び出し側で全帯を埋めてください。
+   *
+   * @param userId    認証ユーザーID
+   * @param condition 絞り込み条件（projectId / from / to）
+   * @param threshold 判定区分しきい値（百分率）
+   * @return 帯ごとの集計行。該当0件の帯は含まれない
+   */
+  @Select("""
+      WITH target AS (
+        SELECT
+          t.gap_rate_cached / 100.0 + 1 AS factor,
+          t.gap_rate_cached             AS gap_rate,
+          CASE
+            WHEN t.estimated_minutes <= 15  THEN 'M15'
+            WHEN t.estimated_minutes <= 30  THEN 'M30'
+            WHEN t.estimated_minutes <= 60  THEN 'M60'
+            WHEN t.estimated_minutes <= 120 THEN 'M120'
+            ELSE 'OVER120'
+          END AS bucket_code
+        FROM tasks t
+        LEFT JOIN task_groups tg ON tg.id = t.task_group_id
+        JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
+        WHERE p.user_id = #{userId}
+          AND t.finished_at IS NOT NULL
+          AND t.gap_rate_cached IS NOT NULL
+          AND t.actual_minutes_cached IS NOT NULL
+          AND t.actual_minutes_cached <> 0
+          AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
+               OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
+          AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+               OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
+          AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+               OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+      )
+      SELECT
+        bucket_code,
+        COUNT(*) AS task_count,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY factor) AS factor_median,
+        COALESCE(SUM(CASE WHEN ABS(gap_rate) <= #{threshold} THEN 1 ELSE 0 END), 0) AS on_time_count
+      FROM target
+      GROUP BY bucket_code
+      """)
+  List<AnalyticsSizeBucketRow> findSizeBuckets(
+      @Param("userId") int userId,
+      @Param("condition") AnalyticsQueryCondition condition,
+      @Param("threshold") double threshold);
 
   /**
    * 振り返り済みの完了タスクを完了日時降順でページング取得します。除外ルール（§2-1）は適用しません
@@ -166,9 +261,9 @@ public interface AnalyticsRepository {
           AND t.finished_at IS NOT NULL
           AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
                OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
-          AND (#{condition.from, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
-          AND (#{condition.to, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
           AND (#{condition.causeCategory, jdbcType=VARCHAR} IS NULL OR EXISTS (
                 SELECT 1 FROM reflection_cause_category_links rcl
@@ -214,9 +309,9 @@ public interface AnalyticsRepository {
           AND t.finished_at IS NOT NULL
           AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
                OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
-          AND (#{condition.from, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
-          AND (#{condition.to, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
           AND (#{condition.causeCategory, jdbcType=VARCHAR} IS NULL OR EXISTS (
                 SELECT 1 FROM reflection_cause_category_links rcl
@@ -264,9 +359,9 @@ public interface AnalyticsRepository {
           AND t.finished_at IS NOT NULL
           AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
                OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
-          AND (#{condition.from, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
-          AND (#{condition.to, jdbcType=TIMESTAMP} IS NULL
+          AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
           AND (#{condition.causeCategory, jdbcType=VARCHAR} IS NULL OR EXISTS (
                 SELECT 1 FROM reflection_cause_category_links rcl
