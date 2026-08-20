@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import type { ReflectionTaskGroupResponse } from '@/types/reflection'
 import ReflectionTaskGroupSection from './ReflectionTaskGroupSection.vue'
 
@@ -22,6 +24,10 @@ const taskGroup: ReflectionTaskGroupResponse = {
 }
 
 describe('ReflectionTaskGroupSection', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
   it('展開状態のときだけ所属タスクの集計を表示する', async () => {
     const wrapper = mount(ReflectionTaskGroupSection, {
       props: { taskGroup, isOpen: false },
@@ -39,5 +45,17 @@ describe('ReflectionTaskGroupSection', () => {
     expect(summary.text()).toContain('合計誤差比')
     expect(summary.text()).not.toContain('合計実績')
     expect(summary.get('.estimate-outcome-icon').classes()).toContain('late')
+  })
+
+  it('集計結果をストアのしきい値で判定する', () => {
+    useAppSettingsStore().onTimeThresholdPercent = 60
+    const wrapper = mount(ReflectionTaskGroupSection, {
+      props: { taskGroup, isOpen: true },
+      global: {
+        stubs: { ReflectionTaskRow: true },
+      },
+    })
+
+    expect(wrapper.get('.aggregate-summary .outcome-metric').classes()).toContain('on-time')
   })
 })

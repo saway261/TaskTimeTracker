@@ -3,8 +3,12 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as authApi from '@/api/authApi'
+import * as appSettingsApi from '@/api/appSettingsApi'
 import { useAuthStore } from '@/stores/authStore'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import { router } from './index'
+
+vi.mock('@/api/appSettingsApi')
 
 const user = {
   id: 1,
@@ -16,8 +20,12 @@ const user = {
 describe('authentication navigation guard', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.resetAllMocks()
     setActivePinia(createPinia())
     useAuthStore().initialized = true
+    vi.mocked(appSettingsApi.fetchSettings).mockResolvedValue({
+      data: { onTimeThresholdPercent: 10 },
+    } as never)
   })
 
   it('redirects unauthenticated users from protected routes to login', async () => {
@@ -119,5 +127,29 @@ describe('authentication navigation guard', () => {
     await router.push('/password-change')
 
     expect(router.currentRoute.value.name).toBe('password-change')
+  })
+
+  it('認証済みなら画面遷移前にアプリ設定を取得する', async () => {
+    useAuthStore().currentUser = user
+    vi.mocked(appSettingsApi.fetchSettings).mockResolvedValue({
+      data: { onTimeThresholdPercent: 20 },
+    } as never)
+
+    await router.push('/projects?settings=success')
+
+    expect(appSettingsApi.fetchSettings).toHaveBeenCalledTimes(1)
+    expect(useAppSettingsStore().onTimeThresholdPercent).toBe(20)
+    expect(useAppSettingsStore().loaded).toBe(true)
+  })
+
+  it('設定取得に失敗しても既定値で画面遷移を継続する', async () => {
+    useAuthStore().currentUser = user
+    vi.mocked(appSettingsApi.fetchSettings).mockRejectedValue(new Error('network error'))
+
+    await router.push('/projects?settings=fallback')
+
+    expect(router.currentRoute.value.name).toBe('project-list')
+    expect(useAppSettingsStore().onTimeThresholdPercent).toBe(10)
+    expect(useAppSettingsStore().loaded).toBe(true)
   })
 })

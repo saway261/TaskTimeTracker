@@ -4,6 +4,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useCauseCategoryStore } from '@/stores/causeCategoryStore'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import type { ReflectionTaskResponse } from '@/types/reflection'
 import ReflectionModal from './ReflectionModal.vue'
 
@@ -134,5 +135,12 @@ describe('ReflectionModal', () => {
 
     expect((checkboxFor(wrapper, category.code).element as HTMLInputElement).checked).toBe(false)
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('ストアのしきい値をカテゴリの出し分けにも使用する', () => {
+    useAppSettingsStore().onTimeThresholdPercent = 60
+    const wrapper = mountModal(baseTask)
+
+    expect(wrapper.get('.outcome-reference').classes()).toContain('on-time')
   })
 })

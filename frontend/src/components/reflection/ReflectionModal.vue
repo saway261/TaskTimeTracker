@@ -6,6 +6,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import CauseCategorySelect from '@/components/reflection/CauseCategorySelect.vue'
 import { useCauseCategoryStore } from '@/stores/causeCategoryStore'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import type { ReflectionRequest, ReflectionTaskResponse } from '@/types/reflection'
 import type { ApiError } from '@/types/apiError'
 import { estimateOutcome, formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
@@ -37,6 +38,7 @@ const mode = computed<'create' | 'edit'>(() => (props.task?.reflection ? 'edit' 
 const title = computed(() => (mode.value === 'create' ? '振り返りを入力' : '振り返りの詳細・変更'))
 
 const categoryStore = useCauseCategoryStore()
+const appSettingsStore = useAppSettingsStore()
 
 const cause = ref('')
 const nextAction = ref('')
@@ -68,7 +70,9 @@ const gapRateText = computed(() => {
   const rate = props.task?.gapRateCached
   return rate === undefined || rate === null ? '-' : formatGapRate(rate)
 })
-const outcome = computed(() => estimateOutcome(props.task?.gapRateCached))
+const outcome = computed(() =>
+  estimateOutcome(props.task?.gapRateCached, appSettingsStore.onTimeThresholdPercent),
+)
 const causeCategoryError = computed(() => {
   if (props.error?.fieldErrors.causeCategoryCodes) {
     return props.error.fieldErrors.causeCategoryCodes

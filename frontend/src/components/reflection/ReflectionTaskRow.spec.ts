@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import type { ReflectionTaskResponse } from '@/types/reflection'
 import ReflectionTaskRow from './ReflectionTaskRow.vue'
 
@@ -27,6 +29,10 @@ const task: ReflectionTaskResponse = {
 }
 
 describe('ReflectionTaskRow', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
   it('振り返りの原因カテゴリを複数バッジ表示する', () => {
     const wrapper = mount(ReflectionTaskRow, { props: { task } })
 
@@ -46,5 +52,13 @@ describe('ReflectionTaskRow', () => {
     })
 
     expect(wrapper.text()).not.toContain('原因：')
+  })
+
+  it('ストアのしきい値で行の判定表示を変更する', () => {
+    useAppSettingsStore().onTimeThresholdPercent = 60
+
+    const wrapper = mount(ReflectionTaskRow, { props: { task } })
+
+    expect(wrapper.get('.outcome-meta').classes()).toContain('on-time')
   })
 })

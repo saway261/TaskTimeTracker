@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { estimateOutcome } from '@/utils/duration'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 
 const props = withDefaults(
   defineProps<{
@@ -12,11 +13,16 @@ const props = withDefaults(
   },
 )
 
-const outcome = computed(() => estimateOutcome(props.gapRate))
+const appSettingsStore = useAppSettingsStore()
+const outcome = computed(() =>
+  estimateOutcome(props.gapRate, appSettingsStore.onTimeThresholdPercent),
+)
 const label = computed(() => {
   if (outcome.value === 'early') return '見積より早く完了'
   if (outcome.value === 'late') return '見積を超過'
-  if (outcome.value === 'on-time') return 'おおむね見積どおり（誤差比±10%以内）'
+  if (outcome.value === 'on-time') {
+    return `おおむね見積どおり（誤差比±${appSettingsStore.onTimeThresholdPercent}%以内）`
+  }
   return ''
 })
 </script>

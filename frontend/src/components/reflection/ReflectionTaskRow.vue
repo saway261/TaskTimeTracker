@@ -4,6 +4,7 @@ import type { ReflectionTaskResponse } from '@/types/reflection'
 import { estimateOutcome, formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
 import { truncateForPreview } from '@/utils/reflectionPreview'
 import EstimateOutcomeIcon from '@/components/common/EstimateOutcomeIcon.vue'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 
 const props = defineProps<{
   task: ReflectionTaskResponse
@@ -13,6 +14,7 @@ const emit = defineEmits<{
   open: [task: ReflectionTaskResponse]
 }>()
 
+const appSettingsStore = useAppSettingsStore()
 const hasReflection = computed(() => props.task.reflection !== null)
 
 // 過去データ不整合などでキャッシュ値が欠けていても画面を止めないよう、ここで一括して「-」に落とす。
@@ -25,7 +27,9 @@ const gapText = computed(() =>
 const gapRateText = computed(() =>
   props.task.gapRateCached === null ? '-' : formatGapRate(props.task.gapRateCached),
 )
-const outcome = computed(() => estimateOutcome(props.task.gapRateCached))
+const outcome = computed(() =>
+  estimateOutcome(props.task.gapRateCached, appSettingsStore.onTimeThresholdPercent),
+)
 
 // causeは任意項目のため未入力の場合があり、その場合は「原因：」ラベルだけの行にしない。
 const causePreview = computed(() => {

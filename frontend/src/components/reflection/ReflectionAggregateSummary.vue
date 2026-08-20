@@ -4,6 +4,7 @@ import type { ReflectionTaskResponse } from '@/types/reflection'
 import { estimateOutcome, formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
 import { aggregateReflectionMetrics } from '@/utils/reflectionMetrics'
 import EstimateOutcomeIcon from '@/components/common/EstimateOutcomeIcon.vue'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 
 const props = withDefaults(
   defineProps<{
@@ -17,6 +18,7 @@ const props = withDefaults(
   },
 )
 
+const appSettingsStore = useAppSettingsStore()
 const metrics = computed(() => aggregateReflectionMetrics(props.tasks))
 const actualText = computed(() =>
   metrics.value.actualMinutes === null ? '-' : formatMinutes(metrics.value.actualMinutes),
@@ -27,7 +29,9 @@ const gapText = computed(() =>
 const gapRateText = computed(() =>
   metrics.value.gapRate === null ? '-' : formatGapRate(metrics.value.gapRate),
 )
-const outcome = computed(() => estimateOutcome(metrics.value.gapRate))
+const outcome = computed(() =>
+  estimateOutcome(metrics.value.gapRate, appSettingsStore.onTimeThresholdPercent),
+)
 </script>
 
 <template>

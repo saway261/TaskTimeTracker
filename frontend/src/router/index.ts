@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import type { ApiError } from '@/types/apiError'
 
@@ -126,6 +127,11 @@ router.beforeEach(async (to) => {
     await authStore.initialize()
   } catch (e) {
     useNotificationStore().error((e as ApiError).message)
+  }
+
+  const appSettingsStore = useAppSettingsStore()
+  if (authStore.isAuthenticated && !appSettingsStore.loaded) {
+    await appSettingsStore.load()
   }
 
   const restrictionExemptRoutes = new Set([
