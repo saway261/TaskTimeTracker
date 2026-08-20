@@ -10,9 +10,10 @@ import * as reflectionsApi from '@/api/reflectionsApi'
 import type { ApiError } from '@/types/apiError'
 import type { MemoRequest } from '@/types/memo'
 import type { ReflectionRequest } from '@/types/reflection'
-import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import FinishedCheckbox from '@/components/common/FinishedCheckbox.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import MemoList from '@/components/memo/MemoList.vue'
 import EstimationSummary from '@/components/task/EstimationSummary.vue'
@@ -103,19 +104,31 @@ function handleMemoCreate(req: MemoRequest) {
 
 const finishing = ref(false)
 const finishError = ref<ApiError | null>(null)
+const showReopenConfirm = ref(false)
 
-async function finishTask() {
+async function updateFinishedState(nextFinished: boolean) {
   finishing.value = true
   finishError.value = null
   try {
-    await taskStore.updateFinished(props.taskId, { isFinished: true })
-    notification.success('タスクを完了にしました。')
-    reflectionError.value = null
-    showReflectionModal.value = true
+    await taskStore.updateFinished(props.taskId, { isFinished: nextFinished })
+    notification.success(nextFinished ? 'タスクを完了にしました。' : '完了を解除しました。')
+    if (nextFinished) {
+      reflectionError.value = null
+      showReflectionModal.value = true
+    }
   } catch (e) {
     finishError.value = e as ApiError
   } finally {
     finishing.value = false
+  }
+}
+
+// 作業中へ戻す方向のときだけ、振り返りが破棄されることの確認を挟む（完了にする方向は確認なし）。
+function handleFinishedToggle(nextFinished: boolean) {
+  if (nextFinished) {
+    updateFinishedState(true)
+  } else {
+    showReopenConfirm.value = true
   }
 }
 
@@ -166,7 +179,15 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
 
       <template v-else-if="task">
         <div class="task-state">
-          <span class="status" :class="{ finished }">{{ finished ? '完了' : '未完了' }}</span>
+          <FinishedCheckbox
+            :model-value="finished"
+            :disabled="finishing || (!finished && hasActiveTimer)"
+            @update:model-value="handleFinishedToggle"
+          />
+          <p v-if="!finished && hasActiveTimer" class="section-hint">
+            タイマーを停止してから完了にしてください。
+          </p>
+          <ErrorMessage v-if="finishError" :error="finishError" />
         </div>
 
         <section class="quick-section metrics-section" aria-labelledby="metrics-title">
@@ -207,16 +228,6 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
           />
         </section>
 
-        <ErrorMessage v-if="finishError" :error="finishError" />
-        <div v-if="!finished" class="finish-action">
-          <BaseButton :disabled="finishing || hasActiveTimer" @click="finishTask">
-            完了にする
-          </BaseButton>
-          <p v-if="hasActiveTimer" class="section-hint">
-            タイマーを停止してから完了にしてください。
-          </p>
-        </div>
-
         <footer class="modal-footer">
           <RouterLink :to="detailTo" class="detail-link" @click="close">
             詳細画面で確認・編集する →
@@ -224,6 +235,15 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
         </footer>
       </template>
     </div>
+
+    <ConfirmDialog
+      v-model="showReopenConfirm"
+      title="タスクを作業中に戻す"
+      message="このタスクを作業中に戻します。保存済みの振り返りがある場合は削除され、元に戻せません。"
+      confirm-label="作業中に戻す"
+      danger
+      @confirm="updateFinishedState(false)"
+    />
 
     <ReflectionModal
       :model-value="showReflectionModal"
@@ -246,21 +266,10 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
 
 .task-state {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
   margin-top: -0.35rem;
-}
-
-.status {
-  padding: 0.2rem 0.65rem;
-  border-radius: 999px;
-  background: var(--color-surface-muted);
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.status.finished {
-  color: var(--color-success);
 }
 
 .quick-section {
@@ -305,18 +314,6 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
 
 .history-content {
   padding: 0 0.9rem 0.9rem;
-}
-
-.finish-action {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.6rem;
-  padding-top: 0.25rem;
-}
-
-.finish-action .section-hint {
-  margin: 0;
 }
 
 .modal-footer {

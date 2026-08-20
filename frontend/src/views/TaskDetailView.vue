@@ -21,6 +21,7 @@ import BaseInput from '@/components/common/BaseInput.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
+import FinishedCheckbox from '@/components/common/FinishedCheckbox.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
 import EstimationSummary from '@/components/task/EstimationSummary.vue'
 import MemoList from '@/components/memo/MemoList.vue'
@@ -292,17 +293,17 @@ function handleMemoCreate(req: MemoRequest) {
       <div class="header">
         <div>
           <h1>{{ taskStore.currentTask.title }}</h1>
-          <span class="status" :class="{ finished }">{{ finished ? '完了' : '未完了' }}</span>
+          <FinishedCheckbox
+            :model-value="finished"
+            :disabled="finishing || (!finished && hasActiveTimer)"
+            @update:model-value="handleToggleFinishedClick"
+          />
+          <p v-if="!finished && hasActiveTimer" class="hint">
+            タイマーを停止してから完了にしてください。
+          </p>
         </div>
         <div class="header-actions">
           <BaseButton variant="secondary" @click="openEditModal">編集</BaseButton>
-          <BaseButton
-            variant="secondary"
-            :disabled="finishing || (!finished && hasActiveTimer)"
-            @click="handleToggleFinishedClick"
-          >
-            {{ finished ? '完了を解除する' : '完了にする' }}
-          </BaseButton>
           <BaseButton variant="danger" :disabled="hasActiveTimer" @click="showDeleteConfirm = true">
             削除
           </BaseButton>
@@ -445,15 +446,6 @@ function handleMemoCreate(req: MemoRequest) {
   display: flex;
   gap: 0.6em;
   flex-wrap: wrap;
-}
-
-.status {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.status.finished {
-  color: var(--color-success);
 }
 
 .estimation-section,

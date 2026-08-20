@@ -27,7 +27,6 @@ class ProjectUpdateRequestTest {
     ProjectUpdateRequest request = new ProjectUpdateRequest();
     request.setTitle(null);
     request.setDescription("不正なプロジェクト");
-    request.setIsFinished(false);
 
     // Act
     Set<ConstraintViolation<ProjectUpdateRequest>> violations = validator.validate(request);
@@ -35,23 +34,6 @@ class ProjectUpdateRequestTest {
     // Assert
     assertThat(violations.stream()
         .anyMatch(v -> v.getPropertyPath().toString().equals("title")))
-        .isTrue();
-  }
-
-  @Test
-  void isFinishedにnullが渡されたときバリデーション違反になること() {
-    // Arrange
-    ProjectUpdateRequest request = new ProjectUpdateRequest();
-    request.setTitle("タイトル");
-    request.setDescription("不正なプロジェクト");
-    request.setIsFinished(null);
-
-    // Act
-    Set<ConstraintViolation<ProjectUpdateRequest>> violations = validator.validate(request);
-
-    // Assert
-    assertThat(violations.stream()
-        .anyMatch(v -> v.getPropertyPath().toString().equals("isFinished")))
         .isTrue();
   }
 
@@ -63,7 +45,6 @@ class ProjectUpdateRequestTest {
     ProjectUpdateRequest request = new ProjectUpdateRequest();
     request.setTitle(invalidTitle);
     request.setDescription("不正なプロジェクト");
-    request.setIsFinished(false);
 
     // Act
     Set<ConstraintViolation<ProjectUpdateRequest>> violations = validator.validate(request);
@@ -90,7 +71,6 @@ class ProjectUpdateRequestTest {
     request.setTitle(fieldName.equals("title") ? testValue : "プロジェクトA");
     request.setDescription(
         fieldName.equals("description") ? testValue : "A社から受託したプロジェクト");
-    request.setIsFinished(false);
 
     // Act
     Set<ConstraintViolation<ProjectUpdateRequest>> violations = validator.validate(request);

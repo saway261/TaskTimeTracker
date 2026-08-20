@@ -8,6 +8,7 @@ import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
 import { sortByItemOrder } from '@/utils/sort'
 import { insertStubAt } from '@/utils/dragReorder'
+import { isFinished as isTaskFinished } from '@/utils/task'
 import type { ApiError } from '@/types/apiError'
 import type { TaskGroupUpdateRequest } from '@/types/taskGroup'
 import type { TaskCreateRequest } from '@/types/task'
@@ -17,6 +18,7 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
+import FinishedCheckbox from '@/components/common/FinishedCheckbox.vue'
 import TaskGroupForm from '@/components/taskGroup/TaskGroupForm.vue'
 import TaskListItem from '@/components/task/TaskListItem.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
@@ -92,11 +94,7 @@ function openEditModal() {
   showEditModal.value = true
 }
 
-async function handleUpdate(payload: {
-  title: string
-  description: string | null
-  isFinished?: boolean
-}) {
+async function handleUpdate(payload: { title: string; description: string | null }) {
   const id = numericId.value
   if (id === null) return
   updating.value = true
@@ -109,6 +107,26 @@ async function handleUpdate(payload: {
     updateError.value = e as ApiError
   } finally {
     updating.value = false
+  }
+}
+
+// --- 完了状態(未完了のタスクが1件でもあれば完了にできない) ---
+const finishedUpdating = ref(false)
+const finishedError = ref<ApiError | null>(null)
+const hasUnfinishedTasks = computed(() => groupTasks.value.some((t) => !isTaskFinished(t)))
+
+async function handleFinishedToggle(nextFinished: boolean) {
+  const id = numericId.value
+  if (id === null) return
+  finishedUpdating.value = true
+  finishedError.value = null
+  try {
+    await taskGroupStore.updateFinished(id, { isFinished: nextFinished })
+    notification.success(nextFinished ? 'タスクグループを完了にしました。' : '完了を解除しました。')
+  } catch (e) {
+    finishedError.value = e as ApiError
+  } finally {
+    finishedUpdating.value = false
   }
 }
 
@@ -230,9 +248,18 @@ async function handleItemDrop() {
       <div class="header">
         <div>
           <h1>{{ taskGroupStore.currentTaskGroup.title }}</h1>
-          <span class="status" :class="{ finished: taskGroupStore.currentTaskGroup.isFinished }">
-            {{ taskGroupStore.currentTaskGroup.isFinished ? '完了' : '未完了' }}
-          </span>
+          <FinishedCheckbox
+            :model-value="taskGroupStore.currentTaskGroup.isFinished"
+            :disabled="
+              finishedUpdating ||
+              (!taskGroupStore.currentTaskGroup.isFinished && hasUnfinishedTasks)
+            "
+            @update:model-value="handleFinishedToggle"
+          />
+          <p v-if="!taskGroupStore.currentTaskGroup.isFinished && hasUnfinishedTasks" class="hint">
+            未完了のタスクがあるため、完了状態にできません。
+          </p>
+          <ErrorMessage v-if="finishedError" :error="finishedError" />
         </div>
         <BaseButton variant="secondary" @click="openEditModal">編集</BaseButton>
       </div>
@@ -323,15 +350,6 @@ async function handleItemDrop() {
 
 .header h1 {
   margin: 0 0 0.3em;
-}
-
-.status {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.status.finished {
-  color: var(--color-success);
 }
 
 .hint {

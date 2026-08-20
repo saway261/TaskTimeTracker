@@ -15,6 +15,7 @@ import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
+import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
@@ -178,8 +179,7 @@ class ProjectControllerTest {
     String validRequest = """
         {
             "title" : "タスク管理アプリ開発",
-            "description" : "説明を更新",
-            "isFinished" : false
+            "description" : "説明を更新"
         }
         """;
 
@@ -222,8 +222,7 @@ class ProjectControllerTest {
     String validRequest = """
         {
           "title": "更新タイトル",
-          "description": "更新説明",
-          "isFinished" : false
+          "description": "更新説明"
         }
         """;
     doThrow(new TargetNotFoundException("id", "project not found"))
@@ -258,6 +257,85 @@ class ProjectControllerTest {
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void プロジェクト完了状態更新成功_200と更新後データを返すこと() throws Exception {
+    // Arrange
+    int id = 1;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
+    Project updated = new Project(id, "タスク管理アプリ開発", "A社から受託した開発", true);
+    when(service.updateFinished(eq(USER_ID), eq(id), eq(true)))
+        .thenReturn(new ProjectResponse(updated, List.of()));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", id)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.isFinished").value(true));
+
+    verify(service).updateFinished(USER_ID, id, true);
+  }
+
+  @Test
+  void プロジェクト完了状態更新失敗_未完了タスクが存在する場合は400を返すこと() throws Exception {
+    // Arrange
+    int id = 1;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
+    doThrow(new ProjectFinishNotAllowedException("project.id", "未完了のタスクがあります"))
+        .when(service).updateFinished(USER_ID, id, true);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", id)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void プロジェクト完了状態更新失敗_対象が存在しないなら404を返すこと() throws Exception {
+    // Arrange
+    int id = 999;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
+    doThrow(new TargetNotFoundException("project.id", "project not found"))
+        .when(service).updateFinished(USER_ID, id, true);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", id)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void プロジェクト完了状態更新失敗_不正なリクエストボディなら400を返すこと() throws Exception {
+    // Arrange
+    int id = 1;
+    String invalidRequest = "{}";
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", id)
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))

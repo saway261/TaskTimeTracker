@@ -112,6 +112,7 @@ const showQuickActions = ref(false)
       :project-id="projectId"
       :container-key="containerKey"
       :task-groups="taskGroups"
+      :finished="finished"
       :can-move-up="canMoveUp"
       :can-move-down="canMoveDown"
       @move-up="emit('move-up')"

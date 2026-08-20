@@ -67,14 +67,24 @@ public interface ProjectRepository {
   void insert(Project project);
 
   /**
-   * プロジェクトの更新を行います。プロジェクト名と説明と完了フラグを変更できます。 未変更の項目はDBに既存の値のままフロントエンドから返される想定で、全体更新します。
+   * プロジェクトの更新を行います。プロジェクト名と説明を変更できます。 未変更の項目はDBに既存の値のままフロントエンドから返される想定で、全体更新します。
    * 所有者が一致しない場合は更新されません。
    *
    * @return 更新を実行した件数
    */
-  @Update(
-      "UPDATE projects SET title=#{title}, description=#{description}, is_finished=#{isFinished} "
-          + "WHERE id=#{id} AND user_id=#{userId}")
+  @Update("UPDATE projects SET title=#{title}, description=#{description} "
+      + "WHERE id=#{id} AND user_id=#{userId}")
   int update(Project project);
+
+  /**
+   * プロジェクトの完了状態を更新します。所有者が一致しない場合は更新されません。
+   *
+   * @param id         プロジェクトのID
+   * @param isFinished 完了状態
+   * @param userId     認証ユーザーのID
+   * @return 更新を実行した件数
+   */
+  @Update("UPDATE projects SET is_finished=#{isFinished} WHERE id=#{id} AND user_id=#{userId}")
+  int updateFinished(int id, boolean isFinished, int userId);
 
 }

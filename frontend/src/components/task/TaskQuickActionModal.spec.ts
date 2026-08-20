@@ -120,12 +120,10 @@ describe('TaskQuickActionModal', () => {
     const wrapper = mountModal()
     await flushPromises()
 
-    await wrapper.get('.finish-action button').trigger('click')
+    await wrapper.get('.task-state input[type="checkbox"]').setValue(true)
     await flushPromises()
 
     expect(tasksApi.updateFinished).toHaveBeenCalledWith(task.id, { isFinished: true })
-    expect(wrapper.get('.status').text()).toBe('完了')
-    expect(wrapper.find('.finish-action').exists()).toBe(false)
     expect(wrapper.text()).toContain('振り返りを入力')
     expect(wrapper.text()).toContain('後で入力する場合は✖ボタンで閉じてください')
   })
@@ -138,7 +136,7 @@ describe('TaskQuickActionModal', () => {
     const wrapper = mountModal()
     await flushPromises()
 
-    await wrapper.get('.finish-action button').trigger('click')
+    await wrapper.get('.task-state input[type="checkbox"]').setValue(true)
     await flushPromises()
 
     const closeButtons = wrapper.findAll('.close-button')
@@ -146,5 +144,29 @@ describe('TaskQuickActionModal', () => {
     await closeButtons[closeButtons.length - 1].trigger('click')
 
     expect(wrapper.emitted('update:modelValue')).toContainEqual([false])
+  })
+
+  it('完了済みタスクのチェックを外すと確認ダイアログが表示され、同意すると未完了に戻ること', async () => {
+    const finishedTask = { ...task, finishedAt: '2026-08-15T02:00:00' }
+    vi.mocked(tasksApi.fetchById).mockResolvedValue({ data: finishedTask } as never)
+    vi.mocked(tasksApi.updateFinished).mockResolvedValue({
+      data: { ...task, finishedAt: null },
+    } as never)
+    const wrapper = mountModal()
+    await flushPromises()
+
+    await wrapper.get('.task-state input[type="checkbox"]').setValue(false)
+    await flushPromises()
+
+    expect(tasksApi.updateFinished).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('保存済みの振り返りがある場合は削除され')
+
+    const confirmButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === '作業中に戻す')
+    await confirmButton?.trigger('click')
+    await flushPromises()
+
+    expect(tasksApi.updateFinished).toHaveBeenCalledWith(task.id, { isFinished: false })
   })
 })

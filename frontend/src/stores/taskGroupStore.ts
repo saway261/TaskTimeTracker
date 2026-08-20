@@ -4,6 +4,7 @@ import * as memosApi from '@/api/memosApi'
 import type {
   TaskGroupCreateRequest,
   TaskGroupResponse,
+  TaskGroupUpdateFinishedRequest,
   TaskGroupUpdateRequest,
 } from '@/types/taskGroup'
 import type { MemoRequest, MemoResponse } from '@/types/memo'
@@ -56,6 +57,19 @@ export const useTaskGroupStore = defineStore('taskGroup', {
     // 更新後オブジェクトをそのまま反映するため、再取得は不要。
     async updateTaskGroup(id: number, req: TaskGroupUpdateRequest) {
       const res = await taskGroupsApi.update(id, req)
+      if (this.currentTaskGroup?.id === id) {
+        this.currentTaskGroup = res.data
+      }
+      const idx = this.taskGroups.findIndex((tg) => tg.id === id)
+      if (idx !== -1) {
+        this.taskGroups[idx] = res.data
+      }
+      return res.data
+    },
+
+    // 更新後オブジェクトをそのまま反映するため、再取得は不要。
+    async updateFinished(id: number, req: TaskGroupUpdateFinishedRequest) {
+      const res = await taskGroupsApi.updateFinished(id, req)
       if (this.currentTaskGroup?.id === id) {
         this.currentTaskGroup = res.data
       }

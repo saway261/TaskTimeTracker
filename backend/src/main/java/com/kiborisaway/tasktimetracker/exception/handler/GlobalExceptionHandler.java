@@ -14,7 +14,9 @@ import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidE
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseRequiredException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.PasswordResetInvalidException;
+import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
@@ -193,6 +195,39 @@ public class GlobalExceptionHandler {
 
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
         "task finish not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+
+  }
+
+  /**
+   * 未完了のタスクがあるプロジェクトの完了不可をクライアントに返します。
+   *
+   * @param ex ProjectFinishNotAllowedException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(ProjectFinishNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleProjectFinishNotAllowedException(
+      ProjectFinishNotAllowedException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "project finish not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+
+  }
+
+  /**
+   * 未完了のタスクがあるタスクグループの完了不可をクライアントに返します。
+   *
+   * @param ex TaskGroupFinishNotAllowedException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(
+      TaskGroupFinishNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleTaskGroupFinishNotAllowedException(
+      TaskGroupFinishNotAllowedException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "task group finish not allowed", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
 
   }

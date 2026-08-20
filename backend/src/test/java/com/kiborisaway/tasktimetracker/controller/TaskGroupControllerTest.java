@@ -17,6 +17,7 @@ import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.TaskGroupService;
@@ -225,8 +226,7 @@ class TaskGroupControllerTest {
     String validRequest = """
         {
             "title" : "タスク管理アプリ開発",
-            "description" : "説明を更新",
-            "isFinished" : true
+            "description" : "説明を更新"
         }
         """;
 
@@ -268,8 +268,7 @@ class TaskGroupControllerTest {
     String validRequest = """
         {
           "title": "更新タイトル",
-          "description": "更新説明",
-          "isFinished": false
+          "description": "更新説明"
         }
         """;
     doThrow(new TargetNotFoundException("id", "project not found"))
@@ -303,6 +302,81 @@ class TaskGroupControllerTest {
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/" + tgId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void タスクグループ完了状態更新成功_200と更新後データを返すこと() throws Exception {
+    // Arrange
+    int tgId = 1;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
+    TaskGroup updated = new TaskGroup(tgId, 1, "バックエンド開発", null, true);
+    when(service.updateFinished(eq(USER_ID), eq(tgId), eq(true)))
+        .thenReturn(new TaskGroupResponse(updated, List.of()));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", tgId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(tgId))
+        .andExpect(jsonPath("$.isFinished").value(true));
+
+    verify(service).updateFinished(USER_ID, tgId, true);
+  }
+
+  @Test
+  void タスクグループ完了状態更新失敗_未完了タスクが存在する場合は400を返すこと() throws Exception {
+    // Arrange
+    int tgId = 1;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
+    doThrow(new TaskGroupFinishNotAllowedException("taskGroup.id", "未完了のタスクがあります"))
+        .when(service).updateFinished(USER_ID, tgId, true);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", tgId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void タスクグループ完了状態更新失敗_対象が存在しないなら404を返すこと() throws Exception {
+    // Arrange
+    int tgId = 999;
+    String validRequest = """
+        {
+          "isFinished": true
+        }
+        """;
+    doThrow(new TargetNotFoundException("taskGroup.id", "task group not found"))
+        .when(service).updateFinished(USER_ID, tgId, true);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", tgId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void タスクグループ完了状態更新失敗_不正なリクエストボディなら400を返すこと() throws Exception {
+    // Arrange
+    int tgId = 1;
+    String invalidRequest = "{}";
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", tgId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());

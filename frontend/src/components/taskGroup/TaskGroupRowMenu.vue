@@ -1,13 +1,20 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useTaskGroupStore } from '@/stores/taskGroupStore'
+import { useNotificationStore } from '@/stores/notificationStore'
+import type { ApiError } from '@/types/apiError'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
 
 // タスクグループはProject直下でのみ並べ替えられる（他コンテナへは移動できない）ため、
 // TaskRowMenuと違い上下の並べ替えのみを提供する。
-defineProps<{
+const props = defineProps<{
   modelValue: boolean
+  taskGroupId: number
   detailTo: string
+  finished: boolean
   canMoveUp: boolean
   canMoveDown: boolean
 }>()
@@ -18,6 +25,12 @@ const emit = defineEmits<{
   'move-up': []
   'move-down': []
 }>()
+
+const taskGroupStore = useTaskGroupStore()
+const notification = useNotificationStore()
+
+const finishing = ref(false)
+const error = ref<ApiError | null>(null)
 
 function close() {
   emit('update:modelValue', false)
@@ -37,6 +50,20 @@ function addTask() {
   emit('add-task')
   close()
 }
+
+async function finishTaskGroup() {
+  finishing.value = true
+  error.value = null
+  try {
+    await taskGroupStore.updateFinished(props.taskGroupId, { isFinished: true })
+    notification.success('タスクグループを完了にしました。')
+    close()
+  } catch (e) {
+    error.value = e as ApiError
+  } finally {
+    finishing.value = false
+  }
+}
 </script>
 
 <template>
@@ -45,7 +72,11 @@ function addTask() {
     title="タスクグループの操作"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <ErrorMessage v-if="error" :error="error" />
     <div class="menu-list">
+      <BaseButton v-if="!finished" :disabled="finishing" @click="finishTaskGroup">
+        完了にする
+      </BaseButton>
       <BaseButton @click="addTask">＋ タスク追加</BaseButton>
       <RouterLink :to="detailTo" class="detail-link" @click="close">
         タスクグループの詳細・編集・メモへ →

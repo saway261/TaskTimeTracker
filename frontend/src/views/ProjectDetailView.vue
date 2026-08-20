@@ -13,7 +13,7 @@ import { toPositiveInt } from '@/utils/routeParams'
 import { sortProjectItemsByOrder } from '@/utils/sort'
 import { insertStubAt } from '@/utils/dragReorder'
 import { formatMinutes } from '@/utils/duration'
-import { sumEstimatedMinutes } from '@/utils/task'
+import { isFinished as isTaskFinished, sumEstimatedMinutes } from '@/utils/task'
 import type { ApiError } from '@/types/apiError'
 import type { ProjectUpdateRequest } from '@/types/project'
 import type { TaskGroupCreateRequest, TaskGroupResponse } from '@/types/taskGroup'
@@ -25,6 +25,7 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
+import FinishedCheckbox from '@/components/common/FinishedCheckbox.vue'
 import ProjectForm from '@/components/project/ProjectForm.vue'
 import TaskGroupListItem from '@/components/taskGroup/TaskGroupListItem.vue'
 import TaskGroupForm from '@/components/taskGroup/TaskGroupForm.vue'
@@ -102,11 +103,7 @@ function openEditModal() {
   showEditModal.value = true
 }
 
-async function handleUpdate(payload: {
-  title: string
-  description: string | null
-  isFinished?: boolean
-}) {
+async function handleUpdate(payload: { title: string; description: string | null }) {
   const id = numericId.value
   if (id === null) return
   updating.value = true
@@ -119,6 +116,26 @@ async function handleUpdate(payload: {
     updateError.value = e as ApiError
   } finally {
     updating.value = false
+  }
+}
+
+// --- 完了状態（未完了のタスクが1件でもあれば完了にできない） ---
+const finishedUpdating = ref(false)
+const finishedError = ref<ApiError | null>(null)
+const hasUnfinishedTasks = computed(() => taskStore.tasks.some((t) => !isTaskFinished(t)))
+
+async function handleFinishedToggle(nextFinished: boolean) {
+  const id = numericId.value
+  if (id === null) return
+  finishedUpdating.value = true
+  finishedError.value = null
+  try {
+    await projectStore.updateFinished(id, { isFinished: nextFinished })
+    notification.success(nextFinished ? 'プロジェクトを完了にしました。' : '完了を解除しました。')
+  } catch (e) {
+    finishedError.value = e as ApiError
+  } finally {
+    finishedUpdating.value = false
   }
 }
 
@@ -285,14 +302,22 @@ async function handleItemDrop() {
         <div>
           <h1>{{ projectStore.currentProject.title }}</h1>
           <div class="project-meta">
-            <span class="status" :class="{ finished: projectStore.currentProject.isFinished }">
-              {{ projectStore.currentProject.isFinished ? '完了' : '未完了' }}
-            </span>
+            <FinishedCheckbox
+              :model-value="projectStore.currentProject.isFinished"
+              :disabled="
+                finishedUpdating || (!projectStore.currentProject.isFinished && hasUnfinishedTasks)
+              "
+              @update:model-value="handleFinishedToggle"
+            />
             <div class="project-estimate">
               <span>プロジェクト全体の見積</span>
               <strong>{{ formatMinutes(projectEstimatedMinutes) }}</strong>
             </div>
           </div>
+          <p v-if="!projectStore.currentProject.isFinished && hasUnfinishedTasks" class="hint">
+            未完了のタスクがあるため、完了状態にできません。
+          </p>
+          <ErrorMessage v-if="finishedError" :error="finishedError" />
         </div>
         <BaseButton variant="secondary" @click="openEditModal">編集</BaseButton>
       </div>
@@ -424,13 +449,10 @@ async function handleItemDrop() {
   flex-wrap: wrap;
 }
 
-.status {
-  font-size: 0.85rem;
+.hint {
+  margin: 0;
   color: var(--color-text-muted);
-}
-
-.status.finished {
-  color: var(--color-success);
+  font-size: 0.85rem;
 }
 
 .project-estimate {

@@ -2,6 +2,7 @@ import { httpClient } from './httpClient'
 import type {
   TaskGroupCreateRequest,
   TaskGroupResponse,
+  TaskGroupUpdateFinishedRequest,
   TaskGroupUpdateRequest,
 } from '@/types/taskGroup'
 
@@ -21,4 +22,8 @@ export function create(projectId: number, req: TaskGroupCreateRequest) {
 
 export function update(taskGroupId: number, req: TaskGroupUpdateRequest) {
   return httpClient.put<TaskGroupResponse>(`/task-groups/${taskGroupId}`, req)
+}
+
+export function updateFinished(taskGroupId: number, req: TaskGroupUpdateFinishedRequest) {
+  return httpClient.patch<TaskGroupResponse>(`/task-groups/${taskGroupId}/finished`, req)
 }

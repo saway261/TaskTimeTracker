@@ -180,6 +180,65 @@ class TaskRepositoryTest {
   }
 
   @Test
+  void 未完了タスク存在チェック_プロジェクト内に未完了タスクがあればtrueを返すこと() {
+    // Act
+    boolean actual = sut.existsUnfinishedInProject(1, USER_A);
+
+    // Assert
+    assertThat(actual).isTrue();
+  }
+
+  @Test
+  void 未完了タスク存在チェック_プロジェクト内の全タスクが完了済みならfalseを返すこと() {
+    // Arrange（プロジェクト1配下の未完了タスク1,2,4を完了させる。3は初期データで完了済み）
+    sut.updateFinished(1, true, USER_A);
+    sut.updateFinished(2, true, USER_A);
+    sut.updateFinished(4, true, USER_A);
+
+    // Act
+    boolean actual = sut.existsUnfinishedInProject(1, USER_A);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void 未完了タスク存在チェック_プロジェクトの所有者が一致しない場合はfalseを返すこと() {
+    // Act
+    boolean actual = sut.existsUnfinishedInProject(1, USER_B);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void 未完了タスク存在チェック_タスクグループ内に未完了タスクがあればtrueを返すこと() {
+    // Act
+    boolean actual = sut.existsUnfinishedInTaskGroup(1, USER_A);
+
+    // Assert
+    assertThat(actual).isTrue();
+  }
+
+  @Test
+  void 未完了タスク存在チェック_タスクグループ内の全タスクが完了済みならfalseを返すこと() {
+    // Act（タスクグループ2配下のタスク3は初期データで完了済み）
+    boolean actual = sut.existsUnfinishedInTaskGroup(2, USER_A);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
+  void 未完了タスク存在チェック_タスクグループの所有者が一致しない場合はfalseを返すこと() {
+    // Act
+    boolean actual = sut.existsUnfinishedInTaskGroup(1, USER_B);
+
+    // Assert
+    assertThat(actual).isFalse();
+  }
+
+  @Test
   void ID検索成功_IDが一致するタスクを取得できること() {
     // Arrange
     int id = 1;

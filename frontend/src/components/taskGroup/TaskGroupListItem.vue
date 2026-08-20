@@ -313,7 +313,9 @@ async function handleCreateTask(payload: {
 
     <TaskGroupRowMenu
       v-model="showRowMenu"
+      :task-group-id="taskGroup.id"
       :detail-to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}`"
+      :finished="taskGroup.isFinished"
       :can-move-up="canMoveUp"
       :can-move-down="canMoveDown"
       @add-task="openCreateTaskModal"

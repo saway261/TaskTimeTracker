@@ -83,6 +83,50 @@ public interface TaskRepository {
   List<Task> findAllInProjectByCondition(int projectId, boolean isFinished, int userId);
 
   /**
+   * プロジェクト内（配下のタスクグループを含む）に未完了のタスクが存在するかチェックします。所有者が一致するプロジェクトのみを対象とします。
+   *
+   * @param projectId プロジェクトID
+   * @param userId    認証ユーザーのID
+   * @return 未完了のタスクが1件でも存在すればtrue
+   */
+  @Select("""
+      SELECT EXISTS(
+        SELECT 1 FROM tasks t
+        LEFT JOIN task_groups tg ON tg.id = t.task_group_id
+        JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
+        WHERE (
+            t.project_id=#{projectId}
+            OR t.task_group_id IN (
+              SELECT id FROM task_groups
+              WHERE project_id=#{projectId}
+            )
+          )
+          AND t.finished_at IS NULL
+          AND p.user_id=#{userId}
+      )
+      """)
+  boolean existsUnfinishedInProject(int projectId, int userId);
+
+  /**
+   * タスクグループ内に未完了のタスクが存在するかチェックします。所有者が一致するプロジェクトのみを対象とします。
+   *
+   * @param taskGroupId タスクグループID
+   * @param userId      認証ユーザーのID
+   * @return 未完了のタスクが1件でも存在すればtrue
+   */
+  @Select("""
+      SELECT EXISTS(
+        SELECT 1 FROM tasks t
+        JOIN task_groups tg ON tg.id = t.task_group_id
+        JOIN projects p ON p.id = tg.project_id
+        WHERE t.task_group_id=#{taskGroupId}
+          AND t.finished_at IS NULL
+          AND p.user_id=#{userId}
+      )
+      """)
+  boolean existsUnfinishedInTaskGroup(int taskGroupId, int userId);
+
+  /**
    * IDによるタスクの単一検索を行います。所有者が一致するプロジェクトのみを対象とします。
    *
    * @param id タスクのID
