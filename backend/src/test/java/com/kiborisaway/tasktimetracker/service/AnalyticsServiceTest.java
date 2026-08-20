@@ -9,14 +9,23 @@ import static org.mockito.Mockito.when;
 import com.kiborisaway.tasktimetracker.config.AnalyticsThresholdProperties;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryCondition;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.EstimationAccuracyResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionOutcomeFilter;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineQueryCondition;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResponse;
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
 import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRecentVarianceRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRepository;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsSummaryRow;
 import com.kiborisaway.tasktimetracker.repository.ExcludedCountRow;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
+import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionTimelineRow;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
@@ -34,11 +43,15 @@ class AnalyticsServiceTest {
   @Mock
   private ProjectRepository projectRepository;
 
+  @Mock
+  private ReflectionCauseCategoryRepository causeCategoryRepository;
+
   private final AnalyticsThresholdProperties thresholdProperties =
       new AnalyticsThresholdProperties(10.0);
 
   private AnalyticsService service() {
-    return new AnalyticsService(analyticsRepository, thresholdProperties, projectRepository);
+    return new AnalyticsService(
+        analyticsRepository, thresholdProperties, projectRepository, causeCategoryRepository);
   }
 
   @Test
@@ -335,5 +348,113 @@ class AnalyticsServiceTest {
   private static ExcludedCountRow excludedRow(
       int finishedCount, int missingGapRate, int missingActualMinutes) {
     return new ExcludedCountRow(missingGapRate, missingActualMinutes, finishedCount);
+  }
+
+  @Test
+  void タイムライン取得失敗_指定したプロジェクトが認証ユーザーのものでない場合は404用例外を投げること() {
+    AnalyticsService sut = service();
+    ReflectionTimelineQueryCondition condition = timelineCondition(3, null, 0, 20);
+    when(projectRepository.existsByIdAndUserId(3, USER_ID)).thenReturn(false);
+
+    assertThatThrownBy(() -> sut.getReflectionTimeline(USER_ID, condition))
+        .isInstanceOf(TargetNotFoundException.class);
+    verify(analyticsRepository, never()).findReflectionTimelineItems(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
+  }
+
+  @Test
+  void タイムライン取得失敗_fromがtoより後の場合は400用例外を投げること() {
+    AnalyticsService sut = service();
+    ReflectionTimelineQueryCondition condition = timelineCondition(null, null, 0, 20);
+    condition.setFrom(LocalDateTime.of(2026, 2, 1, 0, 0));
+    condition.setTo(LocalDateTime.of(2026, 1, 1, 0, 0));
+
+    assertThatThrownBy(() -> sut.getReflectionTimeline(USER_ID, condition))
+        .isInstanceOf(AnalyticsQueryInvalidException.class);
+    verify(analyticsRepository, never()).findReflectionTimelineItems(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
+  }
+
+  @Test
+  void タイムライン取得失敗_原因カテゴリが無効な場合は400用例外を投げること() {
+    AnalyticsService sut = service();
+    ReflectionTimelineQueryCondition condition = timelineCondition(null, "UNKNOWN", 0, 20);
+    when(causeCategoryRepository.findActiveByCode("UNKNOWN")).thenReturn(null);
+
+    assertThatThrownBy(() -> sut.getReflectionTimeline(USER_ID, condition))
+        .isInstanceOfSatisfying(ReflectionCauseCategoryInvalidException.class,
+            ex -> assertThat(ex.getField()).isEqualTo("causeCategory"));
+    verify(analyticsRepository, never()).findReflectionTimelineItems(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
+  }
+
+  @Test
+  void タイムライン取得成功_原因カテゴリが表示順でまとめられ持たない振り返りは空配列になること() {
+    AnalyticsService sut = service();
+    ReflectionTimelineQueryCondition condition = timelineCondition(null, null, 0, 20);
+    LocalDateTime finishedAt = LocalDateTime.of(2026, 8, 10, 10, 0);
+    ReflectionTimelineRow withCategories = new ReflectionTimelineRow(
+        1, "タスクA", 1, "プロジェクトA", finishedAt, 60, 90, 30, 50.0, "LATE", 10, "原因A", null);
+    ReflectionTimelineRow withoutCategories = new ReflectionTimelineRow(
+        2, "タスクB", 1, "プロジェクトA", finishedAt.minusDays(1), 60, 60, 0, 0.0, "ON_TIME", 11, null,
+        "次のアクション");
+    when(analyticsRepository.findReflectionTimelineItems(USER_ID, condition, 10.0))
+        .thenReturn(List.of(withCategories, withoutCategories));
+    when(analyticsRepository.countReflectionTimeline(USER_ID, condition, 10.0)).thenReturn(2);
+    when(analyticsRepository.findReflectionTimelineCategories(USER_ID, condition, 10.0))
+        .thenReturn(List.of(
+            new ReflectionCauseCategoryLinkRow(10, "OTHER", "その他"),
+            new ReflectionCauseCategoryLinkRow(10, "TASK_BREAKDOWN", "作業の洗い出しが足りなかった")));
+
+    ReflectionTimelineResponse actual = sut.getReflectionTimeline(USER_ID, condition);
+
+    assertThat(actual.getItems()).hasSize(2);
+    assertThat(actual.getItems().get(0).getCauseCategories())
+        .extracting(ReflectionCauseCategorySummaryResponse::getCode)
+        .containsExactly("OTHER", "TASK_BREAKDOWN");
+    assertThat(actual.getItems().get(1).getCauseCategories()).isEmpty();
+    assertThat(actual.getItems().get(1).getCause()).isNull();
+  }
+
+  @Test
+  void タイムライン取得成功_次のページがある場合hasNextがtrueになること() {
+    AnalyticsService sut = service();
+    ReflectionTimelineQueryCondition condition = timelineCondition(null, null, 0, 20);
+    when(analyticsRepository.findReflectionTimelineItems(USER_ID, condition, 10.0))
+        .thenReturn(List.of());
+    when(analyticsRepository.countReflectionTimeline(USER_ID, condition, 10.0)).thenReturn(25);
+    when(analyticsRepository.findReflectionTimelineCategories(USER_ID, condition, 10.0))
+        .thenReturn(List.of());
+
+    ReflectionTimelineResponse actual = sut.getReflectionTimeline(USER_ID, condition);
+
+    assertThat(actual.getTotalCount()).isEqualTo(25);
+    assertThat(actual.isHasNext()).isTrue();
+  }
+
+  @Test
+  void タイムライン取得成功_最終ページではhasNextがfalseになること() {
+    AnalyticsService sut = service();
+    ReflectionTimelineQueryCondition condition = timelineCondition(null, null, 1, 20);
+    when(analyticsRepository.findReflectionTimelineItems(USER_ID, condition, 10.0))
+        .thenReturn(List.of());
+    when(analyticsRepository.countReflectionTimeline(USER_ID, condition, 10.0)).thenReturn(25);
+    when(analyticsRepository.findReflectionTimelineCategories(USER_ID, condition, 10.0))
+        .thenReturn(List.of());
+
+    ReflectionTimelineResponse actual = sut.getReflectionTimeline(USER_ID, condition);
+
+    assertThat(actual.isHasNext()).isFalse();
+  }
+
+  private static ReflectionTimelineQueryCondition timelineCondition(
+      Integer projectId, String causeCategory, int page, int size) {
+    ReflectionTimelineQueryCondition condition = new ReflectionTimelineQueryCondition();
+    condition.setProjectId(projectId);
+    condition.setCauseCategory(causeCategory);
+    condition.setOutcome(ReflectionOutcomeFilter.ALL);
+    condition.setPage(page);
+    condition.setSize(size);
+    return condition;
   }
 }

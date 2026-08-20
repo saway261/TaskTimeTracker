@@ -11,7 +11,7 @@ import lombok.Setter;
 @Schema(description = "分析クエリの絞り込み条件")
 @Getter
 @Setter
-public class AnalyticsQueryCondition {
+public class AnalyticsQueryCondition implements AnalyticsPeriod {
 
   @Schema(description = "絞り込み対象プロジェクトID 未指定で全プロジェクト横断", example = "1")
   @Positive

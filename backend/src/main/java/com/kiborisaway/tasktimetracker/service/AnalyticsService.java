@@ -3,22 +3,34 @@ package com.kiborisaway.tasktimetracker.service;
 import com.kiborisaway.tasktimetracker.config.AnalyticsThresholdProperties;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.AccuracySummaryResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.AccuracyTrendPointResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsPeriod;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryCondition;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.DiagnosisResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.EstimationAccuracyResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ExcludedTaskCountResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.MetricAvailabilityResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.OutcomeBreakdownResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineItemResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineQueryCondition;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ScatterPointResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.SizeBucketResponse;
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
 import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRecentVarianceRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRepository;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsSummaryRow;
 import com.kiborisaway.tasktimetracker.repository.ExcludedCountRow;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
+import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionTimelineRow;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,15 +63,18 @@ public class AnalyticsService {
   private AnalyticsRepository analyticsRepository;
   private AnalyticsThresholdProperties thresholdProperties;
   private ProjectRepository projectRepository;
+  private ReflectionCauseCategoryRepository causeCategoryRepository;
 
   @Autowired
   public AnalyticsService(
       AnalyticsRepository analyticsRepository,
       AnalyticsThresholdProperties thresholdProperties,
-      ProjectRepository projectRepository) {
+      ProjectRepository projectRepository,
+      ReflectionCauseCategoryRepository causeCategoryRepository) {
     this.analyticsRepository = analyticsRepository;
     this.thresholdProperties = thresholdProperties;
     this.projectRepository = projectRepository;
+    this.causeCategoryRepository = causeCategoryRepository;
   }
 
   /**
@@ -73,17 +88,8 @@ public class AnalyticsService {
   @Transactional(readOnly = true)
   public EstimationAccuracyResponse getEstimationAccuracy(
       int userId, AnalyticsQueryCondition condition) {
-    Integer projectId = condition.getProjectId();
-    if (projectId != null && !projectRepository.existsByIdAndUserId(projectId, userId)) {
-      throw new TargetNotFoundException(
-          "projectId", "指定したIDのプロジェクトは見つかりませんでした");
-    }
-    // コントローラ側の @ValidAnalyticsPeriod が効いていれば通常は到達しないが、
-    // バックエンドが業務ルールの唯一の保証主体であるため省略しない（要件§6）。
-    if (condition.getFrom() != null && condition.getTo() != null
-        && condition.getFrom().isAfter(condition.getTo())) {
-      throw new AnalyticsQueryInvalidException("to", "fromはto以前の日時を指定してください");
-    }
+    requireProjectOwnership(condition.getProjectId(), userId);
+    requireValidPeriod(condition);
 
     double threshold = thresholdProperties.getOnTimePercent();
     AnalyticsSummaryRow summaryRow = analyticsRepository.findSummary(userId, condition, threshold);
@@ -115,6 +121,86 @@ public class AnalyticsService {
         List.<SizeBucketResponse>of(),
         List.<AccuracyTrendPointResponse>of(),
         new MetricAvailabilityResponse(false, MIN_TASKS_FOR_TREND, analyzedCount));
+  }
+
+  /**
+   * 振り返り済みの完了タスクを完了日時降順でページング取得します。除外ルール（§2-1）は適用しません
+   * （振り返り済みの完了タスクは、実績記録漏れであっても内省の対象として残す。要件§0-2-1）。
+   *
+   * @param userId    認証ユーザーID
+   * @param condition 絞り込み条件（projectId / from / to / causeCategory / outcome / page / size）
+   * @return 振り返りタイムライン（本ページの一覧・ページング情報）
+   */
+  @Transactional(readOnly = true)
+  public ReflectionTimelineResponse getReflectionTimeline(
+      int userId, ReflectionTimelineQueryCondition condition) {
+    requireProjectOwnership(condition.getProjectId(), userId);
+    requireValidPeriod(condition);
+    if (condition.getCauseCategory() != null
+        && causeCategoryRepository.findActiveByCode(condition.getCauseCategory()) == null) {
+      throw new ReflectionCauseCategoryInvalidException(
+          "causeCategory", "指定した原因カテゴリは選択できません");
+    }
+
+    double threshold = thresholdProperties.getOnTimePercent();
+    List<ReflectionTimelineRow> rows =
+        analyticsRepository.findReflectionTimelineItems(userId, condition, threshold);
+    int totalCount = analyticsRepository.countReflectionTimeline(userId, condition, threshold);
+    List<ReflectionCauseCategoryLinkRow> categoryRows =
+        analyticsRepository.findReflectionTimelineCategories(userId, condition, threshold);
+
+    Map<Integer, List<ReflectionCauseCategorySummaryResponse>> categoriesByReflectionId =
+        categoryRows.stream()
+            .collect(Collectors.groupingBy(
+                ReflectionCauseCategoryLinkRow::getReflectionId,
+                LinkedHashMap::new,
+                Collectors.mapping(
+                    row -> new ReflectionCauseCategorySummaryResponse(
+                        row.getCauseCategoryCode(), row.getCauseCategoryLabel()),
+                    Collectors.toList())));
+
+    List<ReflectionTimelineItemResponse> items = rows.stream()
+        .map(row -> toTimelineItem(row, categoriesByReflectionId))
+        .toList();
+
+    boolean hasNext = (long) (condition.getPage() + 1) * condition.getSize() < totalCount;
+    return new ReflectionTimelineResponse(
+        items, condition.getPage(), condition.getSize(), totalCount, hasNext);
+  }
+
+  private ReflectionTimelineItemResponse toTimelineItem(
+      ReflectionTimelineRow row,
+      Map<Integer, List<ReflectionCauseCategorySummaryResponse>> categoriesByReflectionId) {
+    return new ReflectionTimelineItemResponse(
+        row.getTaskId(),
+        row.getTaskTitle(),
+        row.getProjectId(),
+        row.getProjectTitle(),
+        row.getFinishedAt(),
+        row.getEstimatedMinutes(),
+        row.getActualMinutes(),
+        row.getGapMinutes(),
+        row.getGapRate(),
+        row.getOutcome(),
+        categoriesByReflectionId.getOrDefault(row.getReflectionId(), List.of()),
+        row.getCause(),
+        row.getNextAction());
+  }
+
+  private void requireProjectOwnership(Integer projectId, int userId) {
+    if (projectId != null && !projectRepository.existsByIdAndUserId(projectId, userId)) {
+      throw new TargetNotFoundException(
+          "projectId", "指定したIDのプロジェクトは見つかりませんでした");
+    }
+  }
+
+  private void requireValidPeriod(AnalyticsPeriod condition) {
+    // コントローラ側の @ValidAnalyticsPeriod が効いていれば通常は到達しないが、
+    // バックエンドが業務ルールの唯一の保証主体であるため省略しない（要件§6）。
+    if (condition.getFrom() != null && condition.getTo() != null
+        && condition.getFrom().isAfter(condition.getTo())) {
+      throw new AnalyticsQueryInvalidException("to", "fromはto以前の日時を指定してください");
+    }
   }
 
   private ExcludedTaskCountResponse buildExcluded(ExcludedCountRow row, int analyzedCount) {

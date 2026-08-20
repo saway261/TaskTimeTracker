@@ -1,14 +1,14 @@
 package com.kiborisaway.tasktimetracker.validation;
 
-import com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryCondition;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsPeriod;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 public class AnalyticsPeriodValidator implements
-    ConstraintValidator<ValidAnalyticsPeriod, AnalyticsQueryCondition> {
+    ConstraintValidator<ValidAnalyticsPeriod, AnalyticsPeriod> {
 
   @Override
-  public boolean isValid(AnalyticsQueryCondition value, ConstraintValidatorContext context) {
+  public boolean isValid(AnalyticsPeriod value, ConstraintValidatorContext context) {
     if (value == null || value.getFrom() == null || value.getTo() == null) {
       return true;
     }

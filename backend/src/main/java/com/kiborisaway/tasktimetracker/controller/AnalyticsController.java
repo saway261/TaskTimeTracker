@@ -2,6 +2,8 @@ package com.kiborisaway.tasktimetracker.controller;
 
 import com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryCondition;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.EstimationAccuracyResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineQueryCondition;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResponse;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.AnalyticsService;
@@ -52,5 +54,29 @@ public class AnalyticsController {
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @Valid @ModelAttribute AnalyticsQueryCondition condition) {
     return service.getEstimationAccuracy(user.getUserId(), condition);
+  }
+
+  @Operation(
+      summary = "振り返りタイムライン取得",
+      description = "認証ユーザーの振り返り済み完了タスクを完了日時降順でページング取得します。"
+          + "実績時間が記録されていない完了タスクも含みます（除外ルールを適用しません）。",
+      responses = {
+          @ApiResponse(responseCode = "200", description = "取得成功",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ReflectionTimelineResponse.class))),
+          @ApiResponse(responseCode = "400",
+              description = "fromがtoより後、原因カテゴリコードが不正、または入力値が不正なときのエラー",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class))),
+          @ApiResponse(responseCode = "404", description = "指定されたプロジェクトが存在しないときのエラー",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)))
+      }
+  )
+  @GetMapping("/reflections")
+  public ReflectionTimelineResponse getReflectionTimeline(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @Valid @ModelAttribute ReflectionTimelineQueryCondition condition) {
+    return service.getReflectionTimeline(user.getUserId(), condition);
   }
 }

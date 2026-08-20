@@ -1,12 +1,17 @@
 package com.kiborisaway.tasktimetracker.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.support.AuthenticatedUserTestFactory;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -27,6 +32,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -158,6 +165,147 @@ class AnalyticsIntegrationTest {
     // AnalyticsRepositoryTestのユーザー分離テストで検証済み。ここでは200で完了することのみ確認する。
   }
 
+  @Test
+  void タイムライン取得成功_完了日時降順で返り発行クエリ数が3であること() throws Exception {
+    int projectId = insertProject(1, "タイムライン基本検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int task1 = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int task2 = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 5.0);
+    insertReflection(task1, "1件目", null);
+    insertReflection(task2, "2件目", null);
+    queryCounter.reset();
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalCount").value(2))
+        .andExpect(jsonPath("$.items[0].taskId").value(task2))
+        .andExpect(jsonPath("$.items[1].taskId").value(task1))
+        .andExpect(jsonPath("$.hasNext").value(false));
+
+    // projectId・causeCategoryとも未指定なので所有権確認・カテゴリ検証のクエリは発生せず3本のまま。
+    assertThat(queryCounter.getCount()).isEqualTo(3);
+  }
+
+  @Test
+  void タイムライン取得成功_projectId指定時は発行クエリ数が4であること() throws Exception {
+    int projectId = insertProject(1, "タイムラインprojectId検証");
+    int task = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    insertReflection(task, "原因", null);
+    queryCounter.reset();
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .param("projectId", String.valueOf(projectId))
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk());
+
+    assertThat(queryCounter.getCount()).isEqualTo(4);
+  }
+
+  @Test
+  void タイムライン取得成功_causeCategory指定時は発行クエリ数が4であること() throws Exception {
+    int projectId = insertProject(1, "タイムラインカテゴリ検証");
+    int task = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    int reflectionId = insertReflection(task, "原因", null);
+    linkCategory(reflectionId, "TASK_BREAKDOWN");
+    queryCounter.reset();
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .param("causeCategory", "TASK_BREAKDOWN")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].causeCategories[0].code").value("TASK_BREAKDOWN"));
+
+    // 原因カテゴリの有効性確認クエリが1本加わり、タイムライン集計3本と合わせて4本になる。
+    assertThat(queryCounter.getCount()).isEqualTo(4);
+  }
+
+  @Test
+  void タイムライン取得成功_ページングが正しくカテゴリがページ間で入れ替わらないこと() throws Exception {
+    int projectId = insertProject(1, "タイムラインページング検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int task1 = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int task2 = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 5.0);
+    int task3 = insertFinishedTaskForTimeline(projectId, base.plusDays(2), 100, 5.0);
+    int reflection1 = insertReflection(task1, "1件目", null);
+    int reflection2 = insertReflection(task2, "2件目", null);
+    insertReflection(task3, "3件目", null);
+    linkCategory(reflection1, "OTHER");
+    linkCategory(reflection2, "FATIGUE");
+
+    // 完了日時降順: task3, task2, task1。size=2のページ0にはtask3・task2が入る。
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .param("projectId", String.valueOf(projectId))
+            .param("size", "2")
+            .param("page", "0")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].taskId").value(task3))
+        .andExpect(jsonPath("$.items[0].causeCategories").isEmpty())
+        .andExpect(jsonPath("$.items[1].taskId").value(task2))
+        .andExpect(jsonPath("$.items[1].causeCategories[0].code").value("FATIGUE"))
+        .andExpect(jsonPath("$.hasNext").value(true));
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .param("projectId", String.valueOf(projectId))
+            .param("size", "2")
+            .param("page", "1")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].taskId").value(task1))
+        .andExpect(jsonPath("$.items[0].causeCategories[0].code").value("OTHER"))
+        .andExpect(jsonPath("$.hasNext").value(false));
+  }
+
+  @Test
+  void タイムライン取得成功_実績未記録タスクとcauseNULLの振り返りも含まれること() throws Exception {
+    int projectId = insertProject(1, "タイムライン実績未記録検証");
+    int task = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 0, -100.0);
+    insertReflection(task, null, "次のアクションだけ書いた");
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .param("projectId", String.valueOf(projectId))
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].actualMinutes").value(0))
+        .andExpect(jsonPath("$.items[0].cause").isEmpty())
+        .andExpect(jsonPath("$.items[0].nextAction").value("次のアクションだけ書いた"));
+  }
+
+  @Test
+  void タイムライン取得失敗_未知の原因カテゴリで400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .param("causeCategory", "UNKNOWN_CODE")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void タイムライン取得失敗_存在しないプロジェクトIDで404を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .param("projectId", "999999")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void タイムライン他ユーザー分離_他ユーザーの振り返りが含まれないこと() throws Exception {
+    int otherUsersProject = insertProject(2, "タイムライン他ユーザー検証");
+    int task = insertFinishedTaskForTimeline(
+        otherUsersProject, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    insertReflection(task, "他ユーザーの振り返り", null);
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[*].taskId").value(not(hasItem(task))));
+  }
+
   private static RequestPostProcessor authenticatedUser(int userId, String email) {
     AuthenticatedUser principal = AuthenticatedUserTestFactory.create(userId, email, false);
     return authentication(UsernamePasswordAuthenticationToken.authenticated(
@@ -179,6 +327,61 @@ class AnalyticsIntegrationTest {
           finished_at, actual_minutes_cached, gap_minutes_cached, gap_rate_cached)
         VALUES (?, 'フィクスチャ', 60, NOW(), ?, ?, 0, ?)
         """, projectId, finishedAt, actualMinutes, gapRate);
+  }
+
+  private int insertFinishedTaskForTimeline(
+      int projectId, LocalDateTime finishedAt, int actualMinutes, Double gapRate) {
+    KeyHolder keyHolder = new GeneratedKeyHolder();
+    jdbcTemplate.update(connection -> {
+      PreparedStatement ps = connection.prepareStatement("""
+          INSERT INTO tasks(
+            project_id, title, estimated_minutes, created_at,
+            finished_at, actual_minutes_cached, gap_minutes_cached, gap_rate_cached)
+          VALUES (?, 'フィクスチャ', 60, NOW(), ?, ?, 0, ?)
+          """, Statement.RETURN_GENERATED_KEYS);
+      ps.setInt(1, projectId);
+      ps.setObject(2, finishedAt);
+      ps.setInt(3, actualMinutes);
+      if (gapRate != null) {
+        ps.setDouble(4, gapRate);
+      } else {
+        ps.setNull(4, Types.DOUBLE);
+      }
+      return ps;
+    }, keyHolder);
+    return keyHolder.getKey().intValue();
+  }
+
+  private int insertReflection(int taskId, String cause, String nextAction) {
+    KeyHolder keyHolder = new GeneratedKeyHolder();
+    jdbcTemplate.update(connection -> {
+      PreparedStatement ps = connection.prepareStatement(
+          "INSERT INTO reflections(task_id, cause, next_action, created_at, updated_at) "
+              + "VALUES (?, ?, ?, NOW(), NOW())",
+          Statement.RETURN_GENERATED_KEYS);
+      ps.setInt(1, taskId);
+      if (cause != null) {
+        ps.setString(2, cause);
+      } else {
+        ps.setNull(2, Types.VARCHAR);
+      }
+      if (nextAction != null) {
+        ps.setString(3, nextAction);
+      } else {
+        ps.setNull(3, Types.VARCHAR);
+      }
+      return ps;
+    }, keyHolder);
+    return keyHolder.getKey().intValue();
+  }
+
+  private void linkCategory(int reflectionId, String categoryCode) {
+    int categoryId = jdbcTemplate.queryForObject(
+        "SELECT id FROM reflection_cause_categories WHERE code = ?", Integer.class, categoryCode);
+    jdbcTemplate.update(
+        "INSERT INTO reflection_cause_category_links(reflection_id, cause_category_id) "
+            + "VALUES (?, ?)",
+        reflectionId, categoryId);
   }
 
   @TestConfiguration(proxyBeanMethods = false)

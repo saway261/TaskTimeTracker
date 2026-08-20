@@ -1,14 +1,23 @@
 package com.kiborisaway.tasktimetracker.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.Assertions.within;
 
 import com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryCondition;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionOutcomeFilter;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineQueryCondition;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.sql.Types;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 
 @MybatisTest
 class AnalyticsRepositoryTest {
@@ -211,10 +220,261 @@ class AnalyticsRepositoryTest {
     assertThat(actual.getAnalyzedCount()).isEqualTo(baselineCount);
   }
 
+  @Test
+  void タイムライン_完了日時の降順で振り返り未入力のタスクを含まずに返ること() {
+    int projectId = insertProject(USER_ID, "タイムライン順序検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int task1 = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int task2 = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 5.0);
+    insertFinishedTaskForTimeline(projectId, base.plusDays(2), 100, 5.0); // 振り返り未入力
+    insertReflection(task1, "原因1", null);
+    insertReflection(task2, "原因2", null);
+
+    List<ReflectionTimelineRow> actual =
+        sut.findReflectionTimelineItems(USER_ID, timelineConditionFor(projectId), THRESHOLD);
+
+    assertThat(actual)
+        .extracting(ReflectionTimelineRow::getTaskId)
+        .containsExactly(task2, task1);
+  }
+
+  @Test
+  void タイムライン_実績未記録タスクも含まれること() {
+    int projectId = insertProject(USER_ID, "タイムライン実績未記録検証");
+    int taskId = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 0, -100.0);
+    insertReflection(taskId, "実績を記録し忘れた", null);
+
+    List<ReflectionTimelineRow> actual =
+        sut.findReflectionTimelineItems(USER_ID, timelineConditionFor(projectId), THRESHOLD);
+
+    assertThat(actual).extracting(ReflectionTimelineRow::getTaskId).containsExactly(taskId);
+  }
+
+  @Test
+  void タイムライン_outcomeALLでは誤差率算出不可の行もoutcomeNullで含まれること() {
+    int projectId = insertProject(USER_ID, "タイムラインoutcomeNull検証");
+    int taskId = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, null);
+    insertReflection(taskId, "誤差率が算出できない", null);
+
+    ReflectionTimelineQueryCondition condition = timelineConditionFor(projectId);
+    condition.setOutcome(ReflectionOutcomeFilter.ALL);
+    List<ReflectionTimelineRow> actual =
+        sut.findReflectionTimelineItems(USER_ID, condition, THRESHOLD);
+
+    assertThat(actual).hasSize(1);
+    assertThat(actual.get(0).getOutcome()).isNull();
+  }
+
+  @Test
+  void タイムライン_outcome指定時は誤差率算出不可の行が除外されること() {
+    int projectId = insertProject(USER_ID, "タイムラインoutcome絞り込み検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int nullGapTask = insertFinishedTaskForTimeline(projectId, base, 100, null);
+    int lateTask = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 50.0);
+    insertReflection(nullGapTask, "算出不可", null);
+    insertReflection(lateTask, "超過", null);
+
+    ReflectionTimelineQueryCondition condition = timelineConditionFor(projectId);
+    condition.setOutcome(ReflectionOutcomeFilter.LATE);
+    List<ReflectionTimelineRow> actual =
+        sut.findReflectionTimelineItems(USER_ID, condition, THRESHOLD);
+
+    assertThat(actual).extracting(ReflectionTimelineRow::getTaskId).containsExactly(lateTask);
+  }
+
+  @Test
+  void タイムライン_causeがNULLの振り返りも返ること() {
+    int projectId = insertProject(USER_ID, "タイムラインcauseNULL検証");
+    int taskId = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    insertReflection(taskId, null, "次のアクションだけ書いた");
+
+    List<ReflectionTimelineRow> actual =
+        sut.findReflectionTimelineItems(USER_ID, timelineConditionFor(projectId), THRESHOLD);
+
+    assertThat(actual.get(0).getCause()).isNull();
+    assertThat(actual.get(0).getNextAction()).isEqualTo("次のアクションだけ書いた");
+  }
+
+  @Test
+  void タイムライン_ページングが正しく総件数とhasNext相当の情報が整合すること() {
+    int projectId = insertProject(USER_ID, "タイムラインページング検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    for (int i = 0; i < 5; i++) {
+      int taskId = insertFinishedTaskForTimeline(projectId, base.plusDays(i), 100, 5.0);
+      insertReflection(taskId, "原因" + i, null);
+    }
+
+    ReflectionTimelineQueryCondition page0 = timelineConditionFor(projectId);
+    page0.setSize(2);
+    page0.setPage(0);
+    ReflectionTimelineQueryCondition page1 = timelineConditionFor(projectId);
+    page1.setSize(2);
+    page1.setPage(1);
+    ReflectionTimelineQueryCondition page2 = timelineConditionFor(projectId);
+    page2.setSize(2);
+    page2.setPage(2);
+
+    assertThat(sut.findReflectionTimelineItems(USER_ID, page0, THRESHOLD)).hasSize(2);
+    assertThat(sut.findReflectionTimelineItems(USER_ID, page1, THRESHOLD)).hasSize(2);
+    assertThat(sut.findReflectionTimelineItems(USER_ID, page2, THRESHOLD)).hasSize(1);
+    assertThat(sut.countReflectionTimeline(USER_ID, page0, THRESHOLD)).isEqualTo(5);
+  }
+
+  @Test
+  void タイムライン_causeCategory絞り込みが指定カテゴリを含む振り返りのみ返すこと() {
+    int projectId = insertProject(USER_ID, "タイムラインカテゴリ絞り込み検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int matching = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int other = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 5.0);
+    int matchingReflectionId = insertReflection(matching, "一致する", null);
+    insertReflection(other, "一致しない", null);
+    linkCategory(matchingReflectionId, "TASK_BREAKDOWN");
+
+    ReflectionTimelineQueryCondition condition = timelineConditionFor(projectId);
+    condition.setCauseCategory("TASK_BREAKDOWN");
+    List<ReflectionTimelineRow> actual =
+        sut.findReflectionTimelineItems(USER_ID, condition, THRESHOLD);
+
+    assertThat(actual).extracting(ReflectionTimelineRow::getTaskId).containsExactly(matching);
+  }
+
+  @Test
+  void タイムライン_複数カテゴリを持つ振り返りがcauseCategory絞り込みでも1件のみ返ること() {
+    int projectId = insertProject(USER_ID, "タイムライン複数カテゴリ検証");
+    int taskId = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    int reflectionId = insertReflection(taskId, "複数カテゴリ", null);
+    linkCategory(reflectionId, "TASK_BREAKDOWN");
+    linkCategory(reflectionId, "OTHER");
+
+    ReflectionTimelineQueryCondition condition = timelineConditionFor(projectId);
+    condition.setCauseCategory("OTHER");
+    List<ReflectionTimelineRow> actual =
+        sut.findReflectionTimelineItems(USER_ID, condition, THRESHOLD);
+
+    assertThat(actual).hasSize(1);
+  }
+
+  @Test
+  void タイムラインカテゴリ取得_ページに含まれる振り返りの原因カテゴリのみ表示順で返ること() {
+    int projectId = insertProject(USER_ID, "タイムラインカテゴリ取得検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int task1 = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int task2 = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 5.0);
+    int task3 = insertFinishedTaskForTimeline(projectId, base.plusDays(2), 100, 5.0);
+    int reflection1 = insertReflection(task1, "1件目", null);
+    int reflection2 = insertReflection(task2, "2件目", null);
+    insertReflection(task3, "3件目", null);
+    linkCategory(reflection1, "OTHER");
+    linkCategory(reflection1, "TASK_BREAKDOWN");
+    linkCategory(reflection2, "FATIGUE");
+
+    // 完了日時降順のため task3, task2 が1ページ目（size=2）に入り、task1は2ページ目になる。
+    ReflectionTimelineQueryCondition page0 = timelineConditionFor(projectId);
+    page0.setSize(2);
+    page0.setPage(0);
+
+    List<ReflectionCauseCategoryLinkRow> actual =
+        sut.findReflectionTimelineCategories(USER_ID, page0, THRESHOLD);
+
+    assertThat(actual)
+        .extracting(
+            ReflectionCauseCategoryLinkRow::getReflectionId,
+            ReflectionCauseCategoryLinkRow::getCauseCategoryCode)
+        .containsExactly(tuple(reflection2, "FATIGUE"));
+  }
+
+  @Test
+  void タイムラインカテゴリ取得_2ページ目には1ページ目のカテゴリが含まれないこと() {
+    int projectId = insertProject(USER_ID, "タイムラインカテゴリページ境界検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int task1 = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int task2 = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 5.0);
+    int reflection1 = insertReflection(task1, "1件目", null);
+    int reflection2 = insertReflection(task2, "2件目", null);
+    linkCategory(reflection1, "OTHER");
+    linkCategory(reflection2, "TASK_BREAKDOWN");
+
+    ReflectionTimelineQueryCondition page1 = timelineConditionFor(projectId);
+    page1.setSize(1);
+    page1.setPage(1); // 完了日時降順の2件目 = task1
+
+    List<ReflectionCauseCategoryLinkRow> actual =
+        sut.findReflectionTimelineCategories(USER_ID, page1, THRESHOLD);
+
+    assertThat(actual)
+        .extracting(ReflectionCauseCategoryLinkRow::getReflectionId)
+        .containsOnly(reflection1);
+  }
+
   private static AnalyticsQueryCondition conditionFor(int projectId) {
     AnalyticsQueryCondition condition = new AnalyticsQueryCondition();
     condition.setProjectId(projectId);
     return condition;
+  }
+
+  private static ReflectionTimelineQueryCondition timelineConditionFor(int projectId) {
+    ReflectionTimelineQueryCondition condition = new ReflectionTimelineQueryCondition();
+    condition.setProjectId(projectId);
+    return condition;
+  }
+
+  private int insertFinishedTaskForTimeline(
+      int projectId, LocalDateTime finishedAt, int actualMinutes, Double gapRate) {
+    KeyHolder keyHolder = new GeneratedKeyHolder();
+    jdbcTemplate.update(connection -> {
+      PreparedStatement ps = connection.prepareStatement("""
+          INSERT INTO tasks(
+            project_id, title, estimated_minutes, created_at,
+            finished_at, actual_minutes_cached, gap_minutes_cached, gap_rate_cached)
+          VALUES (?, 'フィクスチャ', 60, NOW(), ?, ?, 0, ?)
+          """, Statement.RETURN_GENERATED_KEYS);
+      ps.setInt(1, projectId);
+      ps.setObject(2, finishedAt);
+      ps.setInt(3, actualMinutes);
+      if (gapRate != null) {
+        ps.setDouble(4, gapRate);
+      } else {
+        ps.setNull(4, Types.DOUBLE);
+      }
+      return ps;
+    }, keyHolder);
+    return keyHolder.getKey().intValue();
+  }
+
+  private int insertReflection(int taskId, String cause, String nextAction) {
+    KeyHolder keyHolder = new GeneratedKeyHolder();
+    jdbcTemplate.update(connection -> {
+      PreparedStatement ps = connection.prepareStatement(
+          "INSERT INTO reflections(task_id, cause, next_action, created_at, updated_at) "
+              + "VALUES (?, ?, ?, NOW(), NOW())",
+          Statement.RETURN_GENERATED_KEYS);
+      ps.setInt(1, taskId);
+      if (cause != null) {
+        ps.setString(2, cause);
+      } else {
+        ps.setNull(2, Types.VARCHAR);
+      }
+      if (nextAction != null) {
+        ps.setString(3, nextAction);
+      } else {
+        ps.setNull(3, Types.VARCHAR);
+      }
+      return ps;
+    }, keyHolder);
+    return keyHolder.getKey().intValue();
+  }
+
+  private void linkCategory(int reflectionId, String categoryCode) {
+    int categoryId = jdbcTemplate.queryForObject(
+        "SELECT id FROM reflection_cause_categories WHERE code = ?", Integer.class, categoryCode);
+    jdbcTemplate.update(
+        "INSERT INTO reflection_cause_category_links(reflection_id, cause_category_id) "
+            + "VALUES (?, ?)",
+        reflectionId, categoryId);
   }
 
   private int countAnalyzedTasks(int userId) {
