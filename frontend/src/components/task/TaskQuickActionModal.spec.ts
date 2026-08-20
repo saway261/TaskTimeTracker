@@ -1,16 +1,18 @@
 // @vitest-environment jsdom
 
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tasksApi from '@/api/tasksApi'
 import * as workSessionsApi from '@/api/workSessionsApi'
+import * as reflectionsApi from '@/api/reflectionsApi'
 import type { TaskResponse } from '@/types/task'
 import type { WorkSession } from '@/types/workSession'
 import TaskQuickActionModal from './TaskQuickActionModal.vue'
 
 vi.mock('@/api/tasksApi')
 vi.mock('@/api/workSessionsApi')
+vi.mock('@/api/reflectionsApi')
 
 const task: TaskResponse = {
   id: 10,
@@ -47,6 +49,8 @@ const activeSession: WorkSession = {
 }
 
 function mountModal() {
+  const pinia = createPinia()
+  setActivePinia(pinia)
   return mount(TaskQuickActionModal, {
     props: {
       modelValue: true,
@@ -55,13 +59,15 @@ function mountModal() {
       detailTo: `/projects/1/tasks/${task.id}`,
     },
     global: {
-      plugins: [createPinia()],
+      plugins: [pinia],
       stubs: {
         Teleport: true,
         WorkTimer: { template: '<div class="work-timer-stub" />' },
         WorkSessionList: { template: '<div class="work-session-list-stub" />' },
         ManualWorkSessionForm: { template: '<div class="manual-form-stub" />' },
         MemoList: { template: '<div class="memo-list-stub" />' },
+        CauseCategorySelect: { template: '<div class="cause-category-select-stub" />' },
+        EstimateOutcomeIcon: true,
         RouterLink: {
           props: ['to'],
           template: '<a :href="to"><slot /></a>',
@@ -79,6 +85,7 @@ describe('TaskQuickActionModal', () => {
       data: [pastSession, activeSession],
     } as never)
     vi.mocked(workSessionsApi.fetchTotalMinutes).mockResolvedValue({ data: 25 } as never)
+    vi.mocked(reflectionsApi.create).mockResolvedValue({ data: {} } as never)
   })
 
   it('基本操作と詳細画面へのリンクを表示し、過去の記録を折りたたむ', async () => {
@@ -105,7 +112,7 @@ describe('TaskQuickActionModal', () => {
     expect(detailLink.attributes('href')).toBe(`/projects/1/tasks/${task.id}`)
   })
 
-  it('モーダルからタスクを完了にできる', async () => {
+  it('モーダルからタスクを完了にでき、クイック振り返りモーダルが開く', async () => {
     vi.mocked(workSessionsApi.fetchAllInTask).mockResolvedValue({ data: [] } as never)
     vi.mocked(tasksApi.updateFinished).mockResolvedValue({
       data: { ...task, finishedAt: '2026-08-15T02:00:00' },
@@ -119,5 +126,25 @@ describe('TaskQuickActionModal', () => {
     expect(tasksApi.updateFinished).toHaveBeenCalledWith(task.id, { isFinished: true })
     expect(wrapper.get('.status').text()).toBe('完了')
     expect(wrapper.find('.finish-action').exists()).toBe(false)
+    expect(wrapper.text()).toContain('振り返りを入力')
+    expect(wrapper.text()).toContain('後で入力する場合は✖ボタンで閉じてください')
+  })
+
+  it('クイック振り返りモーダルを閉じるとタスクモーダルごと閉じる', async () => {
+    vi.mocked(workSessionsApi.fetchAllInTask).mockResolvedValue({ data: [] } as never)
+    vi.mocked(tasksApi.updateFinished).mockResolvedValue({
+      data: { ...task, finishedAt: '2026-08-15T02:00:00' },
+    } as never)
+    const wrapper = mountModal()
+    await flushPromises()
+
+    await wrapper.get('.finish-action button').trigger('click')
+    await flushPromises()
+
+    const closeButtons = wrapper.findAll('.close-button')
+    expect(closeButtons.length).toBe(2)
+    await closeButtons[closeButtons.length - 1].trigger('click')
+
+    expect(wrapper.emitted('update:modelValue')).toContainEqual([false])
   })
 })

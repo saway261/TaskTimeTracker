@@ -22,10 +22,13 @@ const props = withDefaults(
     task: ReflectionTaskResponse | null
     submitting?: boolean
     error?: ApiError | null
+    // タスク完了直後のクイック入力時のみtrue。✖で閉じれば後回しにできる旨を案内し、紛らわしいキャンセルボタンは出さない。
+    deferHint?: boolean
   }>(),
   {
     submitting: false,
     error: null,
+    deferHint: false,
   },
 )
 
@@ -126,6 +129,8 @@ function close() {
 <template>
   <BaseModal :model-value="modelValue" :title="title" @update:model-value="close">
     <template v-if="task">
+      <p v-if="deferHint" class="defer-hint">後で入力する場合は✖ボタンで閉じてください。</p>
+
       <dl class="reference-info">
         <div>
           <dt>タスク</dt>
@@ -175,7 +180,13 @@ function close() {
           :error="error?.fieldErrors.nextAction"
         />
         <div class="actions">
-          <BaseButton type="button" variant="secondary" :disabled="submitting" @click="close">
+          <BaseButton
+            v-if="!deferHint"
+            type="button"
+            variant="secondary"
+            :disabled="submitting"
+            @click="close"
+          >
             キャンセル
           </BaseButton>
           <BaseButton type="submit" :disabled="submitting || !canSubmit">
@@ -240,6 +251,13 @@ function close() {
   display: flex;
   flex-direction: column;
   gap: 1em;
+}
+
+.defer-hint {
+  margin: 0 0 1em;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-accent);
 }
 
 .cause-field {

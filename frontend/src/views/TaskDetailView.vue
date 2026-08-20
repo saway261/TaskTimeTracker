@@ -8,9 +8,12 @@ import { useWorkSessionStore } from '@/stores/workSessionStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
 import { isFinished as isTaskFinished } from '@/utils/task'
+import { toReflectionTask } from '@/utils/reflectionTask'
+import * as reflectionsApi from '@/api/reflectionsApi'
 import type { ApiError } from '@/types/apiError'
 import type { TaskUpdateEstimatedMinutesRequest, TaskUpdatePropertyRequest } from '@/types/task'
 import type { MemoRequest } from '@/types/memo'
+import type { ReflectionRequest } from '@/types/reflection'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -24,6 +27,7 @@ import MemoList from '@/components/memo/MemoList.vue'
 import WorkSessionList from '@/components/workSession/WorkSessionList.vue'
 import ManualWorkSessionForm from '@/components/workSession/ManualWorkSessionForm.vue'
 import WorkTimer from '@/components/workSession/WorkTimer.vue'
+import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
 
 const props = defineProps<{
   projectId: string
@@ -185,10 +189,39 @@ async function toggleFinished() {
   try {
     await taskStore.updateFinished(id, { isFinished: !wasFinished })
     notification.success(wasFinished ? '完了を解除しました。' : 'タスクを完了にしました。')
+    if (!wasFinished) {
+      quickReflectionError.value = null
+      showQuickReflectionModal.value = true
+    }
   } catch (e) {
     actionError.value = e as ApiError
   } finally {
     finishing.value = false
+  }
+}
+
+// --- クイック振り返り（完了直後に即入力できるようにする） ---
+const showQuickReflectionModal = ref(false)
+const quickReflectionSubmitting = ref(false)
+const quickReflectionError = ref<ApiError | null>(null)
+
+const quickReflectionTask = computed(() =>
+  taskStore.currentTask ? toReflectionTask(taskStore.currentTask) : null,
+)
+
+async function handleQuickReflectionSubmit(payload: ReflectionRequest) {
+  const id = numericTaskId.value
+  if (id === null) return
+  quickReflectionSubmitting.value = true
+  quickReflectionError.value = null
+  try {
+    await reflectionsApi.create(id, payload)
+    notification.success('振り返りを登録しました。')
+    showQuickReflectionModal.value = false
+  } catch (e) {
+    quickReflectionError.value = e as ApiError
+  } finally {
+    quickReflectionSubmitting.value = false
   }
 }
 
@@ -375,6 +408,15 @@ function handleMemoCreate(req: MemoRequest) {
       confirm-label="作業中に戻す"
       danger
       @confirm="toggleFinished"
+    />
+
+    <ReflectionModal
+      v-model="showQuickReflectionModal"
+      :task="quickReflectionTask"
+      :submitting="quickReflectionSubmitting"
+      :error="quickReflectionError"
+      defer-hint
+      @submit="handleQuickReflectionSubmit"
     />
   </div>
 </template>

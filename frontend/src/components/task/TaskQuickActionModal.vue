@@ -5,8 +5,11 @@ import { useTaskStore } from '@/stores/taskStore'
 import { useWorkSessionStore } from '@/stores/workSessionStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { isFinished as isTaskFinished } from '@/utils/task'
+import { toReflectionTask } from '@/utils/reflectionTask'
+import * as reflectionsApi from '@/api/reflectionsApi'
 import type { ApiError } from '@/types/apiError'
 import type { MemoRequest } from '@/types/memo'
+import type { ReflectionRequest } from '@/types/reflection'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
@@ -16,6 +19,7 @@ import EstimationSummary from '@/components/task/EstimationSummary.vue'
 import ManualWorkSessionForm from '@/components/workSession/ManualWorkSessionForm.vue'
 import WorkSessionList from '@/components/workSession/WorkSessionList.vue'
 import WorkTimer from '@/components/workSession/WorkTimer.vue'
+import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -106,6 +110,8 @@ async function finishTask() {
   try {
     await taskStore.updateFinished(props.taskId, { isFinished: true })
     notification.success('タスクを完了にしました。')
+    reflectionError.value = null
+    showReflectionModal.value = true
   } catch (e) {
     finishError.value = e as ApiError
   } finally {
@@ -115,6 +121,36 @@ async function finishTask() {
 
 function close() {
   emit('update:modelValue', false)
+}
+
+// --- クイック振り返り（完了直後に即入力できるようにする） ---
+const showReflectionModal = ref(false)
+const reflectionSubmitting = ref(false)
+const reflectionError = ref<ApiError | null>(null)
+
+const reflectionTask = computed(() => (task.value ? toReflectionTask(task.value) : null))
+
+// 振り返りモーダルを閉じる操作（✖・背景クリック・登録完了）は、そのままタスクモーダルも閉じて
+// 元のタスク一覧ページへ戻す（完了操作をタスクモーダルで行った場合の仕様）。
+function handleReflectionModalUpdate(open: boolean) {
+  showReflectionModal.value = open
+  if (!open) {
+    close()
+  }
+}
+
+async function handleReflectionSubmit(payload: ReflectionRequest) {
+  reflectionSubmitting.value = true
+  reflectionError.value = null
+  try {
+    await reflectionsApi.create(props.taskId, payload)
+    notification.success('振り返りを登録しました。')
+    handleReflectionModalUpdate(false)
+  } catch (e) {
+    reflectionError.value = e as ApiError
+  } finally {
+    reflectionSubmitting.value = false
+  }
 }
 </script>
 
@@ -188,6 +224,16 @@ function close() {
         </footer>
       </template>
     </div>
+
+    <ReflectionModal
+      :model-value="showReflectionModal"
+      :task="reflectionTask"
+      :submitting="reflectionSubmitting"
+      :error="reflectionError"
+      defer-hint
+      @update:model-value="handleReflectionModalUpdate"
+      @submit="handleReflectionSubmit"
+    />
   </BaseModal>
 </template>
 

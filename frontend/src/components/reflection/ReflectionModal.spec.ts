@@ -143,4 +143,19 @@ describe('ReflectionModal', () => {
 
     expect(wrapper.get('.outcome-reference').classes()).toContain('on-time')
   })
+
+  it('deferHintを指定すると案内文を表示し、キャンセルボタンは出さない', () => {
+    const wrapper = mount(ReflectionModal, {
+      props: { modelValue: true, task: baseTask, deferHint: true },
+      global: {
+        stubs: {
+          BaseModal: { template: '<div><slot /></div>' },
+          EstimateOutcomeIcon: true,
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('後で入力する場合は✖ボタンで閉じてください')
+    expect(wrapper.findAll('button').some((button) => button.text() === 'キャンセル')).toBe(false)
+  })
 })
