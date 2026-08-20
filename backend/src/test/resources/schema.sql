@@ -248,3 +248,4 @@ CREATE INDEX idx_reflection_cause_category_links_reflection
   ON reflection_cause_category_links (reflection_id);
 CREATE INDEX idx_reflection_cause_category_links_category
   ON reflection_cause_category_links (cause_category_id);
+CREATE INDEX idx_tasks_finished_at ON tasks (finished_at);

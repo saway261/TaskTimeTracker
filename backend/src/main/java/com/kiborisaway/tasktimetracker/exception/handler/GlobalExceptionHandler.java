@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
+import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.EmailChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.EmailChangeRequestInvalidException;
@@ -267,6 +268,20 @@ public class GlobalExceptionHandler {
       ReflectionCauseRequiredException ex) {
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
         "reflection cause required", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+  }
+
+  /**
+   * 分析クエリの期間指定が不正（fromがtoより後など）であることをクライアントに返します。
+   *
+   * @param ex AnalyticsQueryInvalidException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(AnalyticsQueryInvalidException.class)
+  public ResponseEntity<ErrorResponse> handleAnalyticsQueryInvalidException(
+      AnalyticsQueryInvalidException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "analytics query invalid", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
   }
 
