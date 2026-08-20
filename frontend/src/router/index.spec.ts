@@ -53,6 +53,14 @@ describe('authentication navigation guard', () => {
     expect(router.currentRoute.value.query.isFinished).toBe('false')
   })
 
+  it('allows authenticated users to open the analytics route', async () => {
+    useAuthStore().currentUser = user
+
+    await router.push('/analytics')
+
+    expect(router.currentRoute.value.name).toBe('analytics')
+  })
+
   it('forces users who must change their password to the password change route', async () => {
     useAuthStore().currentUser = {
       ...user,

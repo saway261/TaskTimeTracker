@@ -73,6 +73,7 @@ function handleKeydown(event: KeyboardEvent) {
 // タスク詳細等の配下ルートでも「タスク管理」が現在地だと分かるよう、パスの前方一致で自前判定する。
 const isTaskManagementActive = computed(() => route.path.startsWith('/projects'))
 const isReflectionActive = computed(() => route.path.startsWith('/reflections'))
+const isAnalyticsActive = computed(() => route.path.startsWith('/analytics'))
 
 async function logout() {
   closeMenu()
@@ -137,6 +138,14 @@ onBeforeUnmount(() => {
           :aria-current="isReflectionActive ? 'page' : undefined"
         >
           振り返り
+        </RouterLink>
+        <RouterLink
+          to="/analytics"
+          class="nav-link"
+          :class="{ active: isAnalyticsActive }"
+          :aria-current="isAnalyticsActive ? 'page' : undefined"
+        >
+          分析
         </RouterLink>
       </nav>
     </div>
@@ -231,6 +240,15 @@ onBeforeUnmount(() => {
             @click="closeNavMenu"
           >
             振り返り
+          </RouterLink>
+          <RouterLink
+            to="/analytics"
+            class="mobile-nav-item"
+            :class="{ active: isAnalyticsActive }"
+            :aria-current="isAnalyticsActive ? 'page' : undefined"
+            @click="closeNavMenu"
+          >
+            分析
           </RouterLink>
         </nav>
       </div>

@@ -77,6 +77,11 @@ const routes = [
     props: true,
   },
   {
+    path: '/analytics',
+    name: 'analytics',
+    component: () => import('@/views/AnalyticsView.vue'),
+  },
+  {
     path: '/projects/:projectId',
     name: 'project-detail',
     component: () => import('@/views/ProjectDetailView.vue'),
