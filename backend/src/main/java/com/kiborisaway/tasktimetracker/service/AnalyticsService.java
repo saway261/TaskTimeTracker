@@ -21,12 +21,16 @@ import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidE
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRecentVarianceRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRepository;
+import com.kiborisaway.tasktimetracker.repository.AnalyticsScatterPointRow;
+import com.kiborisaway.tasktimetracker.repository.AnalyticsSizeBucketRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsSummaryRow;
 import com.kiborisaway.tasktimetracker.repository.ExcludedCountRow;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionTimelineRow;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +45,19 @@ public class AnalyticsService {
   private static final int MIN_TASKS_FOR_SUMMARY = 5;
   private static final int MIN_TASKS_FOR_DIAGNOSIS = 10;
   private static final int MIN_TASKS_FOR_TREND = 20;
+  private static final int MIN_TASKS_PER_SIZE_BUCKET = 3;
   private static final double VARIANCE_THRESHOLD_PERCENT = 25.0;
+  private static final int SCATTER_MAX_POINTS = 500;
+
+  // 帯の境界は15/30/60/120分（§12-11で確定）。表示順は小さい帯から大きい帯へ固定する。
+  private static final List<String> SIZE_BUCKET_CODES =
+      List.of("M15", "M30", "M60", "M120", "OVER120");
+  private static final Map<String, String> SIZE_BUCKET_LABELS = Map.of(
+      "M15", "〜15分",
+      "M30", "16〜30分",
+      "M60", "31〜60分",
+      "M120", "61〜120分",
+      "OVER120", "121分〜");
 
   // 「直近の傾向」は、直近10件と前10件のばらつき（MdAPE）の差がこの範囲内なら「横ばい」とする（要件§4.2）。
   private static final double RECENT_TREND_STABLE_MARGIN = 3.0;
@@ -78,8 +94,8 @@ public class AnalyticsService {
   }
 
   /**
-   * 見積もり精度の集計（サマリー・診断）を取得します。散布図・サイズ帯別・精度推移は空で返します
-   * （それぞれB6・B7で埋めます）。
+   * 見積もり精度の集計（サマリー・診断・散布図・サイズ帯別）を取得します。精度推移は空で返します
+   * （B7で埋めます）。
    *
    * @param userId    認証ユーザーID
    * @param condition 絞り込み条件（projectId / from / to）
@@ -102,6 +118,10 @@ public class AnalyticsService {
       varianceRow = new AnalyticsRecentVarianceRow(null, null);
     }
     ExcludedCountRow excludedRow = analyticsRepository.findExcludedCounts(userId, condition);
+    List<AnalyticsScatterPointRow> scatterRows =
+        analyticsRepository.findScatterPoints(userId, condition, threshold, SCATTER_MAX_POINTS);
+    List<AnalyticsSizeBucketRow> sizeBucketRows =
+        analyticsRepository.findSizeBuckets(userId, condition, threshold);
 
     int analyzedCount = summaryRow.getAnalyzedCount();
     ExcludedTaskCountResponse excluded = buildExcluded(excludedRow, analyzedCount);
@@ -109,6 +129,9 @@ public class AnalyticsService {
     DiagnosisResponse diagnosis = analyzedCount >= MIN_TASKS_FOR_DIAGNOSIS
         ? buildDiagnosis(summaryRow, threshold)
         : null;
+    boolean scatterTruncated = scatterRows.size() > SCATTER_MAX_POINTS;
+    List<ScatterPointResponse> scatter = buildScatter(scatterRows, SCATTER_MAX_POINTS);
+    List<SizeBucketResponse> sizeBuckets = buildSizeBuckets(sizeBucketRows);
 
     return new EstimationAccuracyResponse(
         threshold,
@@ -116,11 +139,54 @@ public class AnalyticsService {
         excluded,
         summary,
         diagnosis,
-        List.<ScatterPointResponse>of(),
-        false,
-        List.<SizeBucketResponse>of(),
+        scatter,
+        scatterTruncated,
+        sizeBuckets,
         List.<AccuracyTrendPointResponse>of(),
         new MetricAvailabilityResponse(false, MIN_TASKS_FOR_TREND, analyzedCount));
+  }
+
+  /**
+   * 散布図データを組み立てます。DBからは完了日時降順で最大 {@code limit + 1} 件受け取り、
+   * 上限を超える場合は最新 {@code limit} 件へ切り詰めたうえで、描画順を安定させるため昇順へ戻します。
+   */
+  private List<ScatterPointResponse> buildScatter(List<AnalyticsScatterPointRow> rows, int limit) {
+    List<AnalyticsScatterPointRow> trimmed = rows.size() > limit ? rows.subList(0, limit) : rows;
+    List<ScatterPointResponse> result = new ArrayList<>(trimmed.stream()
+        .map(row -> new ScatterPointResponse(
+            row.getTaskId(),
+            row.getTaskTitle(),
+            row.getEstimatedMinutes(),
+            row.getActualMinutes(),
+            row.getGapRate(),
+            row.getOutcome()))
+        .toList());
+    Collections.reverse(result);
+    return result;
+  }
+
+  /**
+   * タスクサイズ帯別の集計を組み立てます。該当0件の帯はSQLの結果に現れないため、
+   * 全帯（{@code SIZE_BUCKET_CODES}）を固定順で埋めてから返します。
+   */
+  private List<SizeBucketResponse> buildSizeBuckets(List<AnalyticsSizeBucketRow> rows) {
+    Map<String, AnalyticsSizeBucketRow> rowsByBucketCode = rows.stream()
+        .collect(Collectors.toMap(AnalyticsSizeBucketRow::getBucketCode, row -> row));
+
+    return SIZE_BUCKET_CODES.stream()
+        .map(bucketCode -> {
+          AnalyticsSizeBucketRow row = rowsByBucketCode.get(bucketCode);
+          String label = SIZE_BUCKET_LABELS.get(bucketCode);
+          if (row == null) {
+            return new SizeBucketResponse(bucketCode, label, 0, null, null);
+          }
+          int taskCount = row.getTaskCount();
+          boolean available = taskCount >= MIN_TASKS_PER_SIZE_BUCKET;
+          Double factorMedian = available ? row.getFactorMedian() : null;
+          Double onTimeRate = available ? (row.getOnTimeCount() * 100.0) / taskCount : null;
+          return new SizeBucketResponse(bucketCode, label, taskCount, factorMedian, onTimeRate);
+        })
+        .toList();
   }
 
   /**

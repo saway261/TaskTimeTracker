@@ -74,12 +74,16 @@ class AnalyticsIntegrationTest {
         .andExpect(jsonPath("$.summary.onTimeRate").isEmpty())
         .andExpect(jsonPath("$.diagnosis").isEmpty())
         .andExpect(jsonPath("$.scatter").isEmpty())
-        .andExpect(jsonPath("$.sizeBuckets").isEmpty())
+        .andExpect(jsonPath("$.sizeBuckets.length()").value(5))
+        .andExpect(jsonPath("$.sizeBuckets[0].bucketCode").value("M15"))
+        .andExpect(jsonPath("$.sizeBuckets[0].taskCount").value(0))
+        .andExpect(jsonPath("$.sizeBuckets[0].factorMedian").isEmpty())
         .andExpect(jsonPath("$.trend").isEmpty())
         .andExpect(jsonPath("$.trendAvailability.available").value(false));
 
-    // projectId指定時はプロジェクト所有権確認が1本追加され、集計3本と合わせて4本になる。
-    assertThat(queryCounter.getCount()).isEqualTo(4);
+    // projectId指定時はプロジェクト所有権確認1本＋集計5本（サマリー・直近傾向・除外件数・散布図・
+    // サイズ帯別）で6本になる。
+    assertThat(queryCounter.getCount()).isEqualTo(6);
   }
 
   @Test
@@ -104,7 +108,7 @@ class AnalyticsIntegrationTest {
         .andExpect(jsonPath("$.summary.factorMedian").value(1.0))
         .andExpect(jsonPath("$.summary.onTimeRate").value(60.0));
 
-    assertThat(queryCounter.getCount()).isEqualTo(4);
+    assertThat(queryCounter.getCount()).isEqualTo(6);
   }
 
   @Test
@@ -124,7 +128,7 @@ class AnalyticsIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.analyzedTaskCount").value(25));
 
-    assertThat(queryCounter.getCount()).isEqualTo(4);
+    assertThat(queryCounter.getCount()).isEqualTo(6);
   }
 
   @Test
@@ -163,6 +167,49 @@ class AnalyticsIntegrationTest {
         .andExpect(status().isOk());
     // user-aの横断集計に、直前に作成したuser-bのプロジェクトのタスクが含まれないことは
     // AnalyticsRepositoryTestのユーザー分離テストで検証済み。ここでは200で完了することのみ確認する。
+  }
+
+  @Test
+  void サイズ帯別_境界値ちょうどが下側の帯に分類されること() throws Exception {
+    int projectId = insertProject(1, "サイズ帯境界値検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int[] estimatedMinutesValues = {15, 16, 30, 31, 60, 61, 120, 121};
+    for (int i = 0; i < estimatedMinutesValues.length; i++) {
+      insertFinishedTaskWithEstimate(
+          projectId, base.plusDays(i), estimatedMinutesValues[i], 100, 5.0);
+    }
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
+            .param("projectId", String.valueOf(projectId))
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.sizeBuckets[0].bucketCode").value("M15"))
+        .andExpect(jsonPath("$.sizeBuckets[0].taskCount").value(1))
+        .andExpect(jsonPath("$.sizeBuckets[1].bucketCode").value("M30"))
+        .andExpect(jsonPath("$.sizeBuckets[1].taskCount").value(2))
+        .andExpect(jsonPath("$.sizeBuckets[2].bucketCode").value("M60"))
+        .andExpect(jsonPath("$.sizeBuckets[2].taskCount").value(2))
+        .andExpect(jsonPath("$.sizeBuckets[3].bucketCode").value("M120"))
+        .andExpect(jsonPath("$.sizeBuckets[3].taskCount").value(2))
+        .andExpect(jsonPath("$.sizeBuckets[4].bucketCode").value("OVER120"))
+        .andExpect(jsonPath("$.sizeBuckets[4].taskCount").value(1));
+  }
+
+  @Test
+  void 散布図_上限を超えると最新500件のみ返りscatterTruncatedがtrueになること() throws Exception {
+    int projectId = insertProject(1, "散布図上限検証");
+    LocalDateTime base = LocalDateTime.of(2020, 1, 1, 0, 0);
+    for (int i = 0; i < 501; i++) {
+      insertFinishedTask(projectId, base.plusDays(i), 100, 5.0);
+    }
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
+            .param("projectId", String.valueOf(projectId))
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.analyzedTaskCount").value(501))
+        .andExpect(jsonPath("$.scatter.length()").value(500))
+        .andExpect(jsonPath("$.scatterTruncated").value(true));
   }
 
   @Test
@@ -327,6 +374,17 @@ class AnalyticsIntegrationTest {
           finished_at, actual_minutes_cached, gap_minutes_cached, gap_rate_cached)
         VALUES (?, 'フィクスチャ', 60, NOW(), ?, ?, 0, ?)
         """, projectId, finishedAt, actualMinutes, gapRate);
+  }
+
+  private void insertFinishedTaskWithEstimate(
+      int projectId, LocalDateTime finishedAt, int estimatedMinutes, int actualMinutes,
+      double gapRate) {
+    jdbcTemplate.update("""
+        INSERT INTO tasks(
+          project_id, title, estimated_minutes, created_at,
+          finished_at, actual_minutes_cached, gap_minutes_cached, gap_rate_cached)
+        VALUES (?, 'フィクスチャ', ?, NOW(), ?, ?, 0, ?)
+        """, projectId, estimatedMinutes, finishedAt, actualMinutes, gapRate);
   }
 
   private int insertFinishedTaskForTimeline(

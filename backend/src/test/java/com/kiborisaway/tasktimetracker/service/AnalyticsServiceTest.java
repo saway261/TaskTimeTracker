@@ -12,12 +12,16 @@ import com.kiborisaway.tasktimetracker.data.dto.analytics.EstimationAccuracyResp
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionOutcomeFilter;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineQueryCondition;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ScatterPointResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.SizeBucketResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
 import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRecentVarianceRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRepository;
+import com.kiborisaway.tasktimetracker.repository.AnalyticsScatterPointRow;
+import com.kiborisaway.tasktimetracker.repository.AnalyticsSizeBucketRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsSummaryRow;
 import com.kiborisaway.tasktimetracker.repository.ExcludedCountRow;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
@@ -25,6 +29,7 @@ import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionTimelineRow;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -95,7 +100,16 @@ class AnalyticsServiceTest {
     assertThat(actual.getSummary().getOutcomeBreakdown().getLateCount()).isZero();
     assertThat(actual.getDiagnosis()).isNull();
     assertThat(actual.getScatter()).isEmpty();
-    assertThat(actual.getSizeBuckets()).isEmpty();
+    // 該当0件の帯も全5帯が固定順で埋まって返る（虫食いにしない。要件§4.6）。
+    assertThat(actual.getSizeBuckets())
+        .extracting(SizeBucketResponse::getBucketCode)
+        .containsExactly("M15", "M30", "M60", "M120", "OVER120");
+    assertThat(actual.getSizeBuckets())
+        .allSatisfy(bucket -> {
+          assertThat(bucket.getTaskCount()).isZero();
+          assertThat(bucket.getFactorMedian()).isNull();
+          assertThat(bucket.getOnTimeRate()).isNull();
+        });
     assertThat(actual.getTrend()).isEmpty();
     assertThat(actual.getTrendAvailability().isAvailable()).isFalse();
     assertThat(actual.getTrendAvailability().getRequiredCount()).isEqualTo(20);
@@ -117,6 +131,112 @@ class AnalyticsServiceTest {
 
     assertThat(actual.getSummary().getOnTimeRate()).isNull();
     assertThat(actual.getSummary().getRecentTrend()).isNull();
+  }
+
+  @Test
+  void 散布図_上限を超える場合は最新N件に切り詰めて昇順で返しtruncatedになること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    // findScatterPointsはfinished_at DESCで返す想定。taskId=500が最新（先頭）、taskId=0が最古。
+    List<AnalyticsScatterPointRow> rows = new ArrayList<>();
+    for (int i = 0; i <= 500; i++) {
+      int taskId = 500 - i;
+      rows.add(new AnalyticsScatterPointRow(taskId, "タスク" + taskId, 60, 60, 0.0, "ON_TIME"));
+    }
+    stub(condition, summaryRow(501, 0, 0, 501, 1.0, 1.0, 1.0, 0.0),
+        varianceRow(null, null), excludedRow(501, 0, 0));
+    when(analyticsRepository.findScatterPoints(USER_ID, condition, 10.0, 500)).thenReturn(rows);
+    when(analyticsRepository.findSizeBuckets(USER_ID, condition, 10.0)).thenReturn(List.of());
+
+    EstimationAccuracyResponse actual = sut.getEstimationAccuracy(USER_ID, condition);
+
+    assertThat(actual.isScatterTruncated()).isTrue();
+    assertThat(actual.getScatter()).hasSize(500);
+    // 最古の1件（taskId=0）が切り詰めで落ち、残り500件が昇順で返る。
+    assertThat(actual.getScatter().get(0).getTaskId()).isEqualTo(1);
+    assertThat(actual.getScatter().get(499).getTaskId()).isEqualTo(500);
+  }
+
+  @Test
+  void 散布図_上限以下の場合はtruncatedにならず完了日時昇順で返ること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    List<AnalyticsScatterPointRow> rows = List.of(
+        new AnalyticsScatterPointRow(2, "新しい方", 60, 60, 0.0, "ON_TIME"),
+        new AnalyticsScatterPointRow(1, "古い方", 60, 90, 50.0, "LATE"));
+    stub(condition, summaryRow(2, 1, 0, 1, 1.25, 1.0, 1.5, 25.0),
+        varianceRow(null, null), excludedRow(2, 0, 0));
+    when(analyticsRepository.findScatterPoints(USER_ID, condition, 10.0, 500)).thenReturn(rows);
+    when(analyticsRepository.findSizeBuckets(USER_ID, condition, 10.0)).thenReturn(List.of());
+
+    EstimationAccuracyResponse actual = sut.getEstimationAccuracy(USER_ID, condition);
+
+    assertThat(actual.isScatterTruncated()).isFalse();
+    assertThat(actual.getScatter())
+        .extracting(ScatterPointResponse::getTaskId)
+        .containsExactly(1, 2);
+  }
+
+  @Test
+  void サイズ帯_3件未満の帯は件数のみ返り統計値がnullになること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    stub(condition, summaryRow(2, 0, 0, 2, 1.0, 1.0, 1.0, 0.0),
+        varianceRow(null, null), excludedRow(2, 0, 0));
+    when(analyticsRepository.findScatterPoints(USER_ID, condition, 10.0, 500)).thenReturn(List.of());
+    when(analyticsRepository.findSizeBuckets(USER_ID, condition, 10.0))
+        .thenReturn(List.of(new AnalyticsSizeBucketRow("M15", 2, 1.2, 2)));
+
+    EstimationAccuracyResponse actual = sut.getEstimationAccuracy(USER_ID, condition);
+
+    SizeBucketResponse m15 = bucket(actual, "M15");
+    assertThat(m15.getTaskCount()).isEqualTo(2);
+    assertThat(m15.getFactorMedian()).isNull();
+    assertThat(m15.getOnTimeRate()).isNull();
+  }
+
+  @Test
+  void サイズ帯_3件以上の帯は代表係数とオンタイム率が算出されること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    stub(condition, summaryRow(4, 1, 0, 3, 1.0, 1.0, 1.0, 0.0),
+        varianceRow(null, null), excludedRow(4, 0, 0));
+    when(analyticsRepository.findScatterPoints(USER_ID, condition, 10.0, 500)).thenReturn(List.of());
+    when(analyticsRepository.findSizeBuckets(USER_ID, condition, 10.0))
+        .thenReturn(List.of(new AnalyticsSizeBucketRow("M30", 4, 1.25, 3)));
+
+    EstimationAccuracyResponse actual = sut.getEstimationAccuracy(USER_ID, condition);
+
+    SizeBucketResponse m30 = bucket(actual, "M30");
+    assertThat(m30.getTaskCount()).isEqualTo(4);
+    assertThat(m30.getFactorMedian()).isEqualTo(1.25);
+    assertThat(m30.getOnTimeRate()).isEqualTo(75.0);
+  }
+
+  @Test
+  void サイズ帯_境界値ちょうどが下側の帯に含まれること() {
+    // SQL側のCASE式（estimated_minutes <= 境界値）の境界値自体をここでは検証できないため、
+    // リポジトリ層のテスト（AnalyticsRepositoryTest）で確認する。ここではJava側の
+    // 全帯埋めロジックが5帯すべてを固定順で返すことのみ確認する。
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    stub(condition, summaryRow(0, 0, 0, 0, null, null, null, null),
+        varianceRow(null, null), excludedRow(0, 0, 0));
+    when(analyticsRepository.findScatterPoints(USER_ID, condition, 10.0, 500)).thenReturn(List.of());
+    when(analyticsRepository.findSizeBuckets(USER_ID, condition, 10.0)).thenReturn(List.of());
+
+    EstimationAccuracyResponse actual = sut.getEstimationAccuracy(USER_ID, condition);
+
+    assertThat(actual.getSizeBuckets())
+        .extracting(SizeBucketResponse::getLabel)
+        .containsExactly("〜15分", "16〜30分", "31〜60分", "61〜120分", "121分〜");
+  }
+
+  private static SizeBucketResponse bucket(EstimationAccuracyResponse response, String bucketCode) {
+    return response.getSizeBuckets().stream()
+        .filter(b -> b.getBucketCode().equals(bucketCode))
+        .findFirst()
+        .orElseThrow();
   }
 
   @Test
