@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createChartScale,
+  createLinearDomainScale,
   evenlySpacedValues,
   factorBandPolygon,
   factorLineSegment,
@@ -18,6 +19,16 @@ describe('chartScale', () => {
     expect(mapScaleValue(0, scale)).toBe(10)
     expect(mapScaleValue(50, scale)).toBe(110)
     expect(mapScaleValue(100, scale)).toBe(210)
+  })
+
+  it('任意の最小値と最大値を持つ線形軸を算出する', () => {
+    const scale = createLinearDomainScale(0.82, 1.18, 100, 0)
+
+    expect(scale.domainMin).toBeLessThanOrEqual(0.82)
+    expect(scale.domainMax).toBeGreaterThanOrEqual(1.18)
+    expect(scale.ticks).toContain(1)
+    expect(mapScaleValue(scale.domainMin, scale)).toBe(100)
+    expect(mapScaleValue(scale.domainMax, scale)).toBe(0)
   })
 
   it('対数軸を10の累乗間で写像する', () => {

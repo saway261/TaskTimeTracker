@@ -6,6 +6,7 @@ export type ReflectionOutcomeFilter = AnalyticsOutcome | 'ALL'
 export type RecentTrend = 'IMPROVED' | 'STABLE' | 'WORSENED'
 export type DiagnosisCode = 'GOOD' | 'UNSTABLE' | 'BIASED_LATE' | 'BIASED_EARLY' | 'UNSTABLE_BIASED'
 export type BiasDirection = 'LATE' | 'EARLY' | 'NONE'
+export type GapCauseDirection = 'OVER' | 'UNDER' | 'BOTH'
 
 export interface AnalyticsFilter {
   projectId: number | null
@@ -75,6 +76,28 @@ export interface AccuracyTrendPointResponse {
   windowFrom: string
   factorMedian: number
   variancePercent: number
+}
+
+export interface GapCauseItemResponse {
+  causeCategoryCode: string | null
+  causeCategoryLabel: string
+  taskCount: number
+  sharePercent: number
+  gapRateMedian: number | null
+}
+
+export interface GapCauseGroupResponse {
+  direction: GapCauseDirection
+  label: string
+  totalCount: number
+  sharePercent: number
+  items: GapCauseItemResponse[]
+}
+
+export interface GapCauseAggregateResponse {
+  analyzedTaskCount: number
+  totalLinkCount: number
+  groups: GapCauseGroupResponse[]
 }
 
 export interface EstimationAccuracyResponse {

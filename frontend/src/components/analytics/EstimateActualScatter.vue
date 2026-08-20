@@ -444,6 +444,14 @@ svg {
   .section-heading {
     flex-direction: column;
   }
+
+  .chart-content {
+    overflow-x: auto;
+  }
+
+  svg {
+    min-width: 520px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

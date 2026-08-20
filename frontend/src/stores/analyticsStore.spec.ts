@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as analyticsApi from '@/api/analyticsApi'
 import type {
   EstimationAccuracyResponse,
+  GapCauseAggregateResponse,
   ReflectionTimelineItemResponse,
   ReflectionTimelineResponse,
 } from '@/types/analytics'
@@ -34,6 +35,28 @@ const accuracy: EstimationAccuracyResponse = {
   sizeBuckets: [],
   trend: [],
   trendAvailability: { available: false, requiredCount: 20, currentCount: 12 },
+}
+
+const gapCauses: GapCauseAggregateResponse = {
+  analyzedTaskCount: 12,
+  totalLinkCount: 3,
+  groups: [
+    {
+      direction: 'OVER',
+      label: '超過側',
+      totalCount: 3,
+      sharePercent: 25,
+      items: [
+        {
+          causeCategoryCode: 'SCOPE_CREEP',
+          causeCategoryLabel: '想定外の作業',
+          taskCount: 3,
+          sharePercent: 25,
+          gapRateMedian: 30,
+        },
+      ],
+    },
+  ],
 }
 
 const timelineItem = (taskId: number): ReflectionTimelineItemResponse => ({
@@ -79,11 +102,12 @@ describe('analyticsStore', () => {
     expect(periodStart('LAST_YEAR', now)).toBe('2025-08-20T12:34:56')
   })
 
-  it('共通フィルターを使って精度とタイムラインを同時に再取得する', async () => {
+  it('共通フィルターを使って精度・原因集計・タイムラインを同時に再取得する', async () => {
     vi.mocked(analyticsApi.fetchEstimationAccuracy).mockResolvedValue({ data: accuracy } as never)
     vi.mocked(analyticsApi.fetchReflectionTimeline).mockResolvedValue({
       data: timeline([timelineItem(1)]),
     } as never)
+    vi.mocked(analyticsApi.fetchGapCauses).mockResolvedValue({ data: gapCauses } as never)
     const store = useAnalyticsStore()
     store.filter.projectId = 3
 
@@ -101,8 +125,14 @@ describe('analyticsStore', () => {
       page: 0,
       size: 20,
     })
+    expect(analyticsApi.fetchGapCauses).toHaveBeenCalledWith({
+      projectId: 3,
+      from: undefined,
+    })
     expect(store.accuracy).toEqual(accuracy)
     expect(store.timeline?.items).toHaveLength(1)
+    expect(store.gapCauses).toEqual(gapCauses)
+    expect(store.refreshing).toBe(false)
   })
 
   it('さらに読み込むと次ページを既存項目へ追加する', async () => {
@@ -135,6 +165,7 @@ describe('analyticsStore', () => {
     await store.setCauseCategory('SCOPE_CREEP')
 
     expect(analyticsApi.fetchEstimationAccuracy).not.toHaveBeenCalled()
+    expect(analyticsApi.fetchGapCauses).not.toHaveBeenCalled()
     expect(analyticsApi.fetchReflectionTimeline).toHaveBeenCalledWith(
       expect.objectContaining({ causeCategory: 'SCOPE_CREEP', page: 0 }),
     )

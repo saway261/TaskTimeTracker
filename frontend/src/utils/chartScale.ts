@@ -67,6 +67,35 @@ export function createChartScale(
   }
 }
 
+export function createLinearDomainScale(
+  minValue: number,
+  maxValue: number,
+  rangeStart: number,
+  rangeEnd: number,
+  targetTickCount = 5,
+): ChartScale {
+  const safeMin = Number.isFinite(minValue) ? minValue : 0
+  const safeMax = Number.isFinite(maxValue) ? maxValue : safeMin + 1
+  const domainRange = Math.max(Math.abs(safeMax - safeMin), Math.abs(safeMax) * 0.1, 0.1)
+  const step = niceStep(domainRange, targetTickCount)
+  const domainMin = Math.floor(safeMin / step) * step
+  let domainMax = Math.ceil(safeMax / step) * step
+  if (domainMax <= domainMin) domainMax = domainMin + step
+  const tickCount = Math.round((domainMax - domainMin) / step)
+  const ticks = Array.from({ length: tickCount + 1 }, (_, index) =>
+    Number((domainMin + index * step).toPrecision(12)),
+  )
+
+  return {
+    mode: 'linear',
+    domainMin,
+    domainMax,
+    rangeStart,
+    rangeEnd,
+    ticks,
+  }
+}
+
 export function mapScaleValue(value: number, scale: ChartScale): number {
   const clamped = Math.min(scale.domainMax, Math.max(scale.domainMin, value))
   const ratio =

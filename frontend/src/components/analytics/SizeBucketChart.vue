@@ -72,76 +72,78 @@ function rowSummary(bucket: SizeBucketResponse) {
       <p>長さの異なるタスクで、見積もりの傾向を比較します。</p>
     </div>
 
-    <svg
-      viewBox="0 0 760 350"
-      role="img"
-      aria-label="見積時間帯ごとの代表係数、オンタイム率、件数を示す横棒グラフ"
-      :aria-describedby="tableId"
-    >
-      <title>タスクサイズ帯別の精度</title>
+    <div class="chart-scroll">
+      <svg
+        viewBox="0 0 760 350"
+        role="img"
+        aria-label="見積時間帯ごとの代表係数、オンタイム率、件数を示す横棒グラフ"
+        :aria-describedby="tableId"
+      >
+        <title>タスクサイズ帯別の精度</title>
 
-      <rect
-        class="on-time-zone"
-        :x="chart.zoneStart"
-        :y="plotBounds.top"
-        :width="chart.zoneEnd - chart.zoneStart"
-        :height="plotBounds.bottom - plotBounds.top"
-      />
+        <rect
+          class="on-time-zone"
+          :x="chart.zoneStart"
+          :y="plotBounds.top"
+          :width="chart.zoneEnd - chart.zoneStart"
+          :height="plotBounds.bottom - plotBounds.top"
+        />
 
-      <g class="grid-lines">
+        <g class="grid-lines">
+          <line
+            v-for="tick in chart.scale.ticks"
+            :key="`grid-${tick}`"
+            :x1="mapScaleValue(tick, chart.scale)"
+            :x2="mapScaleValue(tick, chart.scale)"
+            :y1="plotBounds.top"
+            :y2="plotBounds.bottom"
+          />
+        </g>
         <line
-          v-for="tick in chart.scale.ticks"
-          :key="`grid-${tick}`"
-          :x1="mapScaleValue(tick, chart.scale)"
-          :x2="mapScaleValue(tick, chart.scale)"
+          class="reference-line"
+          :x1="chart.referenceX"
+          :x2="chart.referenceX"
           :y1="plotBounds.top"
           :y2="plotBounds.bottom"
         />
-      </g>
-      <line
-        class="reference-line"
-        :x1="chart.referenceX"
-        :x2="chart.referenceX"
-        :y1="plotBounds.top"
-        :y2="plotBounds.bottom"
-      />
 
-      <g v-for="row in chart.rows" :key="row.bucket.bucketCode" class="bucket-row">
-        <text class="bucket-label" x="138" :y="row.y + 4" text-anchor="end">
-          {{ row.bucket.label }}
-        </text>
-        <rect
-          v-if="row.bucket.factorMedian !== null"
-          class="factor-bar"
-          :x="plotBounds.left"
-          :y="row.y - 9"
-          :width="Math.max(0, row.barEnd - plotBounds.left)"
-          height="18"
-        />
-        <text class="row-summary" x="570" :y="row.y + 4">
-          {{ rowSummary(row.bucket) }}
-        </text>
-      </g>
+        <g v-for="row in chart.rows" :key="row.bucket.bucketCode" class="bucket-row">
+          <text class="bucket-label" x="138" :y="row.y + 4" text-anchor="end">
+            {{ row.bucket.label }}
+          </text>
+          <rect
+            v-if="row.bucket.factorMedian !== null"
+            class="factor-bar"
+            :x="plotBounds.left"
+            :y="row.y - 9"
+            :width="Math.max(0, row.barEnd - plotBounds.left)"
+            height="18"
+          />
+          <text class="row-summary" x="570" :y="row.y + 4">
+            {{ rowSummary(row.bucket) }}
+          </text>
+        </g>
 
-      <g class="axis">
-        <line
-          :x1="plotBounds.left"
-          :x2="plotBounds.right"
-          :y1="plotBounds.bottom"
-          :y2="plotBounds.bottom"
-        />
-        <text
-          v-for="tick in chart.scale.ticks"
-          :key="`tick-${tick}`"
-          :x="mapScaleValue(tick, chart.scale)"
-          :y="plotBounds.bottom + 20"
-          text-anchor="middle"
-        >
-          {{ tick }}
-        </text>
-        <text x="350" y="348" text-anchor="middle">代表係数</text>
-      </g>
-    </svg>
+        <g class="axis">
+          <line
+            :x1="plotBounds.left"
+            :x2="plotBounds.right"
+            :y1="plotBounds.bottom"
+            :y2="plotBounds.bottom"
+          />
+          <text
+            v-for="tick in chart.scale.ticks"
+            :key="`tick-${tick}`"
+            :x="mapScaleValue(tick, chart.scale)"
+            :y="plotBounds.bottom + 20"
+            text-anchor="middle"
+          >
+            {{ tick }}
+          </text>
+          <text x="350" y="348" text-anchor="middle">代表係数</text>
+        </g>
+      </svg>
+    </div>
 
     <div class="legend" aria-label="凡例">
       <span><i class="bar-sample" />代表係数</span>
@@ -253,5 +255,15 @@ svg {
 .line-sample {
   width: 1.2em;
   border-top: 2px dashed var(--color-text);
+}
+
+@media (max-width: 640px) {
+  .chart-scroll {
+    overflow-x: auto;
+  }
+
+  svg {
+    min-width: 560px;
+  }
 }
 </style>

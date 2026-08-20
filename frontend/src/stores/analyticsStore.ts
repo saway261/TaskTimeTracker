@@ -5,6 +5,7 @@ import type {
   AnalyticsFilter,
   AnalyticsPeriod,
   EstimationAccuracyResponse,
+  GapCauseAggregateResponse,
   ReflectionTimelineQuery,
   ReflectionTimelineResponse,
 } from '@/types/analytics'
@@ -39,11 +40,14 @@ function commonQuery(filter: AnalyticsFilter): AnalyticsCommonQuery {
 
 let accuracyRequestId = 0
 let timelineRequestId = 0
+let gapCausesRequestId = 0
+let refreshRequestId = 0
 
 export const useAnalyticsStore = defineStore('analytics', {
   state: () => ({
     accuracy: null as EstimationAccuracyResponse | null,
     timeline: null as ReflectionTimelineResponse | null,
+    gapCauses: null as GapCauseAggregateResponse | null,
     filter: {
       projectId: null,
       period: 'ALL',
@@ -52,14 +56,24 @@ export const useAnalyticsStore = defineStore('analytics', {
     } as AnalyticsFilter,
     loadingAccuracy: false,
     loadingTimeline: false,
+    loadingGapCauses: false,
+    refreshing: false,
     error: null as ApiError | null,
   }),
   actions: {
     async refresh() {
+      const requestId = ++refreshRequestId
       this.error = null
       this.accuracy = null
       this.timeline = null
-      await Promise.allSettled([this.fetchAccuracy(), this.fetchTimeline(true)])
+      this.gapCauses = null
+      this.refreshing = true
+      await Promise.allSettled([
+        this.fetchAccuracy(),
+        this.fetchTimeline(true),
+        this.fetchGapCauses(),
+      ])
+      if (requestId === refreshRequestId) this.refreshing = false
     },
 
     async fetchAccuracy() {
@@ -100,6 +114,20 @@ export const useAnalyticsStore = defineStore('analytics', {
         throw e
       } finally {
         if (requestId === timelineRequestId) this.loadingTimeline = false
+      }
+    },
+
+    async fetchGapCauses() {
+      const requestId = ++gapCausesRequestId
+      this.loadingGapCauses = true
+      try {
+        const { data } = await analyticsApi.fetchGapCauses(commonQuery(this.filter))
+        if (requestId === gapCausesRequestId) this.gapCauses = data
+      } catch (e) {
+        if (requestId === gapCausesRequestId) this.error = e as ApiError
+        throw e
+      } finally {
+        if (requestId === gapCausesRequestId) this.loadingGapCauses = false
       }
     },
 

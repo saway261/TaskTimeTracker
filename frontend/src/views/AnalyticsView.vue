@@ -7,8 +7,10 @@ import type { AnalyticsPeriod, ReflectionOutcomeFilter } from '@/types/analytics
 import AnalyticsFilterBar from '@/components/analytics/AnalyticsFilterBar.vue'
 import AccuracySummaryTiles from '@/components/analytics/AccuracySummaryTiles.vue'
 import DiagnosisCard from '@/components/analytics/DiagnosisCard.vue'
+import AccuracyTrendChart from '@/components/analytics/AccuracyTrendChart.vue'
 import EstimateActualScatter from '@/components/analytics/EstimateActualScatter.vue'
 import SizeBucketChart from '@/components/analytics/SizeBucketChart.vue'
+import GapCauseChart from '@/components/analytics/GapCauseChart.vue'
 import ReflectionTimeline from '@/components/analytics/ReflectionTimeline.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
@@ -18,12 +20,7 @@ const analyticsStore = useAnalyticsStore()
 const projectStore = useProjectStore()
 const categoryStore = useCauseCategoryStore()
 
-const initialLoading = computed(
-  () =>
-    (analyticsStore.loadingAccuracy || analyticsStore.loadingTimeline) &&
-    analyticsStore.accuracy === null &&
-    analyticsStore.timeline === null,
-)
+const initialLoading = computed(() => analyticsStore.refreshing)
 const empty = computed(
   () =>
     analyticsStore.accuracy?.analyzedTaskCount === 0 && analyticsStore.timeline?.totalCount === 0,
@@ -62,7 +59,7 @@ onMounted(load)
       :filter="analyticsStore.filter"
       :projects="projectStore.projects"
       :accuracy="analyticsStore.accuracy"
-      :disabled="analyticsStore.loadingAccuracy || analyticsStore.loadingTimeline"
+      :disabled="analyticsStore.refreshing"
       @project-change="changeProject"
       @period-change="changePeriod"
     />
@@ -75,7 +72,7 @@ onMounted(load)
       v-if="analyticsStore.error"
       class="retry-button"
       variant="secondary"
-      :disabled="analyticsStore.loadingAccuracy || analyticsStore.loadingTimeline"
+      :disabled="analyticsStore.refreshing"
       @click="analyticsStore.refresh"
     >
       再試行
@@ -97,6 +94,11 @@ onMounted(load)
           :diagnosis="analyticsStore.accuracy.diagnosis"
         />
         <div v-if="analyticsStore.accuracy" class="analytics-charts">
+          <AccuracyTrendChart
+            :points="analyticsStore.accuracy.trend"
+            :availability="analyticsStore.accuracy.trendAvailability"
+            :threshold-percent="analyticsStore.accuracy.onTimeThresholdPercent"
+          />
           <EstimateActualScatter
             :points="analyticsStore.accuracy.scatter"
             :threshold-percent="analyticsStore.accuracy.onTimeThresholdPercent"
@@ -106,6 +108,12 @@ onMounted(load)
           <SizeBucketChart
             :buckets="analyticsStore.accuracy.sizeBuckets"
             :threshold-percent="analyticsStore.accuracy.onTimeThresholdPercent"
+          />
+          <GapCauseChart
+            v-if="analyticsStore.gapCauses"
+            :aggregate="analyticsStore.gapCauses"
+            :selected-cause-category="analyticsStore.filter.causeCategory"
+            @cause-category-change="changeCauseCategory"
           />
         </div>
         <ReflectionTimeline
