@@ -7,6 +7,8 @@ import type { AnalyticsPeriod, ReflectionOutcomeFilter } from '@/types/analytics
 import AnalyticsFilterBar from '@/components/analytics/AnalyticsFilterBar.vue'
 import AccuracySummaryTiles from '@/components/analytics/AccuracySummaryTiles.vue'
 import DiagnosisCard from '@/components/analytics/DiagnosisCard.vue'
+import EstimateActualScatter from '@/components/analytics/EstimateActualScatter.vue'
+import SizeBucketChart from '@/components/analytics/SizeBucketChart.vue'
 import ReflectionTimeline from '@/components/analytics/ReflectionTimeline.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
@@ -94,6 +96,18 @@ onMounted(load)
           v-if="analyticsStore.accuracy?.diagnosis"
           :diagnosis="analyticsStore.accuracy.diagnosis"
         />
+        <div v-if="analyticsStore.accuracy" class="analytics-charts">
+          <EstimateActualScatter
+            :points="analyticsStore.accuracy.scatter"
+            :threshold-percent="analyticsStore.accuracy.onTimeThresholdPercent"
+            :factor-median="analyticsStore.accuracy.summary.factorMedian"
+            :truncated="analyticsStore.accuracy.scatterTruncated"
+          />
+          <SizeBucketChart
+            :buckets="analyticsStore.accuracy.sizeBuckets"
+            :threshold-percent="analyticsStore.accuracy.onTimeThresholdPercent"
+          />
+        </div>
         <ReflectionTimeline
           :timeline="analyticsStore.timeline"
           :categories="categoryStore.categories"
@@ -134,6 +148,12 @@ h1 {
   align-self: flex-start;
 }
 
+.analytics-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1em;
+}
+
 .empty-state {
   padding: 1.2em;
   border: 1px dashed var(--color-surface-muted);
@@ -155,6 +175,12 @@ h1 {
 @media (max-width: 640px) {
   .analytics-view {
     padding: 0.9em 0.75em;
+  }
+}
+
+@media (max-width: 960px) {
+  .analytics-charts {
+    grid-template-columns: 1fr;
   }
 }
 </style>
