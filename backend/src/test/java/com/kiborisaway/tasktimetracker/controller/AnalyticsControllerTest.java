@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.kiborisaway.tasktimetracker.data.dto.analytics.EstimationAccuracyResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ExcludedTaskCountResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.AccuracySummaryResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseAggregateResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.MetricAvailabilityResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.OutcomeBreakdownResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResponse;
@@ -137,6 +138,42 @@ class AnalyticsControllerTest {
         .thenThrow(new TargetNotFoundException("projectId", "project not found"));
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .param("projectId", "999"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void 原因カテゴリ集計取得成功_200と集計結果を返すこと() throws Exception {
+    when(service.getGapCauses(eq(USER_ID), any()))
+        .thenReturn(new GapCauseAggregateResponse(0, 0, List.of()));
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes"))
+        .andExpect(status().isOk());
+
+    verify(service).getGapCauses(anyInt(), any());
+  }
+
+  @Test
+  void 原因カテゴリ集計取得失敗_fromがtoより後の場合は400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
+            .param("from", "2026-02-01T00:00:00")
+            .param("to", "2026-01-01T00:00:00"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 原因カテゴリ集計取得失敗_projectIdが負値の場合は400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
+            .param("projectId", "-1"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 原因カテゴリ集計取得失敗_存在しないプロジェクトの場合は404を返すこと() throws Exception {
+    when(service.getGapCauses(eq(USER_ID), any()))
+        .thenThrow(new TargetNotFoundException("projectId", "project not found"));
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
             .param("projectId", "999"))
         .andExpect(status().isNotFound());
   }

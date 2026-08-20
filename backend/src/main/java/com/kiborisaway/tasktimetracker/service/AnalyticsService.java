@@ -8,6 +8,9 @@ import com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryConditio
 import com.kiborisaway.tasktimetracker.data.dto.analytics.DiagnosisResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.EstimationAccuracyResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ExcludedTaskCountResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseAggregateResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseGroupResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseItemResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.MetricAvailabilityResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.OutcomeBreakdownResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineItemResponse;
@@ -24,13 +27,16 @@ import com.kiborisaway.tasktimetracker.repository.AnalyticsRepository;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsScatterPointRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsSizeBucketRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsSummaryRow;
+import com.kiborisaway.tasktimetracker.repository.AnalyticsTrendRow;
 import com.kiborisaway.tasktimetracker.repository.ExcludedCountRow;
+import com.kiborisaway.tasktimetracker.repository.GapCauseRow;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionTimelineRow;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +52,11 @@ public class AnalyticsService {
   private static final int MIN_TASKS_FOR_DIAGNOSIS = 10;
   private static final int MIN_TASKS_FOR_TREND = 20;
   private static final int MIN_TASKS_PER_SIZE_BUCKET = 3;
+  private static final int MIN_TASKS_PER_CAUSE_CATEGORY = 3;
   private static final double VARIANCE_THRESHOLD_PERCENT = 25.0;
   private static final int SCATTER_MAX_POINTS = 500;
+  // サマリーの「直近の傾向」（直近10件と前10件の比較）と窓幅を必ず一致させる（要件§4.2）。
+  private static final int TREND_WINDOW_SIZE = 10;
 
   // 帯の境界は15/30/60/120分（§12-11で確定）。表示順は小さい帯から大きい帯へ固定する。
   private static final List<String> SIZE_BUCKET_CODES =
@@ -58,6 +67,14 @@ public class AnalyticsService {
       "M60", "31〜60分",
       "M120", "61〜120分",
       "OVER120", "121分〜");
+
+  // 原因カテゴリのグループ表示順は超過側→短縮側→共通で固定する（要件§4.7）。
+  private static final List<String> GAP_CAUSE_DIRECTIONS = List.of("OVER", "UNDER", "BOTH");
+  private static final Map<String, String> GAP_CAUSE_DIRECTION_LABELS = Map.of(
+      "OVER", "超過側",
+      "UNDER", "短縮側",
+      "BOTH", "共通");
+  private static final String UNCLASSIFIED_LABEL = "未分類";
 
   // 「直近の傾向」は、直近10件と前10件のばらつき（MdAPE）の差がこの範囲内なら「横ばい」とする（要件§4.2）。
   private static final double RECENT_TREND_STABLE_MARGIN = 3.0;
@@ -94,8 +111,7 @@ public class AnalyticsService {
   }
 
   /**
-   * 見積もり精度の集計（サマリー・診断・散布図・サイズ帯別）を取得します。精度推移は空で返します
-   * （B7で埋めます）。
+   * 見積もり精度の集計（サマリー・診断・散布図・サイズ帯別・精度推移）を取得します。
    *
    * @param userId    認証ユーザーID
    * @param condition 絞り込み条件（projectId / from / to）
@@ -133,6 +149,14 @@ public class AnalyticsService {
     List<ScatterPointResponse> scatter = buildScatter(scatterRows, SCATTER_MAX_POINTS);
     List<SizeBucketResponse> sizeBuckets = buildSizeBuckets(sizeBucketRows);
 
+    // 窓（TREND_WINDOW_SIZE件）が埋まらない場合は0件しか返らないため、無駄なクエリを避けるために
+    // 分析対象件数の時点でスキップする。
+    List<AccuracyTrendPointResponse> trend = analyzedCount >= MIN_TASKS_FOR_TREND
+        ? buildTrend(analyticsRepository.findAccuracyTrend(userId, condition, TREND_WINDOW_SIZE))
+        : List.of();
+    MetricAvailabilityResponse trendAvailability = new MetricAvailabilityResponse(
+        analyzedCount >= MIN_TASKS_FOR_TREND, MIN_TASKS_FOR_TREND, analyzedCount);
+
     return new EstimationAccuracyResponse(
         threshold,
         analyzedCount,
@@ -142,8 +166,47 @@ public class AnalyticsService {
         scatter,
         scatterTruncated,
         sizeBuckets,
-        List.<AccuracyTrendPointResponse>of(),
-        new MetricAvailabilityResponse(false, MIN_TASKS_FOR_TREND, analyzedCount));
+        trend,
+        trendAvailability);
+  }
+
+  /**
+   * 原因カテゴリ別の集計（超過側・短縮側・共通の3グループ）を取得します。
+   * 除外ルール（§2-1）を適用した分析対象タスクのうち、振り返り済みのものを対象とします。
+   *
+   * @param userId    認証ユーザーID
+   * @param condition 絞り込み条件（projectId / from / to）
+   * @return 原因カテゴリ別集計
+   */
+  @Transactional(readOnly = true)
+  public GapCauseAggregateResponse getGapCauses(int userId, AnalyticsQueryCondition condition) {
+    requireProjectOwnership(condition.getProjectId(), userId);
+    requireValidPeriod(condition);
+
+    double threshold = thresholdProperties.getOnTimePercent();
+    // analyzedTaskCountはestimation-accuracyと同じ抽出条件・同じクエリで算出し、二重に定義しない。
+    int analyzedTaskCount =
+        analyticsRepository.findSummary(userId, condition, threshold).getAnalyzedCount();
+    List<GapCauseRow> rows = analyticsRepository.findGapCauses(userId, condition);
+
+    GapCauseRow unclassifiedRow = rows.stream()
+        .filter(row -> row.getDirection() == null)
+        .findFirst()
+        .orElse(null);
+    Map<String, List<GapCauseRow>> classifiedRowsByDirection = rows.stream()
+        .filter(row -> row.getDirection() != null)
+        .collect(Collectors.groupingBy(GapCauseRow::getDirection));
+
+    List<GapCauseGroupResponse> groups = GAP_CAUSE_DIRECTIONS.stream()
+        .map(direction -> buildGapCauseGroup(
+            direction,
+            classifiedRowsByDirection.getOrDefault(direction, List.of()),
+            "BOTH".equals(direction) ? unclassifiedRow : null,
+            analyzedTaskCount))
+        .toList();
+    int totalLinkCount = groups.stream().mapToInt(GapCauseGroupResponse::getTotalCount).sum();
+
+    return new GapCauseAggregateResponse(analyzedTaskCount, totalLinkCount, groups);
   }
 
   /**
@@ -186,6 +249,20 @@ public class AnalyticsService {
           Double onTimeRate = available ? (row.getOnTimeCount() * 100.0) / taskCount : null;
           return new SizeBucketResponse(bucketCode, label, taskCount, factorMedian, onTimeRate);
         })
+        .toList();
+  }
+
+  /**
+   * 精度推移（移動中央値）を組み立てます。SQL側で既に完了順の連番（{@code sequence}）でソート済みです。
+   */
+  private List<AccuracyTrendPointResponse> buildTrend(List<AnalyticsTrendRow> rows) {
+    return rows.stream()
+        .map(row -> new AccuracyTrendPointResponse(
+            row.getSequence(),
+            row.getFinishedAt(),
+            row.getWindowFrom(),
+            row.getFactorMedian(),
+            row.getVariancePercent()))
         .toList();
   }
 
@@ -352,5 +429,35 @@ public class AnalyticsService {
 
   private String formatFactorMessage(String template, double factorMedian) {
     return template.formatted("%.1f".formatted(factorMedian));
+  }
+
+  /**
+   * 方向グループ（超過側・短縮側・共通）を組み立てます。件数降順で並べたうえで、
+   * 未分類（{@code unclassifiedRow}）は常に末尾に追加します（要件§4.7）。
+   */
+  private GapCauseGroupResponse buildGapCauseGroup(
+      String direction, List<GapCauseRow> rows, GapCauseRow unclassifiedRow, int analyzedTaskCount) {
+    List<GapCauseItemResponse> items = new ArrayList<>(rows.stream()
+        .sorted(Comparator.comparing(GapCauseRow::getTaskCount, Comparator.reverseOrder())
+            .thenComparing(GapCauseRow::getDisplayOrder))
+        .map(row -> toGapCauseItem(row, analyzedTaskCount))
+        .toList());
+    if (unclassifiedRow != null) {
+      items.add(toGapCauseItem(unclassifiedRow, analyzedTaskCount));
+    }
+    int totalCount = items.stream().mapToInt(GapCauseItemResponse::getTaskCount).sum();
+    double sharePercent = analyzedTaskCount == 0 ? 0.0 : (totalCount * 100.0) / analyzedTaskCount;
+    return new GapCauseGroupResponse(
+        direction, GAP_CAUSE_DIRECTION_LABELS.get(direction), totalCount, sharePercent, items);
+  }
+
+  private GapCauseItemResponse toGapCauseItem(GapCauseRow row, int analyzedTaskCount) {
+    int taskCount = row.getTaskCount();
+    boolean available = taskCount >= MIN_TASKS_PER_CAUSE_CATEGORY;
+    Double gapRateMedian = available ? row.getGapRateMedian() : null;
+    double sharePercent = analyzedTaskCount == 0 ? 0.0 : (taskCount * 100.0) / analyzedTaskCount;
+    String code = row.getCauseCategoryCode();
+    String label = code == null ? UNCLASSIFIED_LABEL : row.getCauseCategoryLabel();
+    return new GapCauseItemResponse(code, label, taskCount, sharePercent, gapRateMedian);
   }
 }

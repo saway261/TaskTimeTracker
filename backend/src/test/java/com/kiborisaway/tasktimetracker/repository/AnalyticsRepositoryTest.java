@@ -481,6 +481,117 @@ class AnalyticsRepositoryTest {
         .containsOnly(reflection1);
   }
 
+  @Test
+  void findAccuracyTrend_窓幅ごとの移動中央値が手計算した期待値と一致すること() {
+    int projectId = insertProject(USER_ID, "精度推移検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    double[] gapRates = {10, -10, 20, -20, 30};
+    for (int i = 0; i < gapRates.length; i++) {
+      insertFinishedTask(projectId, null, base.plusDays(i), 100, gapRates[i]);
+    }
+
+    List<AnalyticsTrendRow> actual = sut.findAccuracyTrend(USER_ID, conditionFor(projectId), 3);
+
+    // 窓幅3のため、rn=1,2は窓が埋まらず現れず、rn=3,4,5の3点のみ返る。
+    assertThat(actual).extracting(AnalyticsTrendRow::getSequence).containsExactly(3, 4, 5);
+
+    AnalyticsTrendRow first = actual.get(0); // rn=3: rn1-3 → factor 1.10,0.90,1.20 / ape 10,10,20
+    assertThat(first.getFactorMedian()).isCloseTo(1.10, within(1e-9));
+    assertThat(first.getVariancePercent()).isCloseTo(10.0, within(1e-9));
+    assertThat(first.getFinishedAt()).isEqualTo(base.plusDays(2));
+    assertThat(first.getWindowFrom()).isEqualTo(base);
+
+    AnalyticsTrendRow second = actual.get(1); // rn=4: rn2-4 → factor 0.90,1.20,0.80 / ape 10,20,20
+    assertThat(second.getFactorMedian()).isCloseTo(0.90, within(1e-9));
+    assertThat(second.getVariancePercent()).isCloseTo(20.0, within(1e-9));
+    assertThat(second.getFinishedAt()).isEqualTo(base.plusDays(3));
+    assertThat(second.getWindowFrom()).isEqualTo(base.plusDays(1));
+
+    AnalyticsTrendRow third = actual.get(2); // rn=5: rn3-5 → factor 1.20,0.80,1.30 / ape 20,20,30
+    assertThat(third.getFactorMedian()).isCloseTo(1.20, within(1e-9));
+    assertThat(third.getVariancePercent()).isCloseTo(20.0, within(1e-9));
+    assertThat(third.getFinishedAt()).isEqualTo(base.plusDays(4));
+    assertThat(third.getWindowFrom()).isEqualTo(base.plusDays(2));
+  }
+
+  @Test
+  void findAccuracyTrend_窓が埋まらない件数の場合は空で返ること() {
+    int projectId = insertProject(USER_ID, "精度推移件数不足検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    insertFinishedTask(projectId, null, base, 100, 10.0);
+    insertFinishedTask(projectId, null, base.plusDays(1), 100, -10.0);
+
+    List<AnalyticsTrendRow> actual = sut.findAccuracyTrend(USER_ID, conditionFor(projectId), 3);
+
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
+  void findGapCauses_方向とカテゴリごとに件数と誤差率中央値が集計され未分類はLEFTJOINで含まれること() {
+    int projectId = insertProject(USER_ID, "原因カテゴリ集計検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int taskA = insertFinishedTaskForTimeline(projectId, base, 100, 30.0);
+    int taskB = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 50.0);
+    int taskC = insertFinishedTaskForTimeline(projectId, base.plusDays(2), 100, 10.0);
+    int taskD = insertFinishedTaskForTimeline(projectId, base.plusDays(3), 100, 40.0);
+    int taskE = insertFinishedTaskForTimeline(projectId, base.plusDays(4), 100, 5.0);
+    int taskF = insertFinishedTaskForTimeline(projectId, base.plusDays(5), 100, 60.0);
+    linkCategory(insertReflection(taskA, "原因A", null), "TASK_BREAKDOWN");
+    linkCategory(insertReflection(taskB, "原因B", null), "TASK_BREAKDOWN");
+    linkCategory(insertReflection(taskC, "原因C", null), "TASK_BREAKDOWN");
+    linkCategory(insertReflection(taskD, "原因D", null), "INTERRUPTION");
+    insertReflection(taskE, "原因E", null); // カテゴリなし＝未分類
+    int reflectionF = insertReflection(taskF, "原因F", null);
+    linkCategory(reflectionF, "TASK_BREAKDOWN"); // 1タスクが複数カテゴリ（OVER側とBOTH側）を持つケース
+    linkCategory(reflectionF, "OTHER");
+
+    List<GapCauseRow> actual = sut.findGapCauses(USER_ID, conditionFor(projectId));
+
+    GapCauseRow taskBreakdown = rowFor(actual, "TASK_BREAKDOWN");
+    assertThat(taskBreakdown.getDirection()).isEqualTo("OVER");
+    assertThat(taskBreakdown.getTaskCount()).isEqualTo(4); // A, B, C, F
+    assertThat(taskBreakdown.getGapRateMedian()).isCloseTo(40.0, within(1e-9)); // 10,30,50,60の中央値
+
+    GapCauseRow interruption = rowFor(actual, "INTERRUPTION");
+    assertThat(interruption.getDirection()).isEqualTo("OVER");
+    assertThat(interruption.getTaskCount()).isEqualTo(1);
+    assertThat(interruption.getGapRateMedian()).isCloseTo(40.0, within(1e-9));
+
+    GapCauseRow other = rowFor(actual, "OTHER");
+    assertThat(other.getDirection()).isEqualTo("BOTH");
+    assertThat(other.getTaskCount()).isEqualTo(1); // F
+    assertThat(other.getGapRateMedian()).isCloseTo(60.0, within(1e-9));
+
+    GapCauseRow unclassified = actual.stream()
+        .filter(row -> row.getCauseCategoryCode() == null)
+        .findFirst()
+        .orElseThrow();
+    assertThat(unclassified.getDirection()).isNull();
+    assertThat(unclassified.getTaskCount()).isEqualTo(1); // E
+    assertThat(unclassified.getGapRateMedian()).isCloseTo(5.0, within(1e-9));
+
+    // 延べ件数の合計（4+1+1+1=7）は分析対象タスク数（6件）を上回りうる（Fが2カテゴリに重複計上されるため）。
+    int totalLinkCount = actual.stream().mapToInt(GapCauseRow::getTaskCount).sum();
+    assertThat(totalLinkCount).isEqualTo(7);
+  }
+
+  @Test
+  void findGapCauses_振り返り未入力のタスクは集計に含まれないこと() {
+    int projectId = insertProject(USER_ID, "原因カテゴリ振り返り未入力検証");
+    insertFinishedTaskForTimeline(projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 10.0);
+
+    List<GapCauseRow> actual = sut.findGapCauses(USER_ID, conditionFor(projectId));
+
+    assertThat(actual).isEmpty();
+  }
+
+  private static GapCauseRow rowFor(List<GapCauseRow> rows, String causeCategoryCode) {
+    return rows.stream()
+        .filter(row -> causeCategoryCode.equals(row.getCauseCategoryCode()))
+        .findFirst()
+        .orElseThrow();
+  }
+
   private static AnalyticsQueryCondition conditionFor(int projectId) {
     AnalyticsQueryCondition condition = new AnalyticsQueryCondition();
     condition.setProjectId(projectId);

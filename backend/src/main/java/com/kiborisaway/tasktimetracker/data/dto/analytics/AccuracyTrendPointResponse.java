@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
-@Schema(description = "精度推移の1点、移動中央値（B7で実装。B4時点ではレスポンスの配列は常に空）")
+@Schema(description = "精度推移の1点、移動中央値")
 @Getter
 @EqualsAndHashCode
 public class AccuracyTrendPointResponse {

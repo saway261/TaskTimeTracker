@@ -9,6 +9,9 @@ import static org.mockito.Mockito.when;
 import com.kiborisaway.tasktimetracker.config.AnalyticsThresholdProperties;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryCondition;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.EstimationAccuracyResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseAggregateResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseGroupResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseItemResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionOutcomeFilter;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineQueryCondition;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResponse;
@@ -23,7 +26,9 @@ import com.kiborisaway.tasktimetracker.repository.AnalyticsRepository;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsScatterPointRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsSizeBucketRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsSummaryRow;
+import com.kiborisaway.tasktimetracker.repository.AnalyticsTrendRow;
 import com.kiborisaway.tasktimetracker.repository.ExcludedCountRow;
+import com.kiborisaway.tasktimetracker.repository.GapCauseRow;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
@@ -432,6 +437,137 @@ class AnalyticsServiceTest {
     assertThat(actual.getExcluded().getTotal()).isEqualTo(3); // 10 - 7
     assertThat(actual.getExcluded().getMissingGapRate()).isEqualTo(2);
     assertThat(actual.getExcluded().getMissingActualMinutes()).isEqualTo(1);
+  }
+
+  @Test
+  void 精度推移_分析対象19件では推移クエリを呼ばず空配列になること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    stub(condition, summaryRow(19, 5, 5, 9, 1.2, 1.0, 1.4, 20.0),
+        varianceRow(null, null), excludedRow(19, 0, 0));
+
+    EstimationAccuracyResponse actual = sut.getEstimationAccuracy(USER_ID, condition);
+
+    assertThat(actual.getTrend()).isEmpty();
+    assertThat(actual.getTrendAvailability().isAvailable()).isFalse();
+    verify(analyticsRepository, never()).findAccuracyTrend(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyInt());
+  }
+
+  @Test
+  void 精度推移_分析対象20件以上では推移データを窓幅10で取得し変換して返ること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    stub(condition, summaryRow(20, 5, 5, 10, 1.2, 1.0, 1.4, 20.0),
+        varianceRow(null, null), excludedRow(20, 0, 0));
+    LocalDateTime windowFrom = LocalDateTime.of(2026, 8, 1, 10, 0);
+    LocalDateTime finishedAt = LocalDateTime.of(2026, 8, 10, 10, 0);
+    when(analyticsRepository.findAccuracyTrend(USER_ID, condition, 10))
+        .thenReturn(List.of(new AnalyticsTrendRow(10, finishedAt, windowFrom, 1.5, 22.0)));
+
+    EstimationAccuracyResponse actual = sut.getEstimationAccuracy(USER_ID, condition);
+
+    assertThat(actual.getTrendAvailability().isAvailable()).isTrue();
+    assertThat(actual.getTrend()).hasSize(1);
+    assertThat(actual.getTrend().get(0).getSequence()).isEqualTo(10);
+    assertThat(actual.getTrend().get(0).getFinishedAt()).isEqualTo(finishedAt);
+    assertThat(actual.getTrend().get(0).getWindowFrom()).isEqualTo(windowFrom);
+    assertThat(actual.getTrend().get(0).getFactorMedian()).isEqualTo(1.5);
+    assertThat(actual.getTrend().get(0).getVariancePercent()).isEqualTo(22.0);
+  }
+
+  @Test
+  void 原因カテゴリ集計_取得失敗_指定したプロジェクトが認証ユーザーのものでない場合は404用例外を投げること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(3, null, null);
+    when(projectRepository.existsByIdAndUserId(3, USER_ID)).thenReturn(false);
+
+    assertThatThrownBy(() -> sut.getGapCauses(USER_ID, condition))
+        .isInstanceOf(TargetNotFoundException.class);
+    verify(analyticsRepository, never()).findGapCauses(ArgumentMatchers.anyInt(), ArgumentMatchers.any());
+  }
+
+  @Test
+  void 原因カテゴリ集計_取得失敗_fromがtoより後の場合は400用例外を投げること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(
+        null,
+        LocalDateTime.of(2026, 2, 1, 0, 0),
+        LocalDateTime.of(2026, 1, 1, 0, 0));
+
+    assertThatThrownBy(() -> sut.getGapCauses(USER_ID, condition))
+        .isInstanceOf(AnalyticsQueryInvalidException.class);
+    verify(analyticsRepository, never()).findGapCauses(ArgumentMatchers.anyInt(), ArgumentMatchers.any());
+  }
+
+  @Test
+  void 原因カテゴリ集計_件数降順で並び未分類が共通グループの末尾に来ること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    when(analyticsRepository.findSummary(USER_ID, condition, 10.0))
+        .thenReturn(summaryRow(10, 3, 2, 5, 1.2, 1.0, 1.4, 20.0));
+    when(analyticsRepository.findGapCauses(USER_ID, condition)).thenReturn(List.of(
+        new GapCauseRow("OVER", "TASK_BREAKDOWN", "作業の洗い出しが足りなかった", 1, 3, 40.0),
+        new GapCauseRow("OVER", "INTERRUPTION", "割り込みが発生した", 2, 5, 35.0),
+        new GapCauseRow(null, null, null, null, 2, null)));
+
+    GapCauseAggregateResponse actual = sut.getGapCauses(USER_ID, condition);
+
+    GapCauseGroupResponse overGroup = group(actual, "OVER");
+    assertThat(overGroup.getItems())
+        .extracting(GapCauseItemResponse::getCauseCategoryCode)
+        .containsExactly("INTERRUPTION", "TASK_BREAKDOWN");
+    assertThat(overGroup.getTotalCount()).isEqualTo(8);
+
+    GapCauseGroupResponse bothGroup = group(actual, "BOTH");
+    assertThat(bothGroup.getItems())
+        .extracting(GapCauseItemResponse::getCauseCategoryLabel)
+        .containsExactly("未分類");
+    assertThat(bothGroup.getTotalCount()).isEqualTo(2);
+
+    GapCauseGroupResponse underGroup = group(actual, "UNDER");
+    assertThat(underGroup.getItems()).isEmpty();
+    assertThat(underGroup.getTotalCount()).isZero();
+  }
+
+  @Test
+  void 原因カテゴリ集計_3件未満のカテゴリは代表誤差率がnullになること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    when(analyticsRepository.findSummary(USER_ID, condition, 10.0))
+        .thenReturn(summaryRow(10, 3, 2, 5, 1.2, 1.0, 1.4, 20.0));
+    when(analyticsRepository.findGapCauses(USER_ID, condition)).thenReturn(List.of(
+        new GapCauseRow("UNDER", "OVER_ESTIMATION", "余裕を持たせすぎた", 1, 2, 15.0)));
+
+    GapCauseAggregateResponse actual = sut.getGapCauses(USER_ID, condition);
+
+    GapCauseItemResponse item = group(actual, "UNDER").getItems().get(0);
+    assertThat(item.getTaskCount()).isEqualTo(2);
+    assertThat(item.getGapRateMedian()).isNull();
+  }
+
+  @Test
+  void 原因カテゴリ集計_延べ件数の合計は分析対象件数を上回りうること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    when(analyticsRepository.findSummary(USER_ID, condition, 10.0))
+        .thenReturn(summaryRow(5, 2, 1, 2, 1.2, 1.0, 1.4, 20.0));
+    when(analyticsRepository.findGapCauses(USER_ID, condition)).thenReturn(List.of(
+        new GapCauseRow("OVER", "TASK_BREAKDOWN", "作業の洗い出しが足りなかった", 1, 4, 40.0),
+        new GapCauseRow("UNDER", "OVER_ESTIMATION", "余裕を持たせすぎた", 1, 3, 15.0)));
+
+    GapCauseAggregateResponse actual = sut.getGapCauses(USER_ID, condition);
+
+    assertThat(actual.getAnalyzedTaskCount()).isEqualTo(5);
+    assertThat(actual.getTotalLinkCount()).isEqualTo(7); // 4 + 3 > analyzedTaskCount(5)
+    assertThat(group(actual, "OVER").getSharePercent()).isEqualTo(80.0); // 4/5*100
+  }
+
+  private static GapCauseGroupResponse group(GapCauseAggregateResponse response, String direction) {
+    return response.getGroups().stream()
+        .filter(g -> g.getDirection().equals(direction))
+        .findFirst()
+        .orElseThrow();
   }
 
   private void stub(

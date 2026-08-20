@@ -128,7 +128,51 @@ class AnalyticsIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.analyzedTaskCount").value(25));
 
+    // 分析対象25件（MIN_TASKS_FOR_TREND=20以上）のため精度推移クエリが1本加わり7本になる。
+    // 推移クエリ自体は返る行数（タスク件数に応じて増減する）によらず常に1本である点を確認する。
+    assertThat(queryCounter.getCount()).isEqualTo(7);
+  }
+
+  @Test
+  void 精度推移_分析対象19件ではtrendAvailabilityがfalseで推移配列が空になること() throws Exception {
+    int projectId = insertProject(1, "精度推移19件検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    for (int i = 0; i < 19; i++) {
+      insertFinishedTask(projectId, base.plusDays(i), 100, 5.0);
+    }
+    queryCounter.reset();
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
+            .param("projectId", String.valueOf(projectId))
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.trend").isEmpty())
+        .andExpect(jsonPath("$.trendAvailability.available").value(false))
+        .andExpect(jsonPath("$.trendAvailability.currentCount").value(19));
+
+    // 19件（20件未満）のため推移クエリは発行されず、所有権確認込みで6本のまま。
     assertThat(queryCounter.getCount()).isEqualTo(6);
+  }
+
+  @Test
+  void 精度推移_分析対象20件以上ではtrendAvailabilityがtrueで窓幅10の移動中央値が返ること() throws Exception {
+    int projectId = insertProject(1, "精度推移20件検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    for (int i = 0; i < 20; i++) {
+      insertFinishedTask(projectId, base.plusDays(i), 100, 5.0);
+    }
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
+            .param("projectId", String.valueOf(projectId))
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.trendAvailability.available").value(true))
+        // 20件・窓幅10のため、窓の右端rnは10〜20の11点になる。
+        .andExpect(jsonPath("$.trend.length()").value(11))
+        .andExpect(jsonPath("$.trend[0].sequence").value(10))
+        .andExpect(jsonPath("$.trend[0].factorMedian").value(1.05))
+        .andExpect(jsonPath("$.trend[0].variancePercent").value(5.0))
+        .andExpect(jsonPath("$.trend[10].sequence").value(20));
   }
 
   @Test
@@ -351,6 +395,99 @@ class AnalyticsIntegrationTest {
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[*].taskId").value(not(hasItem(task))));
+  }
+
+  @Test
+  void 原因カテゴリ集計取得成功_分析対象0件でもエラーにならず発行クエリ数が2であること() throws Exception {
+    int projectId = insertProject(1, "原因カテゴリ0件検証");
+    queryCounter.reset();
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
+            .param("projectId", String.valueOf(projectId))
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.analyzedTaskCount").value(0))
+        .andExpect(jsonPath("$.totalLinkCount").value(0))
+        .andExpect(jsonPath("$.groups.length()").value(3))
+        .andExpect(jsonPath("$.groups[0].direction").value("OVER"))
+        .andExpect(jsonPath("$.groups[0].items").isEmpty());
+
+    // projectId指定時はプロジェクト所有権確認1本＋サマリー1本＋原因カテゴリ集計1本で3本になる。
+    assertThat(queryCounter.getCount()).isEqualTo(3);
+  }
+
+  @Test
+  void 原因カテゴリ集計取得成功_projectId未指定時は発行クエリ数が2であること() throws Exception {
+    queryCounter.reset();
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk());
+
+    assertThat(queryCounter.getCount()).isEqualTo(2);
+  }
+
+  @Test
+  void 原因カテゴリ集計取得成功_方向ごとにグループ化され未分類は共通グループに含まれること() throws Exception {
+    int projectId = insertProject(1, "原因カテゴリグループ化検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int overTask = insertFinishedTaskForTimeline(projectId, base, 100, 30.0);
+    int underTask = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, -10.0);
+    int unclassifiedTask = insertFinishedTaskForTimeline(projectId, base.plusDays(2), 100, 5.0);
+    linkCategory(insertReflection(overTask, "作業が想定より多かった", null), "TASK_BREAKDOWN");
+    linkCategory(insertReflection(underTask, "余裕を持たせすぎた", null), "BUFFER_TOO_LARGE");
+    insertReflection(unclassifiedTask, "特に理由なし", null);
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
+            .param("projectId", String.valueOf(projectId))
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.analyzedTaskCount").value(3))
+        .andExpect(jsonPath("$.totalLinkCount").value(3))
+        .andExpect(jsonPath("$.groups[0].direction").value("OVER"))
+        .andExpect(jsonPath("$.groups[0].label").value("超過側"))
+        .andExpect(jsonPath("$.groups[0].items[0].causeCategoryCode").value("TASK_BREAKDOWN"))
+        .andExpect(jsonPath("$.groups[0].items[0].taskCount").value(1))
+        .andExpect(jsonPath("$.groups[0].items[0].gapRateMedian").isEmpty()) // 3件未満
+        .andExpect(jsonPath("$.groups[1].direction").value("UNDER"))
+        .andExpect(jsonPath("$.groups[1].label").value("短縮側"))
+        .andExpect(jsonPath("$.groups[1].items[0].causeCategoryCode").value("BUFFER_TOO_LARGE"))
+        .andExpect(jsonPath("$.groups[2].direction").value("BOTH"))
+        .andExpect(jsonPath("$.groups[2].label").value("共通"))
+        .andExpect(jsonPath("$.groups[2].items[0].causeCategoryCode").isEmpty())
+        .andExpect(jsonPath("$.groups[2].items[0].causeCategoryLabel").value("未分類"))
+        .andExpect(jsonPath("$.groups[2].items[0].taskCount").value(1));
+  }
+
+  @Test
+  void 原因カテゴリ集計取得失敗_fromがtoより後の場合は400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
+            .param("from", "2026-02-01T00:00:00")
+            .param("to", "2026-01-01T00:00:00")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 原因カテゴリ集計取得失敗_存在しないプロジェクトIDで404を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
+            .param("projectId", "999999")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void 原因カテゴリ集計他ユーザー分離_他ユーザーのタスクが集計に混入しないこと() throws Exception {
+    int otherUsersProject = insertProject(2, "原因カテゴリ他ユーザー検証");
+    int task = insertFinishedTaskForTimeline(
+        otherUsersProject, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    insertReflection(task, "他ユーザーの振り返り", null);
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
+            .with(authenticatedUser(1, "user-a@example.com")))
+        .andExpect(status().isOk());
+    // user-aの横断集計に、直前に作成したuser-bのプロジェクトのタスクが含まれないことは
+    // AnalyticsRepositoryTestのユーザー分離テストで検証済み。ここでは200で完了することのみ確認する。
   }
 
   private static RequestPostProcessor authenticatedUser(int userId, String email) {

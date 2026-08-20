@@ -222,6 +222,97 @@ public interface AnalyticsRepository {
       @Param("threshold") double threshold);
 
   /**
+   * 完了順に窓幅 {@code windowSize} の移動中央値（代表係数・誤差率ばらつき）を1クエリで取得します。
+   * 窓が埋まらない先頭 {@code windowSize - 1} 件は点を作らないため、分析対象が
+   * {@code windowSize} 件未満の場合は空リストを返します。
+   *
+   * @param userId     認証ユーザーID
+   * @param condition  絞り込み条件（projectId / from / to）
+   * @param windowSize 移動窓の幅（{@code TREND_WINDOW_SIZE}）
+   * @return 完了順（連番昇順）の移動中央値行
+   */
+  @Select("""
+      WITH target AS (
+        SELECT
+          t.id,
+          t.finished_at,
+          t.gap_rate_cached / 100.0 + 1 AS factor,
+          ABS(t.gap_rate_cached)        AS ape,
+          ROW_NUMBER() OVER (ORDER BY t.finished_at, t.id) AS rn
+        FROM tasks t
+        LEFT JOIN task_groups tg ON tg.id = t.task_group_id
+        JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
+        WHERE p.user_id = #{userId}
+          AND t.finished_at IS NOT NULL
+          AND t.gap_rate_cached IS NOT NULL
+          AND t.actual_minutes_cached IS NOT NULL
+          AND t.actual_minutes_cached <> 0
+          AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
+               OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
+          AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+               OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
+          AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+               OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+      )
+      SELECT
+        a.rn                                                  AS sequence,
+        a.finished_at                                         AS finished_at,
+        MIN(b.finished_at)                                    AS window_from,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.factor) AS factor_median,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.ape)    AS variance_percent
+      FROM target a
+      JOIN target b ON b.rn BETWEEN a.rn - (#{windowSize} - 1) AND a.rn
+      WHERE a.rn >= #{windowSize}
+      GROUP BY a.rn, a.finished_at
+      ORDER BY a.rn
+      """)
+  List<AnalyticsTrendRow> findAccuracyTrend(
+      @Param("userId") int userId,
+      @Param("condition") AnalyticsQueryCondition condition,
+      @Param("windowSize") int windowSize);
+
+  /**
+   * 原因カテゴリ別（方向・コード単位）に、延べ件数と代表誤差率（中央値）を1クエリで取得します。
+   * 原因カテゴリの中間テーブルは {@code LEFT JOIN} するため、リンクを持たない振り返り（未分類）も
+   * {@code direction} / {@code causeCategoryCode} / {@code causeCategoryLabel} がnullの行として含まれます。
+   * 1タスクが複数カテゴリを持つ場合、この結合は意図的に行を増やします（延べ件数のため。要件§4.7）。
+   *
+   * @param userId    認証ユーザーID
+   * @param condition 絞り込み条件（projectId / from / to）
+   * @return カテゴリ（未分類を含む）ごとの延べ件数と代表誤差率
+   */
+  @Select("""
+      SELECT
+        rcc.direction     AS direction,
+        rcc.code          AS cause_category_code,
+        rcc.label         AS cause_category_label,
+        rcc.display_order AS display_order,
+        COUNT(*)          AS task_count,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY t.gap_rate_cached) AS gap_rate_median
+      FROM tasks t
+      LEFT JOIN task_groups tg ON tg.id = t.task_group_id
+      JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
+      JOIN reflections r ON r.task_id = t.id
+      LEFT JOIN reflection_cause_category_links rcl ON rcl.reflection_id = r.id
+      LEFT JOIN reflection_cause_categories rcc ON rcc.id = rcl.cause_category_id
+      WHERE p.user_id = #{userId}
+        AND t.finished_at IS NOT NULL
+        AND t.gap_rate_cached IS NOT NULL
+        AND t.actual_minutes_cached IS NOT NULL
+        AND t.actual_minutes_cached <> 0
+        AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
+             OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
+        AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+             OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
+        AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+             OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+      GROUP BY rcc.direction, rcc.code, rcc.label, rcc.display_order
+      """)
+  List<GapCauseRow> findGapCauses(
+      @Param("userId") int userId,
+      @Param("condition") AnalyticsQueryCondition condition);
+
+  /**
    * 振り返り済みの完了タスクを完了日時降順でページング取得します。除外ルール（§2-1）は適用しません
    * （要件§0-2-1のとおり、振り返り済みの完了タスクはすべてタイムラインの対象）。
    * 呼び出し前に {@code condition.projectId} の所有権と {@code condition.causeCategory} の
