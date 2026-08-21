@@ -222,6 +222,7 @@ async function handleCreateTask(payload: {
   title: string
   description: string | null
   estimatedMinutes?: number
+  tagIds?: number[]
 }) {
   creatingTask.value = true
   createTaskError.value = null

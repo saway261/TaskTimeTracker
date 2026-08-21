@@ -33,6 +33,7 @@ const finishedTask: TaskResponse = {
   gapMinutesCached: 0,
   gapRateCached: 0,
   memos: [],
+  tags: [],
 }
 
 function mountItem(showCompletedTasks: boolean) {

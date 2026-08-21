@@ -2,6 +2,7 @@ import { httpClient } from './httpClient'
 import type {
   TaskCreateRequest,
   TaskResponse,
+  TaskTagsUpdateRequest,
   TaskUpdateEstimatedMinutesRequest,
   TaskUpdateFinishedRequest,
   TaskUpdateParentRequest,
@@ -50,6 +51,10 @@ export function updateFinished(taskId: number, req: TaskUpdateFinishedRequest) {
 
 export function updateParent(taskId: number, req: TaskUpdateParentRequest) {
   return httpClient.patch<TaskResponse>(`/tasks/${taskId}/parent`, req)
+}
+
+export function updateTags(taskId: number, req: TaskTagsUpdateRequest) {
+  return httpClient.put<TaskResponse>(`/tasks/${taskId}/tags`, req)
 }
 
 // B1修正済み。作業セッションを持つタスクも204で削除できる。

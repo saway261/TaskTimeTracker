@@ -7,6 +7,7 @@ import { isFinished } from '@/utils/task'
 import { formatMinutes } from '@/utils/duration'
 import TaskRowMenu from './TaskRowMenu.vue'
 import TaskQuickActionModal from './TaskQuickActionModal.vue'
+import TagBadgeList from '@/components/tag/TagBadgeList.vue'
 
 const props = defineProps<{
   task: TaskResponse
@@ -93,7 +94,10 @@ const showQuickActions = ref(false)
       @click="showQuickActions = true"
     >
       <span class="label">タスク</span>
-      <span class="title">{{ task.title }}</span>
+      <span class="task-copy">
+        <span class="title">{{ task.title }}</span>
+        <TagBadgeList :tags="task.tags" />
+      </span>
       <span v-if="task.estimatedMinutes !== null" class="estimate">
         見積 {{ formatMinutes(task.estimatedMinutes) }}
       </span>
@@ -195,8 +199,18 @@ const showQuickActions = ref(false)
   color: var(--color-text-muted);
 }
 
-.title {
+.task-copy {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35em;
+  min-width: 0;
+}
+
+.title {
+  display: block;
+  max-width: 100%;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;

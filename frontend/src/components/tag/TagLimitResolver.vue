@@ -57,7 +57,12 @@ async function resolveLimit() {
 </script>
 
 <template>
-  <section class="tag-limit-resolver" :aria-labelledby="headingId" :aria-busy="resolving">
+  <section
+    class="tag-limit-resolver"
+    :aria-labelledby="headingId"
+    :aria-busy="resolving"
+    @keydown.esc.stop="emit('cancel')"
+  >
     <h3 :id="headingId">タグの上限に達しています</h3>
     <p>タグは50件までです。使っていないタグを1件アーカイブすると{{ actionLabel }}できます。</p>
 

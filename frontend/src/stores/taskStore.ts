@@ -4,6 +4,7 @@ import * as memosApi from '@/api/memosApi'
 import type {
   TaskCreateRequest,
   TaskResponse,
+  TaskTagsUpdateRequest,
   TaskUpdateEstimatedMinutesRequest,
   TaskUpdateFinishedRequest,
   TaskUpdateParentRequest,
@@ -107,6 +108,12 @@ export const useTaskStore = defineStore('task', {
 
     async updateTaskParent(id: number, req: TaskUpdateParentRequest) {
       const res = await tasksApi.updateParent(id, req)
+      this.applyUpdated(res.data)
+      return res.data
+    },
+
+    async updateTaskTags(id: number, req: TaskTagsUpdateRequest) {
+      const res = await tasksApi.updateTags(id, req)
       this.applyUpdated(res.data)
       return res.data
     },

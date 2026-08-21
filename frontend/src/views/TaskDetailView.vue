@@ -12,6 +12,7 @@ import { toReflectionTask } from '@/utils/reflectionTask'
 import * as reflectionsApi from '@/api/reflectionsApi'
 import type { ApiError } from '@/types/apiError'
 import type { TaskUpdateEstimatedMinutesRequest, TaskUpdatePropertyRequest } from '@/types/task'
+import type { TagSummary } from '@/types/tag'
 import type { MemoRequest } from '@/types/memo'
 import type { ReflectionRequest } from '@/types/reflection'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
@@ -29,6 +30,8 @@ import WorkSessionList from '@/components/workSession/WorkSessionList.vue'
 import ManualWorkSessionForm from '@/components/workSession/ManualWorkSessionForm.vue'
 import WorkTimer from '@/components/workSession/WorkTimer.vue'
 import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
+import TagBadgeList from '@/components/tag/TagBadgeList.vue'
+import TagSelect from '@/components/tag/TagSelect.vue'
 
 const props = defineProps<{
   projectId: string
@@ -93,6 +96,8 @@ async function load() {
     return
   }
   invalidId.value = false
+  editingTags.value = false
+  tagsError.value = null
   await taskStore.fetchTask(id).catch(() => {})
 
   // パンくず表示用のベストエフォート取得。失敗しても "#id" 表示にフォールバックする。
@@ -137,6 +142,41 @@ async function handleUpdate(payload: { title: string; description: string | null
     updateError.value = e as ApiError
   } finally {
     updating.value = false
+  }
+}
+
+// --- タグ編集（完了済みタスクでも許可） ---
+const editingTags = ref(false)
+const selectedTags = ref<TagSummary[]>([])
+const tagsUpdating = ref(false)
+const tagsError = ref<ApiError | null>(null)
+
+function openTagEditor() {
+  selectedTags.value = [...(taskStore.currentTask?.tags ?? [])]
+  tagsError.value = null
+  editingTags.value = true
+}
+
+function cancelTagEditor() {
+  editingTags.value = false
+  tagsError.value = null
+}
+
+async function submitTags() {
+  const id = numericTaskId.value
+  if (id === null) return
+  tagsUpdating.value = true
+  tagsError.value = null
+  try {
+    await taskStore.updateTaskTags(id, {
+      tagIds: selectedTags.value.map((tag) => tag.id),
+    })
+    notification.success('タグを更新しました。')
+    editingTags.value = false
+  } catch (e) {
+    tagsError.value = e as ApiError
+  } finally {
+    tagsUpdating.value = false
   }
 }
 
@@ -314,6 +354,34 @@ function handleMemoCreate(req: MemoRequest) {
 
       <p v-if="taskStore.currentTask.description">{{ taskStore.currentTask.description }}</p>
 
+      <section class="tag-section">
+        <div class="section-heading">
+          <h2>タグ</h2>
+          <BaseButton v-if="!editingTags" variant="secondary" @click="openTagEditor">
+            編集
+          </BaseButton>
+        </div>
+
+        <form v-if="editingTags" class="tag-form" @submit.prevent="submitTags">
+          <ErrorMessage v-if="tagsError" :error="tagsError" />
+          <TagSelect
+            v-model="selectedTags"
+            :disabled="tagsUpdating"
+            :error="tagsError?.fieldErrors.tagIds"
+          />
+          <div class="actions">
+            <BaseButton type="button" variant="secondary" @click="cancelTagEditor">
+              キャンセル
+            </BaseButton>
+            <BaseButton type="submit" :disabled="tagsUpdating">更新する</BaseButton>
+          </div>
+        </form>
+        <template v-else>
+          <TagBadgeList :tags="taskStore.currentTask.tags" :limit="null" />
+          <p v-if="taskStore.currentTask.tags.length === 0" class="hint">タグはありません。</p>
+        </template>
+      </section>
+
       <MemoList
         :memos="taskStore.currentTask.memos"
         :on-create="handleMemoCreate"
@@ -448,6 +516,7 @@ function handleMemoCreate(req: MemoRequest) {
   flex-wrap: wrap;
 }
 
+.tag-section,
 .estimation-section,
 .work-section {
   display: flex;
@@ -455,10 +524,25 @@ function handleMemoCreate(req: MemoRequest) {
   gap: 0.8em;
 }
 
+.tag-section h2,
 .estimation-section h2,
 .work-section h2 {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+}
+
+.tag-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  max-width: 32em;
 }
 
 .estimate-form {

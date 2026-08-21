@@ -27,6 +27,7 @@ const task: TaskResponse = {
   gapMinutesCached: null,
   gapRateCached: null,
   memos: [],
+  tags: [],
 }
 
 const pastSession: WorkSession = {

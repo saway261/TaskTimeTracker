@@ -197,6 +197,7 @@ async function handleCreateTask(payload: {
   description: string | null
   estimatedMinutes?: number
   taskGroupId?: number | null
+  tagIds?: number[]
 }) {
   const id = numericId.value
   if (id === null) return

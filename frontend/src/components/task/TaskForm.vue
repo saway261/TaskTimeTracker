@@ -4,9 +4,11 @@ import BaseInput from '@/components/common/BaseInput.vue'
 import BaseTextarea from '@/components/common/BaseTextarea.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import TagSelect from '@/components/tag/TagSelect.vue'
 import type { ApiError } from '@/types/apiError'
 import type { TaskResponse } from '@/types/task'
 import type { TaskGroupResponse } from '@/types/taskGroup'
+import type { TagSummary } from '@/types/tag'
 
 const props = withDefaults(
   defineProps<{
@@ -32,6 +34,7 @@ const emit = defineEmits<{
       description: string | null
       estimatedMinutes?: number
       taskGroupId?: number | null
+      tagIds?: number[]
     },
   ]
   cancel: []
@@ -42,6 +45,7 @@ const description = ref(props.task?.description ?? '')
 // 見積時間は登録時のみ入力する。更新時は別API・別UI（§4.4）のためここでは扱わない。
 const estimatedMinutes = ref(props.task?.estimatedMinutes?.toString() ?? '')
 const selectedTaskGroupId = ref<number | ''>('')
+const selectedTags = ref<TagSummary[]>([])
 const taskGroupSelectId = useId()
 
 watch(
@@ -50,6 +54,7 @@ watch(
     title.value = task?.title ?? ''
     description.value = task?.description ?? ''
     estimatedMinutes.value = task?.estimatedMinutes?.toString() ?? ''
+    selectedTags.value = []
   },
 )
 
@@ -67,7 +72,12 @@ function handleSubmit() {
   emit('submit', {
     title: title.value,
     description: description.value === '' ? null : description.value,
-    ...(props.task ? {} : { estimatedMinutes: Number(estimatedMinutes.value) }),
+    ...(props.task
+      ? {}
+      : {
+          estimatedMinutes: Number(estimatedMinutes.value),
+          tagIds: selectedTags.value.map((tag) => tag.id),
+        }),
     ...(props.showTaskGroupSelector
       ? { taskGroupId: selectedTaskGroupId.value === '' ? null : Number(selectedTaskGroupId.value) }
       : {}),
@@ -98,6 +108,12 @@ function handleSubmit() {
       required
       type="number"
       :error="error?.fieldErrors.estimatedMinutes"
+    />
+    <TagSelect
+      v-if="!task"
+      v-model="selectedTags"
+      :disabled="submitting"
+      :error="error?.fieldErrors.tagIds"
     />
     <div v-if="!task && showTaskGroupSelector" class="select-field">
       <label :for="taskGroupSelectId">作成先</label>
