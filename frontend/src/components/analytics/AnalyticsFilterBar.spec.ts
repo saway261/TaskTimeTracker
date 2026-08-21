@@ -14,9 +14,19 @@ describe('AnalyticsFilterBar', () => {
   it('分析対象・除外理由を表示してプロジェクトと期間を通知する', async () => {
     const wrapper = mount(AnalyticsFilterBar, {
       props: {
-        filter: { projectId: null, period: 'ALL', causeCategory: null, outcome: 'ALL' },
+        filter: {
+          projectId: null,
+          tagId: null,
+          period: 'ALL',
+          causeCategory: null,
+          outcome: 'ALL',
+        },
         projects: [
           { id: 3, title: 'プロジェクトA', description: null, isFinished: false, memos: [] },
+        ],
+        tags: [
+          { id: 5, name: '調査' },
+          { id: 6, name: '設計' },
         ],
         accuracy,
       },
@@ -30,8 +40,16 @@ describe('AnalyticsFilterBar', () => {
 
     await selects[0].setValue('3')
     await selects[1].setValue('LAST_90_DAYS')
+    await selects[2].setValue('5')
 
     expect(wrapper.emitted('projectChange')?.[0]).toEqual([3])
     expect(wrapper.emitted('periodChange')?.[0]).toEqual(['LAST_90_DAYS'])
+    expect(wrapper.emitted('tagChange')?.[0]).toEqual([5])
+    expect(selects[2].findAll('option').map((option) => option.text())).toEqual([
+      'すべてのタグ',
+      '調査',
+      '設計',
+    ])
+    expect(wrapper.text()).not.toContain('タグ未設定')
   })
 })

@@ -110,16 +110,20 @@ describe('analyticsStore', () => {
     vi.mocked(analyticsApi.fetchGapCauses).mockResolvedValue({ data: gapCauses } as never)
     const store = useAnalyticsStore()
     store.filter.projectId = 3
+    store.filter.tagId = 7
+    store.filter.period = 'LAST_90_DAYS'
 
     await store.refresh()
 
     expect(analyticsApi.fetchEstimationAccuracy).toHaveBeenCalledWith({
       projectId: 3,
-      from: undefined,
+      tagId: 7,
+      from: expect.any(String),
     })
     expect(analyticsApi.fetchReflectionTimeline).toHaveBeenCalledWith({
       projectId: 3,
-      from: undefined,
+      tagId: 7,
+      from: expect.any(String),
       causeCategory: undefined,
       outcome: 'ALL',
       page: 0,
@@ -127,7 +131,8 @@ describe('analyticsStore', () => {
     })
     expect(analyticsApi.fetchGapCauses).toHaveBeenCalledWith({
       projectId: 3,
-      from: undefined,
+      tagId: 7,
+      from: expect.any(String),
     })
     expect(store.accuracy).toEqual(accuracy)
     expect(store.timeline?.items).toHaveLength(1)
@@ -146,6 +151,7 @@ describe('analyticsStore', () => {
 
     expect(analyticsApi.fetchReflectionTimeline).toHaveBeenLastCalledWith({
       projectId: undefined,
+      tagId: undefined,
       from: undefined,
       causeCategory: undefined,
       outcome: 'ALL',
@@ -169,5 +175,25 @@ describe('analyticsStore', () => {
     expect(analyticsApi.fetchReflectionTimeline).toHaveBeenCalledWith(
       expect.objectContaining({ causeCategory: 'SCOPE_CREEP', page: 0 }),
     )
+  })
+
+  it('フィルタ変更中も既存のグラフデータを保持する', async () => {
+    vi.mocked(analyticsApi.fetchEstimationAccuracy).mockResolvedValue({ data: accuracy } as never)
+    vi.mocked(analyticsApi.fetchReflectionTimeline).mockResolvedValue({
+      data: timeline([]),
+    } as never)
+    vi.mocked(analyticsApi.fetchGapCauses).mockResolvedValue({ data: gapCauses } as never)
+    const store = useAnalyticsStore()
+    store.accuracy = accuracy
+    store.gapCauses = gapCauses
+    const previousAccuracy = store.accuracy
+    const previousGapCauses = store.gapCauses
+
+    const refresh = store.setTag(7)
+
+    expect(store.filter.tagId).toBe(7)
+    expect(store.accuracy).toBe(previousAccuracy)
+    expect(store.gapCauses).toBe(previousGapCauses)
+    await refresh
   })
 })

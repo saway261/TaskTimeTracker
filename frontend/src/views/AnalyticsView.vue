@@ -3,7 +3,10 @@ import { computed, onMounted } from 'vue'
 import { useAnalyticsStore } from '@/stores/analyticsStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { useCauseCategoryStore } from '@/stores/causeCategoryStore'
+import { useTagStore } from '@/stores/tagStore'
+import { useNotificationStore } from '@/stores/notificationStore'
 import type { AnalyticsPeriod, ReflectionOutcomeFilter } from '@/types/analytics'
+import type { ApiError } from '@/types/apiError'
 import AnalyticsFilterBar from '@/components/analytics/AnalyticsFilterBar.vue'
 import AccuracySummaryTiles from '@/components/analytics/AccuracySummaryTiles.vue'
 import DiagnosisCard from '@/components/analytics/DiagnosisCard.vue'
@@ -19,19 +22,54 @@ import BaseButton from '@/components/common/BaseButton.vue'
 const analyticsStore = useAnalyticsStore()
 const projectStore = useProjectStore()
 const categoryStore = useCauseCategoryStore()
+const tagStore = useTagStore()
+const notification = useNotificationStore()
 
-const initialLoading = computed(() => analyticsStore.refreshing)
+const initialLoading = computed(
+  () =>
+    analyticsStore.refreshing &&
+    analyticsStore.accuracy === null &&
+    analyticsStore.timeline === null &&
+    analyticsStore.gapCauses === null,
+)
 const empty = computed(
   () =>
     analyticsStore.accuracy?.analyzedTaskCount === 0 && analyticsStore.timeline?.totalCount === 0,
 )
+const selectedProjectName = computed(
+  () =>
+    projectStore.projects.find((project) => project.id === analyticsStore.filter.projectId)?.title,
+)
+const selectedTagName = computed(
+  () => tagStore.tags.find((tag) => tag.id === analyticsStore.filter.tagId)?.name,
+)
+
+function isArchivedTagError(error: ApiError | null) {
+  return error?.status === 400 && error.fieldErrors.tagId !== undefined
+}
+
+async function runAnalyticsRequest(action: () => Promise<void>) {
+  await action()
+  const selectedTagId = analyticsStore.filter.tagId
+  if (selectedTagId === null || !isArchivedTagError(analyticsStore.error)) return
+
+  const tagName = tagStore.tags.find((tag) => tag.id === selectedTagId)?.name
+  notification.info(
+    `選択していたタグ${tagName ? `「${tagName}」` : ''}はアーカイブ済みのため、「すべてのタグ」に戻しました。`,
+  )
+  await analyticsStore.setTag(null)
+}
 
 function changeProject(projectId: number | null) {
-  void analyticsStore.setProject(projectId)
+  void runAnalyticsRequest(() => analyticsStore.setProject(projectId))
 }
 
 function changePeriod(period: AnalyticsPeriod) {
-  void analyticsStore.setPeriod(period)
+  void runAnalyticsRequest(() => analyticsStore.setPeriod(period))
+}
+
+function changeTag(tagId: number | null) {
+  void runAnalyticsRequest(() => analyticsStore.setTag(tagId))
 }
 
 function changeCauseCategory(causeCategory: string | null) {
@@ -45,7 +83,12 @@ function changeOutcome(outcome: ReflectionOutcomeFilter) {
 function load() {
   void projectStore.fetchProjects().catch(() => {})
   void categoryStore.fetchCategories().catch(() => {})
-  void analyticsStore.refresh()
+  void tagStore.fetchTags().catch(() => {})
+  void runAnalyticsRequest(() => analyticsStore.refresh())
+}
+
+function retry() {
+  void runAnalyticsRequest(() => analyticsStore.refresh())
 }
 
 onMounted(load)
@@ -58,13 +101,18 @@ onMounted(load)
     <AnalyticsFilterBar
       :filter="analyticsStore.filter"
       :projects="projectStore.projects"
+      :tags="tagStore.activeTags"
       :accuracy="analyticsStore.accuracy"
       :disabled="analyticsStore.refreshing"
       @project-change="changeProject"
       @period-change="changePeriod"
+      @tag-change="changeTag"
     />
     <p v-if="projectStore.error" class="filter-note">
       プロジェクト一覧を取得できなかったため、全プロジェクトの分析を表示しています。
+    </p>
+    <p v-if="tagStore.error" class="filter-note">
+      タグ一覧を取得できなかったため、タグの選択肢を表示できません。
     </p>
 
     <ErrorMessage v-if="analyticsStore.error" :error="analyticsStore.error" />
@@ -73,7 +121,7 @@ onMounted(load)
       class="retry-button"
       variant="secondary"
       :disabled="analyticsStore.refreshing"
-      @click="analyticsStore.refresh"
+      @click="retry"
     >
       再試行
     </BaseButton>
@@ -92,6 +140,10 @@ onMounted(load)
         <DiagnosisCard
           v-if="analyticsStore.accuracy?.diagnosis"
           :diagnosis="analyticsStore.accuracy.diagnosis"
+          :filter="analyticsStore.filter"
+          :analyzed-task-count="analyticsStore.accuracy.analyzedTaskCount"
+          :project-name="selectedProjectName"
+          :tag-name="selectedTagName"
         />
         <div v-if="analyticsStore.accuracy" class="analytics-charts">
           <AccuracyTrendChart

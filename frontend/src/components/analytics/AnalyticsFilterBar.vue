@@ -6,10 +6,12 @@ import type {
   EstimationAccuracyResponse,
 } from '@/types/analytics'
 import type { ProjectResponse } from '@/types/project'
+import type { TagSummary } from '@/types/tag'
 
 defineProps<{
   filter: AnalyticsFilter
   projects: ProjectResponse[]
+  tags: TagSummary[]
   accuracy: EstimationAccuracyResponse | null
   disabled?: boolean
 }>()
@@ -17,10 +19,12 @@ defineProps<{
 const emit = defineEmits<{
   projectChange: [projectId: number | null]
   periodChange: [period: AnalyticsPeriod]
+  tagChange: [tagId: number | null]
 }>()
 
 const projectId = useId()
 const periodId = useId()
+const tagId = useId()
 
 function handleProjectChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
@@ -29,6 +33,11 @@ function handleProjectChange(event: Event) {
 
 function handlePeriodChange(event: Event) {
   emit('periodChange', (event.target as HTMLSelectElement).value as AnalyticsPeriod)
+}
+
+function handleTagChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  emit('tagChange', value === '' ? null : Number(value))
 }
 </script>
 
@@ -62,6 +71,21 @@ function handlePeriodChange(event: Event) {
           <option value="LAST_30_DAYS">直近30日</option>
           <option value="LAST_90_DAYS">直近90日</option>
           <option value="LAST_YEAR">直近1年</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <label :for="tagId">タグ</label>
+        <select
+          :id="tagId"
+          :value="filter.tagId ?? ''"
+          :disabled="disabled"
+          @change="handleTagChange"
+        >
+          <option value="">すべてのタグ</option>
+          <option v-for="tag in tags" :key="tag.id" :value="tag.id">
+            {{ tag.name }}
+          </option>
         </select>
       </div>
     </div>

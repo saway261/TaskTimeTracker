@@ -10,6 +10,7 @@ export type GapCauseDirection = 'OVER' | 'UNDER' | 'BOTH'
 
 export interface AnalyticsFilter {
   projectId: number | null
+  tagId: number | null
   period: AnalyticsPeriod
   causeCategory: string | null
   outcome: ReflectionOutcomeFilter
@@ -139,6 +140,7 @@ export interface ReflectionTimelineResponse {
 
 export interface AnalyticsCommonQuery {
   projectId?: number
+  tagId?: number
   from?: string
   to?: string
 }
