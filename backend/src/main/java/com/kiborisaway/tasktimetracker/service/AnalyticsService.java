@@ -19,6 +19,7 @@ import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResp
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ScatterPointResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.SizeBucketResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
+import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
@@ -34,6 +35,7 @@ import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionTimelineRow;
+import com.kiborisaway.tasktimetracker.repository.TagRepository;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -97,17 +99,20 @@ public class AnalyticsService {
   private AnalyticsThresholdProperties thresholdProperties;
   private ProjectRepository projectRepository;
   private ReflectionCauseCategoryRepository causeCategoryRepository;
+  private TagRepository tagRepository;
 
   @Autowired
   public AnalyticsService(
       AnalyticsRepository analyticsRepository,
       AnalyticsThresholdProperties thresholdProperties,
       ProjectRepository projectRepository,
-      ReflectionCauseCategoryRepository causeCategoryRepository) {
+      ReflectionCauseCategoryRepository causeCategoryRepository,
+      TagRepository tagRepository) {
     this.analyticsRepository = analyticsRepository;
     this.thresholdProperties = thresholdProperties;
     this.projectRepository = projectRepository;
     this.causeCategoryRepository = causeCategoryRepository;
+    this.tagRepository = tagRepository;
   }
 
   /**
@@ -121,6 +126,7 @@ public class AnalyticsService {
   public EstimationAccuracyResponse getEstimationAccuracy(
       int userId, AnalyticsQueryCondition condition) {
     requireProjectOwnership(condition.getProjectId(), userId);
+    requireTagOwnership(condition.getTagId(), userId);
     requireValidPeriod(condition);
 
     double threshold = thresholdProperties.getOnTimePercent();
@@ -181,6 +187,7 @@ public class AnalyticsService {
   @Transactional(readOnly = true)
   public GapCauseAggregateResponse getGapCauses(int userId, AnalyticsQueryCondition condition) {
     requireProjectOwnership(condition.getProjectId(), userId);
+    requireTagOwnership(condition.getTagId(), userId);
     requireValidPeriod(condition);
 
     double threshold = thresholdProperties.getOnTimePercent();
@@ -278,6 +285,7 @@ public class AnalyticsService {
   public ReflectionTimelineResponse getReflectionTimeline(
       int userId, ReflectionTimelineQueryCondition condition) {
     requireProjectOwnership(condition.getProjectId(), userId);
+    requireTagOwnership(condition.getTagId(), userId);
     requireValidPeriod(condition);
     if (condition.getCauseCategory() != null
         && causeCategoryRepository.findActiveByCode(condition.getCauseCategory()) == null) {
@@ -334,6 +342,25 @@ public class AnalyticsService {
     if (projectId != null && !projectRepository.existsByIdAndUserId(projectId, userId)) {
       throw new TargetNotFoundException(
           "projectId", "指定したIDのプロジェクトは見つかりませんでした");
+    }
+  }
+
+  /**
+   * 絞り込み対象タグの所有権と、アーカイブ状態を検証します。存在しない、または他ユーザーのタグは
+   * 404（projectIdと同じ扱い）、アーカイブ済みのタグは400とします。アーカイブは「このタグでの分析を
+   * やめる」という宣言であり、存在は隠さないが宣言に反して集計しません（タグ要件§3.5 / §8.3）。
+   */
+  private void requireTagOwnership(Integer tagId, int userId) {
+    if (tagId == null) {
+      return;
+    }
+    Tag tag = tagRepository.findByIdAndUserId(tagId, userId);
+    if (tag == null) {
+      throw new TargetNotFoundException("tagId", "指定したIDのタグは見つかりませんでした");
+    }
+    if (Boolean.TRUE.equals(tag.getIsArchived())) {
+      throw new AnalyticsQueryInvalidException(
+          "tagId", "アーカイブ済みのタグは分析の絞り込みに指定できません");
     }
   }
 

@@ -72,6 +72,49 @@ class AnalyticsControllerTest {
   }
 
   @Test
+  void 取得失敗_tagIdが負値の場合は400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
+            .param("tagId", "-1"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 取得成功_tagIdを指定するとリクエスト条件に設定されてサービスへ渡ること() throws Exception {
+    when(service.getEstimationAccuracy(eq(USER_ID), any())).thenReturn(response());
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
+            .param("tagId", "7"))
+        .andExpect(status().isOk());
+
+    org.mockito.ArgumentCaptor<com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryCondition>
+        captor = org.mockito.ArgumentCaptor.forClass(
+            com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryCondition.class);
+    verify(service).getEstimationAccuracy(eq(USER_ID), captor.capture());
+    org.assertj.core.api.Assertions.assertThat(captor.getValue().getTagId()).isEqualTo(7);
+  }
+
+  @Test
+  void 取得失敗_アーカイブ済みタグを指定すると400を返すこと() throws Exception {
+    when(service.getEstimationAccuracy(eq(USER_ID), any()))
+        .thenThrow(new com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException(
+            "tagId", "アーカイブ済みのタグは分析の絞り込みに指定できません"));
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
+            .param("tagId", "7"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 取得失敗_存在しないタグの場合は404を返すこと() throws Exception {
+    when(service.getEstimationAccuracy(eq(USER_ID), any()))
+        .thenThrow(new TargetNotFoundException("tagId", "tag not found"));
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
+            .param("tagId", "999"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
   void タイムライン取得成功_200とタイムラインを返すこと() throws Exception {
     when(service.getReflectionTimeline(eq(USER_ID), any()))
         .thenReturn(new ReflectionTimelineResponse(List.of(), 0, 20, 0, false));
@@ -94,6 +137,13 @@ class AnalyticsControllerTest {
   void タイムライン取得失敗_projectIdが負値の場合は400を返すこと() throws Exception {
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
             .param("projectId", "-1"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void タイムライン取得失敗_tagIdが負値の場合は400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
+            .param("tagId", "-1"))
         .andExpect(status().isBadRequest());
   }
 
@@ -165,6 +215,13 @@ class AnalyticsControllerTest {
   void 原因カテゴリ集計取得失敗_projectIdが負値の場合は400を返すこと() throws Exception {
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
             .param("projectId", "-1"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 原因カテゴリ集計取得失敗_tagIdが負値の場合は400を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
+            .param("tagId", "-1"))
         .andExpect(status().isBadRequest());
   }
 

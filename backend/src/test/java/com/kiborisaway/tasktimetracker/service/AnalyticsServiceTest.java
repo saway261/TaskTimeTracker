@@ -18,6 +18,7 @@ import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResp
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ScatterPointResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.SizeBucketResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
+import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
@@ -33,6 +34,7 @@ import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionTimelineRow;
+import com.kiborisaway.tasktimetracker.repository.TagRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,12 +58,16 @@ class AnalyticsServiceTest {
   @Mock
   private ReflectionCauseCategoryRepository causeCategoryRepository;
 
+  @Mock
+  private TagRepository tagRepository;
+
   private final AnalyticsThresholdProperties thresholdProperties =
       new AnalyticsThresholdProperties(10.0);
 
   private AnalyticsService service() {
     return new AnalyticsService(
-        analyticsRepository, thresholdProperties, projectRepository, causeCategoryRepository);
+        analyticsRepository, thresholdProperties, projectRepository, causeCategoryRepository,
+        tagRepository);
   }
 
   @Test
@@ -74,6 +80,52 @@ class AnalyticsServiceTest {
         .isInstanceOf(TargetNotFoundException.class);
     verify(analyticsRepository, never()).findSummary(
         ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
+  }
+
+  @Test
+  void 取得失敗_指定したタグが認証ユーザーのものでない場合は404用例外を投げること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    condition.setTagId(5);
+    when(tagRepository.findByIdAndUserId(5, USER_ID)).thenReturn(null);
+
+    assertThatThrownBy(() -> sut.getEstimationAccuracy(USER_ID, condition))
+        .isInstanceOfSatisfying(TargetNotFoundException.class,
+            ex -> assertThat(ex.getField()).isEqualTo("tagId"));
+    verify(analyticsRepository, never()).findSummary(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
+  }
+
+  @Test
+  void 取得失敗_アーカイブ済みのタグを指定した場合は400用例外を投げること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    condition.setTagId(5);
+    when(tagRepository.findByIdAndUserId(5, USER_ID))
+        .thenReturn(new Tag(5, USER_ID, "旧タグ", "旧タグ", true, null));
+
+    assertThatThrownBy(() -> sut.getEstimationAccuracy(USER_ID, condition))
+        .isInstanceOfSatisfying(AnalyticsQueryInvalidException.class,
+            ex -> assertThat(ex.getField()).isEqualTo("tagId"));
+    verify(analyticsRepository, never()).findSummary(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
+  }
+
+  @Test
+  void 取得成功_アクティブなタグを指定した場合は集計処理を呼び出すこと() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    condition.setTagId(5);
+    when(tagRepository.findByIdAndUserId(5, USER_ID))
+        .thenReturn(new Tag(5, USER_ID, "調査", "調査", false, null));
+    stub(condition,
+        summaryRow(0, 0, 0, 0, null, null, null, null),
+        varianceRow(null, null),
+        excludedRow(0, 0, 0));
+
+    sut.getEstimationAccuracy(USER_ID, condition);
+
+    verify(analyticsRepository).findSummary(USER_ID, condition, 10.0);
   }
 
   @Test
@@ -501,6 +553,31 @@ class AnalyticsServiceTest {
   }
 
   @Test
+  void 原因カテゴリ集計_取得失敗_指定したタグが認証ユーザーのものでない場合は404用例外を投げること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    condition.setTagId(5);
+    when(tagRepository.findByIdAndUserId(5, USER_ID)).thenReturn(null);
+
+    assertThatThrownBy(() -> sut.getGapCauses(USER_ID, condition))
+        .isInstanceOf(TargetNotFoundException.class);
+    verify(analyticsRepository, never()).findGapCauses(ArgumentMatchers.anyInt(), ArgumentMatchers.any());
+  }
+
+  @Test
+  void 原因カテゴリ集計_取得失敗_アーカイブ済みのタグを指定した場合は400用例外を投げること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    condition.setTagId(5);
+    when(tagRepository.findByIdAndUserId(5, USER_ID))
+        .thenReturn(new Tag(5, USER_ID, "旧タグ", "旧タグ", true, null));
+
+    assertThatThrownBy(() -> sut.getGapCauses(USER_ID, condition))
+        .isInstanceOf(AnalyticsQueryInvalidException.class);
+    verify(analyticsRepository, never()).findGapCauses(ArgumentMatchers.anyInt(), ArgumentMatchers.any());
+  }
+
+  @Test
   void 原因カテゴリ集計_件数降順で並び未分類が共通グループの末尾に来ること() {
     AnalyticsService sut = service();
     AnalyticsQueryCondition condition = condition(null, null, null);
@@ -640,6 +717,33 @@ class AnalyticsServiceTest {
     assertThatThrownBy(() -> sut.getReflectionTimeline(USER_ID, condition))
         .isInstanceOfSatisfying(ReflectionCauseCategoryInvalidException.class,
             ex -> assertThat(ex.getField()).isEqualTo("causeCategory"));
+    verify(analyticsRepository, never()).findReflectionTimelineItems(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
+  }
+
+  @Test
+  void タイムライン取得失敗_指定したタグが認証ユーザーのものでない場合は404用例外を投げること() {
+    AnalyticsService sut = service();
+    ReflectionTimelineQueryCondition condition = timelineCondition(null, null, 0, 20);
+    condition.setTagId(5);
+    when(tagRepository.findByIdAndUserId(5, USER_ID)).thenReturn(null);
+
+    assertThatThrownBy(() -> sut.getReflectionTimeline(USER_ID, condition))
+        .isInstanceOf(TargetNotFoundException.class);
+    verify(analyticsRepository, never()).findReflectionTimelineItems(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
+  }
+
+  @Test
+  void タイムライン取得失敗_アーカイブ済みのタグを指定した場合は400用例外を投げること() {
+    AnalyticsService sut = service();
+    ReflectionTimelineQueryCondition condition = timelineCondition(null, null, 0, 20);
+    condition.setTagId(5);
+    when(tagRepository.findByIdAndUserId(5, USER_ID))
+        .thenReturn(new Tag(5, USER_ID, "旧タグ", "旧タグ", true, null));
+
+    assertThatThrownBy(() -> sut.getReflectionTimeline(USER_ID, condition))
+        .isInstanceOf(AnalyticsQueryInvalidException.class);
     verify(analyticsRepository, never()).findReflectionTimelineItems(
         ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
   }

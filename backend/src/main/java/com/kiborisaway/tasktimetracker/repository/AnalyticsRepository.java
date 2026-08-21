@@ -39,6 +39,10 @@ public interface AnalyticsRepository {
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
           AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+          AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+               OR EXISTS (SELECT 1 FROM task_tags tt
+                          WHERE tt.task_id = t.id
+                            AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
       )
       SELECT
         COUNT(*)                                                                AS analyzed_count,
@@ -85,6 +89,10 @@ public interface AnalyticsRepository {
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
           AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+          AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+               OR EXISTS (SELECT 1 FROM task_tags tt
+                          WHERE tt.task_id = t.id
+                            AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
       )
       SELECT
         (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ape)
@@ -121,6 +129,10 @@ public interface AnalyticsRepository {
              OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
         AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
              OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+        AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+             OR EXISTS (SELECT 1 FROM task_tags tt
+                        WHERE tt.task_id = t.id
+                          AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
       """)
   ExcludedCountRow findExcludedCounts(
       @Param("userId") int userId,
@@ -163,6 +175,10 @@ public interface AnalyticsRepository {
              OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
         AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
              OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+        AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+             OR EXISTS (SELECT 1 FROM task_tags tt
+                        WHERE tt.task_id = t.id
+                          AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
       ORDER BY t.finished_at DESC, t.id DESC
       LIMIT #{limit} + 1
       """)
@@ -207,6 +223,10 @@ public interface AnalyticsRepository {
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
           AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+          AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+               OR EXISTS (SELECT 1 FROM task_tags tt
+                          WHERE tt.task_id = t.id
+                            AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
       )
       SELECT
         bucket_code,
@@ -253,6 +273,10 @@ public interface AnalyticsRepository {
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
           AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+          AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+               OR EXISTS (SELECT 1 FROM task_tags tt
+                          WHERE tt.task_id = t.id
+                            AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
       )
       SELECT
         a.rn                                                  AS sequence,
@@ -306,6 +330,10 @@ public interface AnalyticsRepository {
              OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
         AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
              OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+        AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+             OR EXISTS (SELECT 1 FROM task_tags tt
+                        WHERE tt.task_id = t.id
+                          AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
       GROUP BY rcc.direction, rcc.code, rcc.label, rcc.display_order
       """)
   List<GapCauseRow> findGapCauses(
@@ -356,6 +384,10 @@ public interface AnalyticsRepository {
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
           AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+          AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+               OR EXISTS (SELECT 1 FROM task_tags tt
+                          WHERE tt.task_id = t.id
+                            AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
           AND (#{condition.causeCategory, jdbcType=VARCHAR} IS NULL OR EXISTS (
                 SELECT 1 FROM reflection_cause_category_links rcl
                 JOIN reflection_cause_categories rcc ON rcc.id = rcl.cause_category_id
@@ -404,6 +436,10 @@ public interface AnalyticsRepository {
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
           AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+          AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+               OR EXISTS (SELECT 1 FROM task_tags tt
+                          WHERE tt.task_id = t.id
+                            AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
           AND (#{condition.causeCategory, jdbcType=VARCHAR} IS NULL OR EXISTS (
                 SELECT 1 FROM reflection_cause_category_links rcl
                 JOIN reflection_cause_categories rcc ON rcc.id = rcl.cause_category_id
@@ -454,6 +490,10 @@ public interface AnalyticsRepository {
                OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
           AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
                OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+          AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+               OR EXISTS (SELECT 1 FROM task_tags tt
+                          WHERE tt.task_id = t.id
+                            AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
           AND (#{condition.causeCategory, jdbcType=VARCHAR} IS NULL OR EXISTS (
                 SELECT 1 FROM reflection_cause_category_links rcl
                 JOIN reflection_cause_categories rcc ON rcc.id = rcl.cause_category_id
