@@ -16,5 +16,8 @@ export interface ProjectCreateRequest {
 export interface ProjectUpdateRequest {
   title: string
   description: string | null
+}
+
+export interface ProjectUpdateFinishedRequest {
   isFinished: boolean
 }

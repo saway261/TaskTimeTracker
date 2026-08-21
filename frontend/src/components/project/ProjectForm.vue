@@ -21,20 +21,18 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  submit: [payload: { title: string; description: string | null; isFinished?: boolean }]
+  submit: [payload: { title: string; description: string | null }]
   cancel: []
 }>()
 
 const title = ref(props.project?.title ?? '')
 const description = ref(props.project?.description ?? '')
-const isFinished = ref(props.project?.isFinished ?? false)
 
 watch(
   () => props.project,
   (project) => {
     title.value = project?.title ?? ''
     description.value = project?.description ?? ''
-    isFinished.value = project?.isFinished ?? false
   },
 )
 
@@ -42,7 +40,6 @@ function handleSubmit() {
   emit('submit', {
     title: title.value,
     description: description.value === '' ? null : description.value,
-    ...(props.project ? { isFinished: isFinished.value } : {}),
   })
 }
 </script>
@@ -63,10 +60,6 @@ function handleSubmit() {
       :maxlength="200"
       :error="error?.fieldErrors.description"
     />
-    <label v-if="project" class="finished-checkbox">
-      <input v-model="isFinished" type="checkbox" />
-      完了にする
-    </label>
     <div class="actions">
       <BaseButton type="button" variant="secondary" @click="emit('cancel')">
         キャンセル
@@ -83,14 +76,6 @@ function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 1em;
-}
-
-.finished-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  font-size: 0.9rem;
-  color: var(--color-text);
 }
 
 .actions {

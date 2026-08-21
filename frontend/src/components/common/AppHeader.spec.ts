@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as authApi from '@/api/authApi'
 import * as workSessionsApi from '@/api/workSessionsApi'
 import { router } from '@/router'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import { useAuthStore } from '@/stores/authStore'
 import AppHeader from './AppHeader.vue'
 
@@ -29,6 +30,7 @@ describe('AppHeader user menu', () => {
     const authStore = useAuthStore()
     authStore.currentUser = user
     authStore.initialized = true
+    useAppSettingsStore().loaded = true
     vi.mocked(workSessionsApi.fetchActiveTimers).mockResolvedValue({ data: [] } as never)
     await router.push('/projects')
   })
@@ -63,7 +65,7 @@ describe('AppHeader user menu', () => {
     wrapper.unmount()
   })
 
-  it('ハンバーガーメニューからタスク管理と振り返りへ移動できる', async () => {
+  it('ハンバーガーメニューからタスク管理・振り返り・分析へ移動できる', async () => {
     const wrapper = mount(AppHeader, {
       global: { plugins: [pinia, router] },
     })
@@ -76,14 +78,28 @@ describe('AppHeader user menu', () => {
 
     const links = wrapper.findAll('.mobile-nav-item')
     expect(trigger.attributes('aria-expanded')).toBe('true')
-    expect(links).toHaveLength(2)
+    expect(links).toHaveLength(3)
     expect(links[0].text()).toBe('タスク管理')
     expect(links[0].attributes('href')).toBe('/projects?isFinished=false')
     expect(links[1].text()).toBe('振り返り')
     expect(links[1].attributes('href')).toBe('/reflections')
+    expect(links[2].text()).toBe('分析')
+    expect(links[2].attributes('href')).toBe('/analytics')
 
     await links[1].trigger('click')
     expect(wrapper.find('.mobile-nav-panel').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('分析画面ではPCナビゲーションの分析リンクを現在地として表示する', async () => {
+    await router.push('/analytics')
+    const wrapper = mount(AppHeader, {
+      global: { plugins: [pinia, router] },
+    })
+
+    const link = wrapper.get('.main-nav a[href="/analytics"]')
+    expect(link.classes()).toContain('active')
+    expect(link.attributes('aria-current')).toBe('page')
     wrapper.unmount()
   })
 

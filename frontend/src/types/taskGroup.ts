@@ -17,5 +17,8 @@ export interface TaskGroupCreateRequest {
 export interface TaskGroupUpdateRequest {
   title: string
   description: string | null
+}
+
+export interface TaskGroupUpdateFinishedRequest {
   isFinished: boolean
 }

@@ -1,10 +1,15 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
+import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseRequiredException;
+import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
@@ -169,6 +174,40 @@ public class ErrorDetailsBuilder {
   }
 
   /**
+   * ProjectFinishNotAllowedExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex ProjectFinishNotAllowedException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(ProjectFinishNotAllowedException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * TaskGroupFinishNotAllowedExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex TaskGroupFinishNotAllowedException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(TaskGroupFinishNotAllowedException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
    * InvalidItemOrderExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
    *
    * @param ex InvalidItemOrderException
@@ -209,6 +248,57 @@ public class ErrorDetailsBuilder {
    * @return エラー発生個所とエラーメッセージ
    */
   public List<Map<String, String>> buildErrorDetails(ReflectionOperationNotAllowedException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * ReflectionCauseCategoryInvalidExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex ReflectionCauseCategoryInvalidException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(ReflectionCauseCategoryInvalidException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * 選択した原因カテゴリでは原因の自由記述が必須であることをクライアントに返します。
+   *
+   * @param ex ReflectionCauseRequiredException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(ReflectionCauseRequiredException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * AnalyticsQueryInvalidExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex AnalyticsQueryInvalidException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(AnalyticsQueryInvalidException ex) {
     List<Map<String, String>> errors = new ArrayList<>();
 
     Map<String, String> error = new HashMap<>();

@@ -7,10 +7,12 @@ import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateReques
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,17 +27,20 @@ public class TaskGroupService {
   private ProjectRepository prRepository;
   private MemoRepository memoRepository;
   private ProjectItemOrderRepository pjItemOrderRepository;
+  private TaskRepository tsRepository;
 
   @Autowired
   public TaskGroupService(
       TaskGroupRepository tgRepository,
       ProjectRepository prRepository,
       MemoRepository memoRepository,
-      ProjectItemOrderRepository pjItemOrderRepository) {
+      ProjectItemOrderRepository pjItemOrderRepository,
+      TaskRepository tsRepository) {
     this.tgRepository = tgRepository;
     this.prRepository = prRepository;
     this.memoRepository = memoRepository;
     this.pjItemOrderRepository = pjItemOrderRepository;
+    this.tsRepository = tsRepository;
   }
 
   /**
@@ -121,6 +126,28 @@ public class TaskGroupService {
     if (updated == 0) {
       throw new TargetNotFoundException("taskGroup",
           "更新対象のタスクグループが見つかりませんでした");
+    }
+    return toResponse(findTaskGroupById(userId, id));
+  }
+
+  /**
+   * タスクグループIDを指定して完了状態を更新します。完了にする場合、未完了のタスクが1件でも存在すると更新できません。
+   *
+   * @param userId     認証ユーザーのID
+   * @param id         更新するタスクグループのID
+   * @param isFinished 完了状態
+   */
+  @Transactional
+  public TaskGroupResponse updateFinished(int userId, int id, boolean isFinished) {
+    if (isFinished && tsRepository.existsUnfinishedInTaskGroup(id, userId)) {
+      throw new TaskGroupFinishNotAllowedException("taskGroup.id",
+          "未完了のタスクがあるタスクグループは完了状態にできません");
+    }
+
+    int updated = tgRepository.updateFinished(id, isFinished, userId);
+    if (updated == 0) {
+      throw new TargetNotFoundException("taskGroup.id",
+          "完了状態更新対象のタスクグループが見つかりませんでした");
     }
     return toResponse(findTaskGroupById(userId, id));
   }

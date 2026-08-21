@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import * as projectsApi from '@/api/projectsApi'
 import * as memosApi from '@/api/memosApi'
-import type { ProjectCreateRequest, ProjectResponse, ProjectUpdateRequest } from '@/types/project'
+import type {
+  ProjectCreateRequest,
+  ProjectResponse,
+  ProjectUpdateFinishedRequest,
+  ProjectUpdateRequest,
+} from '@/types/project'
 import type { MemoRequest, MemoResponse } from '@/types/memo'
 import type { ApiError } from '@/types/apiError'
 import { sortById } from '@/utils/sort'
@@ -52,6 +57,19 @@ export const useProjectStore = defineStore('project', {
     // 更新後オブジェクトをそのまま反映するため、再取得は不要。
     async updateProject(id: number, req: ProjectUpdateRequest) {
       const res = await projectsApi.update(id, req)
+      if (this.currentProject?.id === id) {
+        this.currentProject = res.data
+      }
+      const idx = this.projects.findIndex((p) => p.id === id)
+      if (idx !== -1) {
+        this.projects[idx] = res.data
+      }
+      return res.data
+    },
+
+    // 更新後オブジェクトをそのまま反映するため、再取得は不要。
+    async updateFinished(id: number, req: ProjectUpdateFinishedRequest) {
+      const res = await projectsApi.updateFinished(id, req)
       if (this.currentProject?.id === id) {
         this.currentProject = res.data
       }

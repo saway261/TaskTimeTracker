@@ -7,7 +7,8 @@ import { taskGroupContainerKey, useItemOrderStore } from '@/stores/itemOrderStor
 import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
 import { sortByItemOrder } from '@/utils/sort'
-import { insertStubAt } from '@/utils/dragReorder'
+import { insertStubAt, swapVisibleItems } from '@/utils/dragReorder'
+import { isFinished as isTaskFinished } from '@/utils/task'
 import type { ApiError } from '@/types/apiError'
 import type { TaskGroupUpdateRequest } from '@/types/taskGroup'
 import type { TaskCreateRequest } from '@/types/task'
@@ -17,6 +18,8 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
+import FinishedCheckbox from '@/components/common/FinishedCheckbox.vue'
+import CompletedItemsToggle from '@/components/common/CompletedItemsToggle.vue'
 import TaskGroupForm from '@/components/taskGroup/TaskGroupForm.vue'
 import TaskListItem from '@/components/task/TaskListItem.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
@@ -37,6 +40,7 @@ const invalidId = ref(false)
 const showEditModal = ref(false)
 const updating = ref(false)
 const updateError = ref<ApiError | null>(null)
+const showCompletedTasks = ref(false)
 
 const numericId = computed(() => toPositiveInt(props.taskGroupId))
 const currentGroupId = computed(() => taskGroupStore.currentTaskGroup?.id ?? numericId.value ?? 0)
@@ -63,6 +67,12 @@ const groupTasks = computed(() =>
 
 const orderedTasks = computed(() =>
   sortByItemOrder(groupTasks.value, itemOrderStore.taskGroupItemOrders[currentGroupId.value] ?? []),
+)
+
+const visibleOrderedTasks = computed(() =>
+  showCompletedTasks.value
+    ? orderedTasks.value
+    : orderedTasks.value.filter((task) => !isTaskFinished(task)),
 )
 
 async function load() {
@@ -92,11 +102,7 @@ function openEditModal() {
   showEditModal.value = true
 }
 
-async function handleUpdate(payload: {
-  title: string
-  description: string | null
-  isFinished?: boolean
-}) {
+async function handleUpdate(payload: { title: string; description: string | null }) {
   const id = numericId.value
   if (id === null) return
   updating.value = true
@@ -109,6 +115,26 @@ async function handleUpdate(payload: {
     updateError.value = e as ApiError
   } finally {
     updating.value = false
+  }
+}
+
+// --- 完了状態(未完了のタスクが1件でもあれば完了にできない) ---
+const finishedUpdating = ref(false)
+const finishedError = ref<ApiError | null>(null)
+const hasUnfinishedTasks = computed(() => groupTasks.value.some((t) => !isTaskFinished(t)))
+
+async function handleFinishedToggle(nextFinished: boolean) {
+  const id = numericId.value
+  if (id === null) return
+  finishedUpdating.value = true
+  finishedError.value = null
+  try {
+    await taskGroupStore.updateFinished(id, { isFinished: nextFinished })
+    notification.success(nextFinished ? 'タスクグループを完了にしました。' : '完了を解除しました。')
+  } catch (e) {
+    finishedError.value = e as ApiError
+  } finally {
+    finishedUpdating.value = false
   }
 }
 
@@ -154,8 +180,9 @@ async function handleCreateTask(payload: {
 
 async function handleMoveUp(index: number) {
   if (index <= 0) return
-  const items = orderedTasks.value.map((t) => ({ id: t.id }))
-  ;[items[index - 1], items[index]] = [items[index], items[index - 1]]
+  const items = swapVisibleItems(orderedTasks.value, visibleOrderedTasks.value, index, -1).map(
+    (task) => ({ id: task.id }),
+  )
   try {
     await itemOrderStore.reorderTaskGroupItems(currentGroupId.value, items)
   } catch (e) {
@@ -164,9 +191,10 @@ async function handleMoveUp(index: number) {
 }
 
 async function handleMoveDown(index: number) {
-  if (index >= orderedTasks.value.length - 1) return
-  const items = orderedTasks.value.map((t) => ({ id: t.id }))
-  ;[items[index], items[index + 1]] = [items[index + 1], items[index]]
+  if (index >= visibleOrderedTasks.value.length - 1) return
+  const items = swapVisibleItems(orderedTasks.value, visibleOrderedTasks.value, index, 1).map(
+    (task) => ({ id: task.id }),
+  )
   try {
     await itemOrderStore.reorderTaskGroupItems(currentGroupId.value, items)
   } catch (e) {
@@ -230,9 +258,18 @@ async function handleItemDrop() {
       <div class="header">
         <div>
           <h1>{{ taskGroupStore.currentTaskGroup.title }}</h1>
-          <span class="status" :class="{ finished: taskGroupStore.currentTaskGroup.isFinished }">
-            {{ taskGroupStore.currentTaskGroup.isFinished ? '完了' : '未完了' }}
-          </span>
+          <FinishedCheckbox
+            :model-value="taskGroupStore.currentTaskGroup.isFinished"
+            :disabled="
+              finishedUpdating ||
+              (!taskGroupStore.currentTaskGroup.isFinished && hasUnfinishedTasks)
+            "
+            @update:model-value="handleFinishedToggle"
+          />
+          <p v-if="!taskGroupStore.currentTaskGroup.isFinished && hasUnfinishedTasks" class="hint">
+            未完了のタスクがあるため、完了状態にできません。
+          </p>
+          <ErrorMessage v-if="finishedError" :error="finishedError" />
         </div>
         <BaseButton variant="secondary" @click="openEditModal">編集</BaseButton>
       </div>
@@ -251,15 +288,20 @@ async function handleItemDrop() {
       <section class="task-list-section">
         <div class="section-header">
           <h2>タスク</h2>
-          <BaseButton variant="secondary" @click="openCreateTaskModal">＋ 新規タスク</BaseButton>
+          <div class="section-header-actions">
+            <CompletedItemsToggle v-model="showCompletedTasks" />
+            <BaseButton variant="secondary" @click="openCreateTaskModal">
+              ＋ 新規タスク
+            </BaseButton>
+          </div>
         </div>
 
         <LoadingIndicator v-if="taskStore.loading" />
         <ErrorMessage v-else-if="taskStore.error" :error="taskStore.error" />
-        <p v-else-if="orderedTasks.length === 0" class="empty">タスクがまだありません。</p>
+        <p v-else-if="visibleOrderedTasks.length === 0" class="empty">タスクがまだありません。</p>
         <div v-else class="entity-rows">
           <TaskListItem
-            v-for="(task, index) in orderedTasks"
+            v-for="(task, index) in visibleOrderedTasks"
             :key="task.id"
             :task="task"
             :to="`/projects/${taskGroupStore.currentTaskGroup.projectId}/task-groups/${currentGroupId}/tasks/${task.id}`"
@@ -267,7 +309,7 @@ async function handleItemDrop() {
             :container-key="containerKey"
             :task-groups="taskGroupStore.taskGroups"
             :can-move-up="index > 0"
-            :can-move-down="index < orderedTasks.length - 1"
+            :can-move-down="index < visibleOrderedTasks.length - 1"
             @move-up="handleMoveUp(index)"
             @move-down="handleMoveDown(index)"
             @item-drop="handleItemDrop"
@@ -325,15 +367,6 @@ async function handleItemDrop() {
   margin: 0 0 0.3em;
 }
 
-.status {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.status.finished {
-  color: var(--color-success);
-}
-
 .hint {
   color: var(--color-text-muted);
   font-size: 0.9rem;
@@ -350,6 +383,12 @@ async function handleItemDrop() {
 .section-header h2 {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.section-header-actions {
+  display: flex;
+  gap: 0.6em;
+  flex-wrap: wrap;
 }
 
 .task-list-section {

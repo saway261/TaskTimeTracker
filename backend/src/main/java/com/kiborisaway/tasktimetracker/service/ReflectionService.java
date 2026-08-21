@@ -1,22 +1,32 @@
 package com.kiborisaway.tasktimetracker.service;
 
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ProjectReflectionOverviewResponse;
+import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionRequest;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionTaskResponse;
-import com.kiborisaway.tasktimetracker.data.entity.Reflection;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
+import com.kiborisaway.tasktimetracker.data.entity.Reflection;
+import com.kiborisaway.tasktimetracker.data.entity.ReflectionCauseCategory;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseRequiredException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRepository;
+import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
+import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionTaskRow;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,15 +36,21 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReflectionService {
 
   private ReflectionRepository reflectionRepository;
+  private ReflectionCauseCategoryRepository causeCategoryRepository;
+  private ReflectionCauseCategoryLinkRepository causeCategoryLinkRepository;
   private TaskRepository taskRepository;
   private ProjectRepository projectRepository;
 
   @Autowired
   public ReflectionService(
       ReflectionRepository reflectionRepository,
+      ReflectionCauseCategoryRepository causeCategoryRepository,
+      ReflectionCauseCategoryLinkRepository causeCategoryLinkRepository,
       TaskRepository taskRepository,
       ProjectRepository projectRepository) {
     this.reflectionRepository = reflectionRepository;
+    this.causeCategoryRepository = causeCategoryRepository;
+    this.causeCategoryLinkRepository = causeCategoryLinkRepository;
     this.taskRepository = taskRepository;
     this.projectRepository = projectRepository;
   }
@@ -54,9 +70,19 @@ public class ReflectionService {
           "project.id", "指定したIDのプロジェクトは見つかりませんでした");
     }
 
+    Map<Integer, List<ReflectionCauseCategorySummaryResponse>> categoriesByReflectionId =
+        causeCategoryLinkRepository.findCategoriesInProject(projectId).stream()
+            .collect(Collectors.groupingBy(
+                ReflectionCauseCategoryLinkRow::getReflectionId,
+                LinkedHashMap::new,
+                Collectors.mapping(
+                    row -> new ReflectionCauseCategorySummaryResponse(
+                        row.getCauseCategoryCode(), row.getCauseCategoryLabel()),
+                    Collectors.toList())));
+
     List<ReflectionTaskResponse> directTasks =
         reflectionRepository.findDirectTasksInProject(projectId).stream()
-            .map(this::toTaskResponse)
+            .map(row -> toTaskResponse(row, categoriesByReflectionId))
             .toList();
 
     List<ReflectionTaskGroupResponse> taskGroups =
@@ -69,7 +95,7 @@ public class ReflectionService {
             .map(rows -> new ReflectionTaskGroupResponse(
                 rows.getFirst().getTaskGroupId(),
                 rows.getFirst().getTaskGroupTitle(),
-                rows.stream().map(this::toTaskResponse).toList()))
+                rows.stream().map(row -> toTaskResponse(row, categoriesByReflectionId)).toList()))
             .toList();
 
     return new ProjectReflectionOverviewResponse(
@@ -85,8 +111,11 @@ public class ReflectionService {
    * @return 登録した振り返り
    */
   @Transactional
-  public Reflection register(int userId, int taskId, ReflectionRequest request) {
+  public ReflectionResponse register(int userId, int taskId, ReflectionRequest request) {
     requireFinishedTask(userId, taskId);
+    List<ReflectionCauseCategory> categories =
+        requireActiveCategories(request.getCauseCategoryCodes());
+    String cause = requireCauseIfNeeded(request.getCause(), categories);
 
     if (reflectionRepository.existsByTaskId(taskId)) {
       throw new ReflectionAlreadyExistsException(
@@ -96,16 +125,17 @@ public class ReflectionService {
     Reflection reflection = new Reflection(
         null,
         taskId,
-        request.getCause().trim(),
-        normalizeNextAction(request.getNextAction()),
+        cause,
+        normalizeToNullIfBlank(request.getNextAction()),
         null,
         null);
     reflectionRepository.insert(reflection);
-    return findByTaskId(taskId);
+    linkCategories(reflection.getId(), categories);
+    return new ReflectionResponse(findByTaskId(taskId), categories);
   }
 
   /**
-   * 完了タスクの振り返りを更新します。
+   * 完了タスクの振り返りを更新します。原因カテゴリは全置換です。
    *
    * @param userId  認証ユーザーID
    * @param taskId  対象タスクID
@@ -113,8 +143,11 @@ public class ReflectionService {
    * @return 更新した振り返り
    */
   @Transactional
-  public Reflection update(int userId, int taskId, ReflectionRequest request) {
+  public ReflectionResponse update(int userId, int taskId, ReflectionRequest request) {
     requireFinishedTask(userId, taskId);
+    List<ReflectionCauseCategory> categories =
+        requireActiveCategories(request.getCauseCategoryCodes());
+    String cause = requireCauseIfNeeded(request.getCause(), categories);
 
     Reflection reflection = reflectionRepository.findByTaskId(taskId);
     if (reflection == null) {
@@ -122,14 +155,16 @@ public class ReflectionService {
           "reflection.taskId", "更新対象の振り返りが見つかりませんでした");
     }
 
-    reflection.setCause(request.getCause().trim());
-    reflection.setNextAction(normalizeNextAction(request.getNextAction()));
+    reflection.setCause(cause);
+    reflection.setNextAction(normalizeToNullIfBlank(request.getNextAction()));
     int updated = reflectionRepository.updateByTaskId(reflection);
     if (updated == 0) {
       throw new TargetNotFoundException(
           "reflection.taskId", "更新対象の振り返りが見つかりませんでした");
     }
-    return findByTaskId(taskId);
+    causeCategoryLinkRepository.deleteByReflectionId(reflection.getId());
+    linkCategories(reflection.getId(), categories);
+    return new ReflectionResponse(findByTaskId(taskId), categories);
   }
 
   private void requireFinishedTask(int userId, int taskId) {
@@ -144,6 +179,47 @@ public class ReflectionService {
     }
   }
 
+  /**
+   * 原因カテゴリコードを検証し、表示順に整列したカテゴリ一覧を返します。
+   * 選択順は保持しません（要件 §5.2）。
+   */
+  private List<ReflectionCauseCategory> requireActiveCategories(List<String> codes) {
+    List<ReflectionCauseCategory> categories = new ArrayList<>();
+    for (String code : codes) {
+      ReflectionCauseCategory category = causeCategoryRepository.findActiveByCode(code);
+      if (category == null) {
+        throw new ReflectionCauseCategoryInvalidException(
+            "reflection.causeCategoryCodes", "指定した原因カテゴリは選択できません");
+      }
+      categories.add(category);
+    }
+    categories.sort(
+        Comparator.comparing(ReflectionCauseCategory::getDisplayOrder)
+            .thenComparing(ReflectionCauseCategory::getId));
+    return categories;
+  }
+
+  /**
+   * 選択したカテゴリのいずれかが自由記述を必須とする場合、未入力を400として拒否します（要件 §5.2）。
+   * 判定はカテゴリの requiresCause 属性で行い、コードで分岐しません。
+   */
+  private String requireCauseIfNeeded(String cause, List<ReflectionCauseCategory> categories) {
+    String normalized = normalizeToNullIfBlank(cause);
+    boolean required = categories.stream()
+        .anyMatch(category -> Boolean.TRUE.equals(category.getRequiresCause()));
+    if (required && normalized == null) {
+      throw new ReflectionCauseRequiredException(
+          "reflection.cause", "選択した原因カテゴリでは、原因の記述が必要です");
+    }
+    return normalized;
+  }
+
+  private void linkCategories(int reflectionId, List<ReflectionCauseCategory> categories) {
+    for (ReflectionCauseCategory category : categories) {
+      causeCategoryLinkRepository.insert(reflectionId, category.getId());
+    }
+  }
+
   private Reflection findByTaskId(int taskId) {
     Reflection reflection = reflectionRepository.findByTaskId(taskId);
     if (reflection == null) {
@@ -153,12 +229,15 @@ public class ReflectionService {
     return reflection;
   }
 
-  private ReflectionTaskResponse toTaskResponse(ReflectionTaskRow row) {
+  private ReflectionTaskResponse toTaskResponse(
+      ReflectionTaskRow row,
+      Map<Integer, List<ReflectionCauseCategorySummaryResponse>> categoriesByReflectionId) {
     ReflectionResponse reflection = row.getReflectionId() == null
         ? null
         : new ReflectionResponse(
             row.getReflectionId(),
             row.getTaskId(),
+            categoriesByReflectionId.getOrDefault(row.getReflectionId(), List.of()),
             row.getCause(),
             row.getNextAction(),
             row.getReflectionCreatedAt(),
@@ -174,11 +253,11 @@ public class ReflectionService {
         reflection);
   }
 
-  private String normalizeNextAction(String nextAction) {
-    if (nextAction == null) {
+  private String normalizeToNullIfBlank(String value) {
+    if (value == null) {
       return null;
     }
-    String normalized = nextAction.trim();
+    String normalized = value.trim();
     return normalized.isEmpty() ? null : normalized;
   }
 }

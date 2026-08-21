@@ -68,6 +68,7 @@ class ReflectionOverviewIntegrationTest {
         .andExpect(jsonPath("$.tasks[1].gapRateCached").value(50.0))
         .andExpect(jsonPath("$.tasks[1].reflection.cause")
             .value("着手前の調査が不足していた"))
+        .andExpect(jsonPath("$.tasks[1].reflection.causeCategories").isEmpty())
         .andExpect(jsonPath("$.taskGroups.length()").value(2))
         .andExpect(jsonPath("$.taskGroups[0].id").value(5))
         .andExpect(jsonPath("$.taskGroups[0].tasks.length()").value(1))
@@ -77,9 +78,40 @@ class ReflectionOverviewIntegrationTest {
         .andExpect(jsonPath("$.taskGroups[1].tasks[0].id").value(10))
         .andExpect(jsonPath("$.taskGroups[1].tasks[0].reflection").isEmpty())
         .andExpect(jsonPath("$.taskGroups[1].tasks[1].id").value(9))
-        .andExpect(jsonPath("$.taskGroups[1].tasks[1].reflection.nextAction").isEmpty());
+        .andExpect(jsonPath("$.taskGroups[1].tasks[1].reflection.nextAction").isEmpty())
+        .andExpect(jsonPath("$.taskGroups[1].tasks[1].reflection.causeCategories").isEmpty());
 
-    assertThat(queryCounter.getCount()).isEqualTo(3);
+    assertThat(queryCounter.getCount()).isEqualTo(4);
+  }
+
+  @Test
+  void 一覧取得成功_複数の原因カテゴリを持つ振り返りはcauseCategoriesに表示順で含むこと() throws Exception {
+    Integer taskBreakdownId = jdbcTemplate.queryForObject(
+        "SELECT id FROM reflection_cause_categories WHERE code = 'TASK_BREAKDOWN'", Integer.class);
+    Integer otherId = jdbcTemplate.queryForObject(
+        "SELECT id FROM reflection_cause_categories WHERE code = 'OTHER'", Integer.class);
+    Integer reflectionId = jdbcTemplate.queryForObject(
+        "SELECT id FROM reflections WHERE task_id = 6", Integer.class);
+    jdbcTemplate.update(
+        "INSERT INTO reflection_cause_category_links(reflection_id, cause_category_id) "
+            + "VALUES (?, ?)",
+        reflectionId, otherId);
+    jdbcTemplate.update(
+        "INSERT INTO reflection_cause_category_links(reflection_id, cause_category_id) "
+            + "VALUES (?, ?)",
+        reflectionId, taskBreakdownId);
+    queryCounter.reset();
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/3/reflections")
+            .with(authenticatedUser(2, "user-b@example.com")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tasks[1].id").value(6))
+        .andExpect(jsonPath("$.tasks[1].reflection.causeCategories.length()").value(2))
+        .andExpect(jsonPath("$.tasks[1].reflection.causeCategories[0].code")
+            .value("TASK_BREAKDOWN"))
+        .andExpect(jsonPath("$.tasks[1].reflection.causeCategories[1].code").value("OTHER"));
+
+    assertThat(queryCounter.getCount()).isEqualTo(4);
   }
 
   @Test
@@ -95,11 +127,11 @@ class ReflectionOverviewIntegrationTest {
         .andExpect(jsonPath("$.taskGroups[0].tasks.length()").value(1))
         .andExpect(jsonPath("$.taskGroups[0].tasks[0].id").value(3));
 
-    assertThat(queryCounter.getCount()).isEqualTo(3);
+    assertThat(queryCounter.getCount()).isEqualTo(4);
   }
 
   @Test
-  void 一覧取得性能_タスク件数を増やしても発行クエリ数が3件のままであること() throws Exception {
+  void 一覧取得性能_タスク件数を増やしても発行クエリ数が4件のままであること() throws Exception {
     for (int index = 0; index < 10; index++) {
       jdbcTemplate.update("""
           INSERT INTO tasks(
@@ -123,7 +155,7 @@ class ReflectionOverviewIntegrationTest {
         .andExpect(jsonPath("$.taskGroups.length()").value(2))
         .andExpect(jsonPath("$.taskGroups[1].tasks.length()").value(12));
 
-    assertThat(queryCounter.getCount()).isEqualTo(3);
+    assertThat(queryCounter.getCount()).isEqualTo(4);
   }
 
   private static RequestPostProcessor authenticatedUser(int userId, String email) {

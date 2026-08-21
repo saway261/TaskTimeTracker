@@ -190,12 +190,11 @@ class TaskGroupRepositoryTest {
   void 登録失敗_登録時必須のフィールドがnullの場合はDataIntegrityViolationExceptionが発生すること(
       String field) {
     TaskGroup tg = new TaskGroup();
-    tg.setId(1);
     tg.setProjectId(field.equals("projectId") ? null : 1);
     tg.setTitle(field.equals("title") ? null : "プロジェクトA");
     tg.setDescription("説明更新");
 
-    assertThatThrownBy(() -> sut.update(tg, USER_A))
+    assertThatThrownBy(() -> sut.insert(tg))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
@@ -221,7 +220,7 @@ class TaskGroupRepositoryTest {
   }
 
   @Test
-  void 更新成功_既存プロジェクトのタイトルと説明と完了フラグを更新でき_プロジェクトIDは更新できないこと() {
+  void 更新成功_既存プロジェクトのタイトルと説明を更新でき_プロジェクトIDと完了フラグは変更されないこと() {
     // Arrange
     int id = 3;
     // もとは(id,2,'参考書','テキスト通読',true)
@@ -238,7 +237,7 @@ class TaskGroupRepositoryTest {
     assertThat(updated.getProjectId()).isEqualTo(2);//更新できず元の値のまま
     assertThat(updated.getTitle()).isEqualTo("進捗管理システム開発");
     assertThat(updated.getDescription()).isEqualTo("社内向けシステム開発");
-    assertThat(updated.getIsFinished()).isEqualTo(false);
+    assertThat(updated.getIsFinished()).isEqualTo(true);//updateでは変更されない
   }
 
   @Test
@@ -283,15 +282,12 @@ class TaskGroupRepositoryTest {
     assertThat(unchanged.getTitle()).isEqualTo("バックエンド開発");
   }
 
-  @ParameterizedTest(name = "[{index}]更新失敗_{0}フィールドがnullの場合は例外が発生すること")
-  @ValueSource(strings = {"title", "isFinished"})
-  void 更新失敗_DBでnull非許容のフィールドがnullの場合はDataIntegrityViolationExceptionが発生すること(
-      String field) {
+  @Test
+  void 更新失敗_titleがnullの場合はDataIntegrityViolationExceptionが発生すること() {
     TaskGroup tg = new TaskGroup();
     tg.setId(1);
-    tg.setTitle(field.equals("title") ? null : "プロジェクトA");
+    tg.setTitle(null);
     tg.setDescription("説明更新");
-    tg.setIsFinished(field.equals("isFinished") ? null : false);
 
     assertThatThrownBy(() -> sut.update(tg, USER_A))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -321,5 +317,43 @@ class TaskGroupRepositoryTest {
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
+  @Test
+  void 完了状態更新成功_完了フラグを更新でき他のフィールドは変更されないこと() {
+    // Arrange
+    int id = 2;
+
+    // Act
+    int actual = sut.updateFinished(id, true, USER_A);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    TaskGroup updated = sut.findById(id, USER_A);
+    assertThat(updated.getIsFinished()).isTrue();
+    assertThat(updated.getTitle()).isEqualTo("フロントエンド開発");
+  }
+
+  @Test
+  void 完了状態更新失敗_存在しないIDの場合は更新されず0件となること() {
+    // Act
+    int actual = sut.updateFinished(999, true, USER_A);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+  }
+
+  @Test
+  void 完了状態更新失敗_所有者が一致しない場合は更新されず0件となること() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    int actual = sut.updateFinished(id, false, USER_B);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    TaskGroup unchanged = sut.findById(id, USER_A);
+    assertThat(unchanged.getIsFinished()).isTrue();
+  }
 
 }

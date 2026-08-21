@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useItemOrderStore } from '@/stores/itemOrderStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import type { TaskGroupResponse } from '@/types/taskGroup'
 import type { ApiError } from '@/types/apiError'
@@ -15,6 +16,7 @@ const props = defineProps<{
   projectId: number
   containerKey: string // 'project:{pId}' | 'taskGroup:{tgId}'
   taskGroups: TaskGroupResponse[]
+  finished: boolean
   canMoveUp: boolean
   canMoveDown: boolean
 }>()
@@ -26,9 +28,11 @@ const emit = defineEmits<{
 }>()
 
 const itemOrderStore = useItemOrderStore()
+const taskStore = useTaskStore()
 const notification = useNotificationStore()
 
 const moving = ref(false)
+const finishing = ref(false)
 const error = ref<ApiError | null>(null)
 
 // 移動先は末尾でよい仕様のため（§7.4.5）、並べ替えAPIは呼ばずPATCH parentのみで完結する。
@@ -49,6 +53,20 @@ const moveTargets = computed(() => {
 
 function close() {
   emit('update:modelValue', false)
+}
+
+async function finishTask() {
+  finishing.value = true
+  error.value = null
+  try {
+    await taskStore.updateFinished(props.taskId, { isFinished: true })
+    notification.success('タスクを完了にしました。')
+    close()
+  } catch (e) {
+    error.value = e as ApiError
+  } finally {
+    finishing.value = false
+  }
 }
 
 function handleMoveUp() {
@@ -92,6 +110,9 @@ async function handleMoveTo(targetKey: string) {
   >
     <ErrorMessage v-if="error" :error="error" />
     <div class="menu-list">
+      <BaseButton v-if="!finished" :disabled="finishing" @click="finishTask">
+        完了にする
+      </BaseButton>
       <BaseButton v-if="canMoveUp" variant="secondary" @click="handleMoveUp">
         ↑ 上へ移動
       </BaseButton>

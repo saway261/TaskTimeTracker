@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.exception.handler;
 
+import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.EmailChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.EmailChangeRequestInvalidException;
@@ -9,9 +10,13 @@ import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationException;
 import com.kiborisaway.tasktimetracker.exception.PasswordChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionAlreadyExistsException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
+import com.kiborisaway.tasktimetracker.exception.ReflectionCauseRequiredException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.PasswordResetInvalidException;
+import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
@@ -195,6 +200,39 @@ public class GlobalExceptionHandler {
   }
 
   /**
+   * 未完了のタスクがあるプロジェクトの完了不可をクライアントに返します。
+   *
+   * @param ex ProjectFinishNotAllowedException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(ProjectFinishNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleProjectFinishNotAllowedException(
+      ProjectFinishNotAllowedException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "project finish not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+
+  }
+
+  /**
+   * 未完了のタスクがあるタスクグループの完了不可をクライアントに返します。
+   *
+   * @param ex TaskGroupFinishNotAllowedException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(
+      TaskGroupFinishNotAllowedException.class)
+  public ResponseEntity<ErrorResponse> handleTaskGroupFinishNotAllowedException(
+      TaskGroupFinishNotAllowedException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "task group finish not allowed", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+
+  }
+
+  /**
    * 並び替えリクエストの項目が現在の並び順と過不足・重複していることをクライアントに返します。
    *
    * @param ex InvalidItemOrderException
@@ -237,6 +275,49 @@ public class GlobalExceptionHandler {
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.CONFLICT,
         "reflection operation not allowed", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+  }
+
+  /**
+   * 未知または無効化された原因カテゴリコードの指定をクライアントに返します。
+   *
+   * @param ex ReflectionCauseCategoryInvalidException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(
+      ReflectionCauseCategoryInvalidException.class)
+  public ResponseEntity<ErrorResponse> handleReflectionCauseCategoryInvalidException(
+      ReflectionCauseCategoryInvalidException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "reflection cause category invalid", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+  }
+
+  /**
+   * 選択した原因カテゴリでは原因の自由記述が必須であるにもかかわらず未入力だったことをクライアントに返します。
+   *
+   * @param ex ReflectionCauseRequiredException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(ReflectionCauseRequiredException.class)
+  public ResponseEntity<ErrorResponse> handleReflectionCauseRequiredException(
+      ReflectionCauseRequiredException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "reflection cause required", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+  }
+
+  /**
+   * 分析クエリの期間指定が不正（fromがtoより後など）であることをクライアントに返します。
+   *
+   * @param ex AnalyticsQueryInvalidException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(AnalyticsQueryInvalidException.class)
+  public ResponseEntity<ErrorResponse> handleAnalyticsQueryInvalidException(
+      AnalyticsQueryInvalidException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "analytics query invalid", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
   }
 
   @org.springframework.web.bind.annotation.ExceptionHandler(EmailUnavailableException.class)

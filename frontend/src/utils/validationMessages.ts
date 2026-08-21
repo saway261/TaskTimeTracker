@@ -16,12 +16,14 @@ const EXACT_MATCHES: Record<string, string> = {
   'target not found': '対象が見つかりませんでした。',
   'estimate minutes update not allowed': '作業記録があるため、見積時間を変更できません。',
   'task finish not allowed': '未終了の作業セッションがあるため、完了にできません。',
+  'task group finish not allowed': '未完了のタスクがあるため、タスクグループを完了にできません。',
   'work session operation not allowed': '完了済みのタスクでは作業セッションを操作できません。',
   'work session end not allowed': 'このセッションは終了できません。',
   'invalid item order':
     '他の場所で変更があったため、並び順を更新できませんでした。最新の状態を読み込み直します。',
   'reflection already exists': 'この振り返りは既に登録されています。画面を読み込み直してください。',
   'reflection operation not allowed': 'このタスクは未完了のため、振り返りを保存できません。',
+  'reflection cause required': '選択した原因カテゴリでは、原因の記述が必要です。',
 
   // 認証
   'email or password is incorrect': 'メールアドレスまたはパスワードが正しくありません。',
@@ -44,6 +46,10 @@ const EXACT_MATCHES: Record<string, string> = {
   'too many failed attempts': '試行回数が上限に達しました。しばらく待ってからお試しください。',
   'too many requests': '操作回数が上限に達しました。しばらく待ってからお試しください。',
 }
+
+export const CAUSE_CATEGORY_REQUIRED_MESSAGE = '原因カテゴリを1つ以上選んでください'
+export const CAUSE_CATEGORY_MAX_MESSAGE = '原因カテゴリは3件まで選べます'
+export const CAUSE_REQUIRED_MESSAGE = '選択した原因カテゴリでは、原因の記述が必要です'
 
 // "size must be between 0 and 20" → 上限値だけ抜き出して組み立てる
 const SIZE_PATTERN = /^size must be between \d+ and (\d+)$/

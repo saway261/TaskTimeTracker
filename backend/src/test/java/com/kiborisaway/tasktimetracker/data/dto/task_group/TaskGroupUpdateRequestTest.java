@@ -27,7 +27,6 @@ class TaskGroupUpdateRequestTest {
     TaskGroupUpdateRequest request = new TaskGroupUpdateRequest();
     request.setTitle(null);
     request.setDescription("不正なタスクグループ");
-    request.setIsFinished(false);
 
     // Act
     Set<ConstraintViolation<TaskGroupUpdateRequest>> violations = validator.validate(request);
@@ -35,23 +34,6 @@ class TaskGroupUpdateRequestTest {
     // Assert
     assertThat(violations.stream()
         .anyMatch(v -> v.getPropertyPath().toString().equals("title")))
-        .isTrue();
-  }
-
-  @Test
-  void isFinishedにnullが渡されたときバリデーション違反になること() {
-    // Arrange
-    TaskGroupUpdateRequest request = new TaskGroupUpdateRequest();
-    request.setTitle("タイトル");
-    request.setDescription("不正なタスクグループ");
-    request.setIsFinished(null);
-
-    // Act
-    Set<ConstraintViolation<TaskGroupUpdateRequest>> violations = validator.validate(request);
-
-    // Assert
-    assertThat(violations.stream()
-        .anyMatch(v -> v.getPropertyPath().toString().equals("isFinished")))
         .isTrue();
   }
 
@@ -63,7 +45,6 @@ class TaskGroupUpdateRequestTest {
     TaskGroupUpdateRequest request = new TaskGroupUpdateRequest();
     request.setTitle(invalidTitle);
     request.setDescription("不正なタスクグループ");
-    request.setIsFinished(false);
 
     // Act
     Set<ConstraintViolation<TaskGroupUpdateRequest>> violations = validator.validate(request);
@@ -90,7 +71,6 @@ class TaskGroupUpdateRequestTest {
     request.setTitle(fieldName.equals("title") ? testValue : "タスクグループA");
     request.setDescription(
         fieldName.equals("description") ? testValue : "A社から受託したタスクグループ");
-    request.setIsFinished(false);
 
     // Act
     Set<ConstraintViolation<TaskGroupUpdateRequest>> violations = validator.validate(request);

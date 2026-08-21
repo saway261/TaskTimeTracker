@@ -31,12 +31,11 @@ public class TaskGroup {
     this.description = request.getDescription();
   }
 
-  // 更新用
+  // 更新用（名前・説明のみ。完了状態はupdateFinishedで別途更新する）
   public TaskGroup(int id, TaskGroupUpdateRequest request) {
     this.id = id;
     this.title = request.getTitle();
     this.description = request.getDescription();
-    this.isFinished = request.getIsFinished();
   }
 
 }

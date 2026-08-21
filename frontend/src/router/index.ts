@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import type { ApiError } from '@/types/apiError'
 
@@ -76,6 +77,11 @@ const routes = [
     props: true,
   },
   {
+    path: '/analytics',
+    name: 'analytics',
+    component: () => import('@/views/AnalyticsView.vue'),
+  },
+  {
     path: '/projects/:projectId',
     name: 'project-detail',
     component: () => import('@/views/ProjectDetailView.vue'),
@@ -126,6 +132,11 @@ router.beforeEach(async (to) => {
     await authStore.initialize()
   } catch (e) {
     useNotificationStore().error((e as ApiError).message)
+  }
+
+  const appSettingsStore = useAppSettingsStore()
+  if (authStore.isAuthenticated && !appSettingsStore.loaded) {
+    await appSettingsStore.load()
   }
 
   const restrictionExemptRoutes = new Set([

@@ -24,3 +24,27 @@ export function insertStubAt<T extends KeyedStub>(
   }
   return [...withoutDragged.slice(0, idx), draggedStub, ...withoutDragged.slice(idx)]
 }
+
+/**
+ * 一部の項目だけを表示している一覧で、表示上隣り合う2項目を全項目の配列内でも入れ替える。
+ * 非表示項目を並べ替えリクエストから欠落させず、その位置も維持できる。
+ */
+export function swapVisibleItems<T>(
+  allItems: readonly T[],
+  visibleItems: readonly T[],
+  visibleIndex: number,
+  direction: -1 | 1,
+): T[] {
+  const otherVisibleIndex = visibleIndex + direction
+  if (visibleIndex < 0 || otherVisibleIndex < 0 || otherVisibleIndex >= visibleItems.length) {
+    return [...allItems]
+  }
+
+  const currentIndex = allItems.indexOf(visibleItems[visibleIndex])
+  const otherIndex = allItems.indexOf(visibleItems[otherVisibleIndex])
+  if (currentIndex === -1 || otherIndex === -1) return [...allItems]
+
+  const result = [...allItems]
+  ;[result[currentIndex], result[otherIndex]] = [result[otherIndex], result[currentIndex]]
+  return result
+}

@@ -19,10 +19,12 @@ import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateReques
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +52,9 @@ class TaskGroupServiceTest {
 
   @Mock
   private ProjectItemOrderRepository pjItemOrderRepository;
+
+  @Mock
+  private TaskRepository tsRepository;
 
   @InjectMocks
   private TaskGroupService sut;
@@ -248,7 +253,6 @@ class TaskGroupServiceTest {
     TaskGroupUpdateRequest request = new TaskGroupUpdateRequest();
     request.setTitle("タスクグループ１");
     request.setDescription("説明");
-    request.setIsFinished(false);
 
     when(tgRepository.update(any(TaskGroup.class), eq(USER_ID))).thenReturn(1);
     TaskGroup updated = new TaskGroup(id, 1, "DB更新後", "DB更新後説明", false);
@@ -272,7 +276,6 @@ class TaskGroupServiceTest {
     TaskGroupUpdateRequest request = new TaskGroupUpdateRequest();
     request.setTitle("タスクグループ１");
     request.setDescription("説明更新");
-    request.setIsFinished(false);
 
     when(tgRepository.update(any(TaskGroup.class), eq(USER_ID)))
         .thenThrow(new DataIntegrityViolationException("db constraint violation"));
@@ -292,7 +295,6 @@ class TaskGroupServiceTest {
     TaskGroupUpdateRequest request = new TaskGroupUpdateRequest();
     request.setTitle("タスクグループ１");
     request.setDescription("説明");
-    request.setIsFinished(false);
 
     when(tgRepository.update(any(TaskGroup.class), eq(USER_ID))).thenReturn(0);
 
@@ -301,6 +303,70 @@ class TaskGroupServiceTest {
         .isInstanceOf(TargetNotFoundException.class);
 
     verify(tgRepository, times(1)).update(any(TaskGroup.class), eq(USER_ID));
+  }
+
+  @Test
+  void 完了状態更新成功_リポジトリのメソッドに引数のIDと完了状態を渡して呼び出すこと() {
+    // Arrange
+    int id = 1;
+    boolean isFinished = true;
+
+    when(tgRepository.updateFinished(id, isFinished, USER_ID)).thenReturn(1);
+    TaskGroup updated = new TaskGroup(id, 1, "タスクグループ１", "説明", true);
+    when(tgRepository.findById(id, USER_ID)).thenReturn(updated);
+
+    // Act
+    TaskGroupResponse actual = sut.updateFinished(USER_ID, id, isFinished);
+
+    // Assert
+    verify(tsRepository, times(1)).existsUnfinishedInTaskGroup(id, USER_ID);
+    verify(tgRepository, times(1)).updateFinished(id, isFinished, USER_ID);
+    assertThat(actual.getIsFinished()).isTrue();
+  }
+
+  @Test
+  void 完了状態更新成功_未完了に戻す場合は未完了タスクの存在チェックを行わないこと() {
+    // Arrange
+    int id = 1;
+    boolean isFinished = false;
+
+    when(tgRepository.updateFinished(id, isFinished, USER_ID)).thenReturn(1);
+    TaskGroup updated = new TaskGroup(id, 1, "タスクグループ１", "説明", false);
+    when(tgRepository.findById(id, USER_ID)).thenReturn(updated);
+
+    // Act
+    sut.updateFinished(USER_ID, id, isFinished);
+
+    // Assert
+    verify(tsRepository, never()).existsUnfinishedInTaskGroup(anyInt(), anyInt());
+    verify(tgRepository, times(1)).updateFinished(id, isFinished, USER_ID);
+  }
+
+  @Test
+  void 完了状態更新失敗_未完了のタスクが存在する場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int id = 1;
+    when(tsRepository.existsUnfinishedInTaskGroup(id, USER_ID)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateFinished(USER_ID, id, true))
+        .isInstanceOf(TaskGroupFinishNotAllowedException.class);
+
+    verify(tsRepository, times(1)).existsUnfinishedInTaskGroup(id, USER_ID);
+    verify(tgRepository, never()).updateFinished(anyInt(), anyBoolean(), anyInt());
+  }
+
+  @Test
+  void 完了状態更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
+    // Arrange
+    int id = 999;
+    when(tgRepository.updateFinished(id, true, USER_ID)).thenReturn(0);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateFinished(USER_ID, id, true))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(tgRepository, times(1)).updateFinished(id, true, USER_ID);
   }
 
 }

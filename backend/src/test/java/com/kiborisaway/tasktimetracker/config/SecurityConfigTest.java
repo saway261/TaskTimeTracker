@@ -58,6 +58,15 @@ class SecurityConfigTest {
   }
 
   @Test
+  void 未認証アクセス_アプリ設定APIへ401のJSONを返すこと() throws Exception {
+    mockMvc.perform(get("/app-settings"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.status").value("401 UNAUTHORIZED"))
+        .andExpect(jsonPath("$.message").value("authentication required"))
+        .andExpect(jsonPath("$.errors").isEmpty());
+  }
+
+  @Test
   void CSRF不正_公開POSTにも403のJSONを返すこと() throws Exception {
     mockMvc.perform(post("/auth/login"))
         .andExpect(status().isForbidden())

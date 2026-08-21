@@ -3,6 +3,8 @@ package com.kiborisaway.tasktimetracker.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -15,9 +17,11 @@ import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
+import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +41,9 @@ class ProjectServiceTest {
 
   @Mock
   private MemoRepository memoRepository;
+
+  @Mock
+  private TaskRepository tsRepository;
 
   @InjectMocks
   private ProjectService sut;
@@ -204,7 +211,6 @@ class ProjectServiceTest {
     ProjectUpdateRequest request = new ProjectUpdateRequest();
     request.setTitle("タスク管理アプリ開発");
     request.setDescription("A社から受託した開発");
-    request.setIsFinished(true);
 
     when(repository.update(any(Project.class))).thenReturn(1);
     Project updated = new Project(id, "DB更新後タイトル", "DB更新後説明", true);
@@ -218,10 +224,73 @@ class ProjectServiceTest {
     verify(repository, times(1)).update(captor.capture());
     assertThat(captor.getValue().getId()).isEqualTo(id);
     assertThat(captor.getValue().getTitle()).isEqualTo("タスク管理アプリ開発");
-    assertThat(captor.getValue().getIsFinished()).isTrue();
     assertThat(captor.getValue().getUserId()).isEqualTo(USER_ID);
     assertThat(actual.getTitle()).isEqualTo("DB更新後タイトル");
     assertThat(actual.getDescription()).isEqualTo("DB更新後説明");
+  }
+
+  @Test
+  void 完了状態更新成功_リポジトリのメソッドに引数のIDと完了状態を渡して呼び出すこと() {
+    // Arrange
+    int id = 1;
+    boolean isFinished = true;
+
+    when(repository.updateFinished(id, isFinished, USER_ID)).thenReturn(1);
+    Project updated = new Project(id, "タスク管理アプリ開発", "A社から受託した開発", true);
+    when(repository.findByIdAndUserId(id, USER_ID)).thenReturn(updated);
+
+    // Act
+    ProjectResponse actual = sut.updateFinished(USER_ID, id, isFinished);
+
+    // Assert
+    verify(tsRepository, times(1)).existsUnfinishedInProject(id, USER_ID);
+    verify(repository, times(1)).updateFinished(id, isFinished, USER_ID);
+    assertThat(actual.getIsFinished()).isTrue();
+  }
+
+  @Test
+  void 完了状態更新成功_未完了に戻す場合は未完了タスクの存在チェックを行わないこと() {
+    // Arrange
+    int id = 1;
+    boolean isFinished = false;
+
+    when(repository.updateFinished(id, isFinished, USER_ID)).thenReturn(1);
+    Project updated = new Project(id, "タスク管理アプリ開発", "A社から受託した開発", false);
+    when(repository.findByIdAndUserId(id, USER_ID)).thenReturn(updated);
+
+    // Act
+    sut.updateFinished(USER_ID, id, isFinished);
+
+    // Assert
+    verify(tsRepository, never()).existsUnfinishedInProject(anyInt(), anyInt());
+    verify(repository, times(1)).updateFinished(id, isFinished, USER_ID);
+  }
+
+  @Test
+  void 完了状態更新失敗_未完了のタスクが存在する場合は例外を投げて更新処理を呼び出さないこと() {
+    // Arrange
+    int id = 1;
+    when(tsRepository.existsUnfinishedInProject(id, USER_ID)).thenReturn(true);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateFinished(USER_ID, id, true))
+        .isInstanceOf(ProjectFinishNotAllowedException.class);
+
+    verify(tsRepository, times(1)).existsUnfinishedInProject(id, USER_ID);
+    verify(repository, never()).updateFinished(anyInt(), anyBoolean(), anyInt());
+  }
+
+  @Test
+  void 完了状態更新失敗_更新件数が0件のときTargetNotFoundExceptionを投げること() {
+    // Arrange
+    int id = 999;
+    when(repository.updateFinished(id, true, USER_ID)).thenReturn(0);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateFinished(USER_ID, id, true))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(repository, times(1)).updateFinished(id, true, USER_ID);
   }
 
   @Test
@@ -231,7 +300,6 @@ class ProjectServiceTest {
     ProjectUpdateRequest request = new ProjectUpdateRequest();
     request.setTitle(null);
     request.setDescription("説明更新");
-    request.setIsFinished(true);
 
     when(repository.update(any(Project.class)))
         .thenThrow(new DataIntegrityViolationException("db constraint violation"));
@@ -251,7 +319,6 @@ class ProjectServiceTest {
     ProjectUpdateRequest request = new ProjectUpdateRequest();
     request.setTitle("更新されないタイトル");
     request.setDescription("更新されない説明");
-    request.setIsFinished(true);
 
     when(repository.update(any(Project.class))).thenReturn(0);
 

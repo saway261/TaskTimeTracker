@@ -112,6 +112,7 @@ const showQuickActions = ref(false)
       :project-id="projectId"
       :container-key="containerKey"
       :task-groups="taskGroups"
+      :finished="finished"
       :can-move-up="canMoveUp"
       :can-move-down="canMoveDown"
       @move-up="emit('move-up')"
@@ -122,6 +123,7 @@ const showQuickActions = ref(false)
       v-model="showQuickActions"
       :task-id="task.id"
       :task-title="task.title"
+      :project-id="projectId"
       :detail-to="to"
     />
   </div>

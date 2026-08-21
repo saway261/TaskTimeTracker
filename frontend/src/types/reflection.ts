@@ -1,7 +1,23 @@
+export type CauseDirection = 'OVER' | 'UNDER' | 'BOTH'
+
+export interface ReflectionCauseCategoryResponse {
+  code: string
+  label: string
+  direction: CauseDirection
+  nextActionHint: string | null
+  requiresCause: boolean
+}
+
+export interface ReflectionCauseCategorySummary {
+  code: string
+  label: string
+}
+
 export interface ReflectionResponse {
   id: number
   taskId: number
-  cause: string
+  causeCategories: ReflectionCauseCategorySummary[] // 表示順。未設定の場合は空配列
+  cause: string | null // 任意項目のため未入力の場合はnull
   nextAction: string | null
   createdAt: string
   updatedAt: string
@@ -31,6 +47,7 @@ export interface ProjectReflectionOverviewResponse {
 }
 
 export interface ReflectionRequest {
-  cause: string
+  causeCategoryCodes: string[] // 1件以上3件以下、重複不可
+  cause: string | null // 任意。ただし選択した原因カテゴリによっては必須
   nextAction: string | null
 }

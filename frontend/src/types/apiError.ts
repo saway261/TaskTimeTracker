@@ -28,6 +28,7 @@ const NON_FIELD_KEYS = new Set([
 const BUSINESS_RULE_MESSAGES = new Set([
   'estimate minutes update not allowed',
   'task finish not allowed',
+  'task group finish not allowed',
   'work session operation not allowed',
   'work session end not allowed',
   'invalid item order', // フェーズ7 §7.4.6: 送った項目集合がサーバの現在の項目と不一致

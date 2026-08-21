@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.controller;
 
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
+import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateFinishedRequest;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
@@ -21,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -150,7 +152,7 @@ public class ProjectController {
 
   @Operation(
       summary = "プロジェクト更新",
-      description = "プロジェクトの更新を行います。プロジェクト名と説明および完了フラグの変更を行います。プロジェクトIDが存在しない場合はエラーを返します。",
+      description = "プロジェクトの更新を行います。プロジェクト名と説明の変更を行います。プロジェクトIDが存在しない場合はエラーを返します。",
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "更新したいプロジェクト",
           required = true,
@@ -186,5 +188,48 @@ public class ProjectController {
       @PathVariable @Positive int id,
       @RequestBody @Validated ProjectUpdateRequest request) {
     return ResponseEntity.ok(service.update(user.getUserId(), id, request));
+  }
+
+  @Operation(
+      summary = "プロジェクトの完了状態更新",
+      description = """
+          プロジェクトの完了状態を更新します。未完了のタスクが1件でも存在する場合は完了状態にできません。
+          プロジェクトIDが存在しない場合はエラーを返します。
+          """,
+      parameters = {
+          @Parameter(in = ParameterIn.PATH,
+              name = "id", required = true,
+              description = "プロジェクトID",
+              schema = @Schema(type = "integer", format = "int32")
+          )
+      },
+      requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          description = "完了状態フラグ（true: 完了、false: 未完了）",
+          required = true,
+          content = @Content(schema = @Schema(implementation = ProjectUpdateFinishedRequest.class))
+      ),
+      responses = {
+          @ApiResponse(responseCode = "200", description = "更新成功",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ProjectResponse.class))
+          ),
+          @ApiResponse(responseCode = "400",
+              description = "入力値のバリデーションエラー、または未完了のタスクが存在する場合",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class))
+          ),
+          @ApiResponse(responseCode = "404", description = "指定されたプロジェクトIDが存在しないときのエラー",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class))
+          )
+      }
+  )
+  @PatchMapping("/{id}/finished")
+  public ResponseEntity<ProjectResponse> updateFinished(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int id,
+      @RequestBody @Validated ProjectUpdateFinishedRequest request) {
+    return ResponseEntity.ok(
+        service.updateFinished(user.getUserId(), id, request.isFinished()));
   }
 }

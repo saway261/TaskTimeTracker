@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { router } from '@/router'
 import { useAuthStore } from '@/stores/authStore'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import { httpClient } from './httpClient'
 
 const originalAdapter = httpClient.defaults.adapter
@@ -39,6 +40,7 @@ describe('httpClient authentication interceptors', () => {
       passwordChangeRequired: false,
       emailVerified: true,
     }
+    useAppSettingsStore().loaded = true
     await router.push('/projects')
   })
 

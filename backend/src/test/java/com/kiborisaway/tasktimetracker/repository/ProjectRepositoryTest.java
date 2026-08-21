@@ -228,7 +228,7 @@ class ProjectRepositoryTest {
   }
 
   @Test
-  void 更新成功_既存プロジェクトのタイトルと説明と完了フラグを更新できること() {
+  void 更新成功_既存プロジェクトのタイトルと説明を更新でき完了フラグは変更されないこと() {
     // Arrange
     int id = 1;
     // もとは"タスク管理システム開発","A社から受託した開発",false
@@ -245,7 +245,7 @@ class ProjectRepositoryTest {
 
     assertThat(updated.getTitle()).isEqualTo("進捗管理システム開発");
     assertThat(updated.getDescription()).isEqualTo("社内向けシステム開発");
-    assertThat(updated.getIsFinished()).isEqualTo(true);
+    assertThat(updated.getIsFinished()).isEqualTo(false);// updateでは変更されない
   }
 
   @Test
@@ -294,16 +294,13 @@ class ProjectRepositoryTest {
     assertThat(unchanged.getTitle()).isEqualTo("タスク管理アプリ開発");
   }
 
-  @ParameterizedTest(name = "[{index}]更新失敗_{0}フィールドがnullの場合は例外が発生すること")
-  @ValueSource(strings = {"title", "isFinished"})
-  void 更新失敗_DBでnull非許容のフィールドがnullの場合はDataIntegrityViolationExceptionが発生すること(
-      String field) {
+  @Test
+  void 更新失敗_titleがnullの場合はDataIntegrityViolationExceptionが発生すること() {
     Project project = new Project();
     project.setId(1);
     project.setUserId(USER_A);
-    project.setTitle(field.equals("title") ? null : "プロジェクトA");
+    project.setTitle(null);
     project.setDescription("説明更新");
-    project.setIsFinished(field.equals("isFinished") ? null : false);
 
     assertThatThrownBy(() -> sut.update(project))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -333,6 +330,45 @@ class ProjectRepositoryTest {
 
     assertThatThrownBy(() -> sut.update(project))
         .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void 完了状態更新成功_完了フラグを更新でき他のフィールドは変更されないこと() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    int actual = sut.updateFinished(id, true, USER_A);
+
+    // Assert
+    assertThat(actual).isEqualTo(1);
+
+    Project updated = sut.findByIdAndUserId(id, USER_A);
+    assertThat(updated.getIsFinished()).isTrue();
+    assertThat(updated.getTitle()).isEqualTo("タスク管理アプリ開発");
+  }
+
+  @Test
+  void 完了状態更新失敗_存在しないIDの場合は更新されず0件となること() {
+    // Act
+    int actual = sut.updateFinished(999, true, USER_A);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+  }
+
+  @Test
+  void 完了状態更新失敗_所有者が一致しない場合は更新されず0件となること() {
+    // Arrange
+    int id = 1;
+
+    // Act
+    int actual = sut.updateFinished(id, true, USER_B);
+
+    // Assert
+    assertThat(actual).isEqualTo(0);
+    Project unchanged = sut.findByIdAndUserId(id, USER_A);
+    assertThat(unchanged.getIsFinished()).isFalse();
   }
 
 }

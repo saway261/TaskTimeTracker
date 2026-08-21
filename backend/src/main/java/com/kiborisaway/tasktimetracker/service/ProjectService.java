@@ -6,9 +6,11 @@ import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.data.entity.Project;
+import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -21,11 +23,14 @@ public class ProjectService {
 
   private ProjectRepository repository;
   private MemoRepository memoRepository;
+  private TaskRepository tsRepository;
 
   @Autowired
-  public ProjectService(ProjectRepository repository, MemoRepository memoRepository) {
+  public ProjectService(ProjectRepository repository, MemoRepository memoRepository,
+      TaskRepository tsRepository) {
     this.repository = repository;
     this.memoRepository = memoRepository;
+    this.tsRepository = tsRepository;
   }
 
   /**
@@ -100,6 +105,28 @@ public class ProjectService {
     int updated = repository.update(project);
     if (updated == 0) {
       throw new TargetNotFoundException("project", "更新対象のプロジェクトが見つかりませんでした");
+    }
+    return toResponse(findProjectById(userId, id));
+  }
+
+  /**
+   * プロジェクトIDを指定して完了状態を更新します。完了にする場合、未完了のタスクが1件でも存在すると更新できません。
+   *
+   * @param userId     認証ユーザーのID
+   * @param id         更新するプロジェクトのID
+   * @param isFinished 完了状態
+   */
+  @Transactional
+  public ProjectResponse updateFinished(int userId, int id, boolean isFinished) {
+    if (isFinished && tsRepository.existsUnfinishedInProject(id, userId)) {
+      throw new ProjectFinishNotAllowedException("project.id",
+          "未完了のタスクがあるプロジェクトは完了状態にできません");
+    }
+
+    int updated = repository.updateFinished(id, isFinished, userId);
+    if (updated == 0) {
+      throw new TargetNotFoundException("project.id",
+          "完了状態更新対象のプロジェクトが見つかりませんでした");
     }
     return toResponse(findProjectById(userId, id));
   }

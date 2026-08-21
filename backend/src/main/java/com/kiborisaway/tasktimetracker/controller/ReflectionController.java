@@ -3,7 +3,6 @@ package com.kiborisaway.tasktimetracker.controller;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ProjectReflectionOverviewResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionRequest;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionResponse;
-import com.kiborisaway.tasktimetracker.data.entity.Reflection;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.ReflectionService;
@@ -101,8 +100,8 @@ public class ReflectionController {
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int taskId,
       @RequestBody @Validated ReflectionRequest request) {
-    Reflection reflection = service.register(user.getUserId(), taskId, request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(new ReflectionResponse(reflection));
+    ReflectionResponse response = service.register(user.getUserId(), taskId, request);
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
   @Operation(
@@ -140,7 +139,7 @@ public class ReflectionController {
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
       @PathVariable @Positive int taskId,
       @RequestBody @Validated ReflectionRequest request) {
-    Reflection reflection = service.update(user.getUserId(), taskId, request);
-    return ResponseEntity.ok(new ReflectionResponse(reflection));
+    ReflectionResponse response = service.update(user.getUserId(), taskId, request);
+    return ResponseEntity.ok(response);
   }
 }

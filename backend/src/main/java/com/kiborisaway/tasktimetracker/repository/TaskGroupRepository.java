@@ -77,7 +77,7 @@ public interface TaskGroupRepository {
   void insert(TaskGroup taskGroup);
 
   /**
-   * タスクグループのの更新を行います。タスクグループ名と説明と完了フラグを変更できます。 未変更の項目はDBに既存の値のままフロントエンドから返される想定で、全体更新します。
+   * タスクグループのの更新を行います。タスクグループ名と説明を変更できます。 未変更の項目はDBに既存の値のままフロントエンドから返される想定で、全体更新します。
    * 所有者が一致しない場合は更新されません。
    *
    * @param taskGroup タスクグループ
@@ -85,10 +85,26 @@ public interface TaskGroupRepository {
    */
   @Update("""
       UPDATE task_groups
-      SET title=#{taskGroup.title}, description=#{taskGroup.description}, is_finished=#{taskGroup.isFinished}
+      SET title=#{taskGroup.title}, description=#{taskGroup.description}
       WHERE id=#{taskGroup.id}
         AND project_id IN (SELECT id FROM projects WHERE user_id=#{userId})
       """)
   int update(TaskGroup taskGroup, int userId);
+
+  /**
+   * タスクグループの完了状態を更新します。所有者が一致しない場合は更新されません。
+   *
+   * @param id         タスクグループのID
+   * @param isFinished 完了状態
+   * @param userId     認証ユーザーのID
+   * @return 更新を実行した件数
+   */
+  @Update("""
+      UPDATE task_groups
+      SET is_finished=#{isFinished}
+      WHERE id=#{id}
+        AND project_id IN (SELECT id FROM projects WHERE user_id=#{userId})
+      """)
+  int updateFinished(int id, boolean isFinished, int userId);
 
 }

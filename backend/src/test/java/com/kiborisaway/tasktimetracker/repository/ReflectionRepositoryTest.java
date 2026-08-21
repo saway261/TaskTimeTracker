@@ -61,6 +61,15 @@ class ReflectionRepositoryTest {
   }
 
   @Test
+  void 登録成功_causeがNULLでも登録できること() {
+    Reflection reflection = new Reflection(null, 7, null, null, null, null);
+
+    sut.insert(reflection);
+
+    assertThat(sut.findByTaskId(7).getCause()).isNull();
+  }
+
+  @Test
   void 登録失敗_同じタスクIDへ二回目の振り返りを登録すると一意制約違反になること() {
     Reflection duplicate = new Reflection(null, 6, "重複登録", null, null, null);
 
@@ -92,6 +101,16 @@ class ReflectionRepositoryTest {
     assertThat(updated.getNextAction()).isNull();
     assertThat(updated.getCreatedAt()).isEqualTo(before.getCreatedAt());
     assertThat(updated.getUpdatedAt()).isNotNull();
+  }
+
+  @Test
+  void 更新成功_causeをNULLへ更新できること() {
+    Reflection reflection = new Reflection(
+        999, 6, null, null, LocalDateTime.MIN, LocalDateTime.MIN);
+
+    sut.updateByTaskId(reflection);
+
+    assertThat(sut.findByTaskId(6).getCause()).isNull();
   }
 
   @Test

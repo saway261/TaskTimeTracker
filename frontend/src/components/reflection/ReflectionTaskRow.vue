@@ -4,6 +4,7 @@ import type { ReflectionTaskResponse } from '@/types/reflection'
 import { estimateOutcome, formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
 import { truncateForPreview } from '@/utils/reflectionPreview'
 import EstimateOutcomeIcon from '@/components/common/EstimateOutcomeIcon.vue'
+import { useAppSettingsStore } from '@/stores/appSettingsStore'
 
 const props = defineProps<{
   task: ReflectionTaskResponse
@@ -13,6 +14,7 @@ const emit = defineEmits<{
   open: [task: ReflectionTaskResponse]
 }>()
 
+const appSettingsStore = useAppSettingsStore()
 const hasReflection = computed(() => props.task.reflection !== null)
 
 // 過去データ不整合などでキャッシュ値が欠けていても画面を止めないよう、ここで一括して「-」に落とす。
@@ -25,9 +27,15 @@ const gapText = computed(() =>
 const gapRateText = computed(() =>
   props.task.gapRateCached === null ? '-' : formatGapRate(props.task.gapRateCached),
 )
-const outcome = computed(() => estimateOutcome(props.task.gapRateCached))
+const outcome = computed(() =>
+  estimateOutcome(props.task.gapRateCached, appSettingsStore.onTimeThresholdPercent),
+)
 
-const causePreview = computed(() => truncateForPreview(props.task.reflection?.cause ?? null))
+// causeは任意項目のため未入力の場合があり、その場合は「原因：」ラベルだけの行にしない。
+const causePreview = computed(() => {
+  const cause = props.task.reflection?.cause
+  return cause ? truncateForPreview(cause) : null
+})
 const nextActionPreview = computed(() => {
   const nextAction = props.task.reflection?.nextAction
   return nextAction ? truncateForPreview(nextAction) : null
@@ -55,7 +63,21 @@ const actionLabel = computed(() =>
     </div>
 
     <div v-if="hasReflection" class="preview">
-      <p class="preview-line"><span class="preview-label">原因：</span>{{ causePreview }}</p>
+      <div
+        v-if="task.reflection && task.reflection.causeCategories.length > 0"
+        class="cause-category-badges"
+      >
+        <span
+          v-for="category in task.reflection.causeCategories"
+          :key="category.code"
+          class="cause-category-badge"
+        >
+          {{ category.label }}
+        </span>
+      </div>
+      <p v-if="causePreview" class="preview-line">
+        <span class="preview-label">原因：</span>{{ causePreview }}
+      </p>
       <p v-if="nextActionPreview" class="preview-line">
         <span class="preview-label">改善：</span>{{ nextActionPreview }}
       </p>
@@ -137,6 +159,26 @@ const actionLabel = computed(() =>
   display: flex;
   flex-direction: column;
   gap: 0.3em;
+}
+
+.cause-category-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+}
+
+.cause-category-badge {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0.15em 0.55em;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: var(--color-surface-muted);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 改行を含む場合も文字数で切っているため、崩れないよう表示側で最大3行に制限する（§5.4）。 */

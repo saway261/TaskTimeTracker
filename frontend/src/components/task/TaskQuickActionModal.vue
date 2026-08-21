@@ -5,22 +5,33 @@ import { useTaskStore } from '@/stores/taskStore'
 import { useWorkSessionStore } from '@/stores/workSessionStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { isFinished as isTaskFinished } from '@/utils/task'
+import { toReflectionTask } from '@/utils/reflectionTask'
+import * as reflectionsApi from '@/api/reflectionsApi'
 import type { ApiError } from '@/types/apiError'
 import type { MemoRequest } from '@/types/memo'
-import BaseButton from '@/components/common/BaseButton.vue'
+import type {
+  ProjectReflectionOverviewResponse,
+  ReflectionRequest,
+  ReflectionTaskResponse,
+} from '@/types/reflection'
 import BaseModal from '@/components/common/BaseModal.vue'
+import BaseButton from '@/components/common/BaseButton.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import FinishedCheckbox from '@/components/common/FinishedCheckbox.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import MemoList from '@/components/memo/MemoList.vue'
 import EstimationSummary from '@/components/task/EstimationSummary.vue'
 import ManualWorkSessionForm from '@/components/workSession/ManualWorkSessionForm.vue'
 import WorkSessionList from '@/components/workSession/WorkSessionList.vue'
 import WorkTimer from '@/components/workSession/WorkTimer.vue'
+import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
 
 const props = defineProps<{
   modelValue: boolean
   taskId: number
   taskTitle: string
+  projectId: number
   detailTo: string
 }>()
 
@@ -99,13 +110,20 @@ function handleMemoCreate(req: MemoRequest) {
 
 const finishing = ref(false)
 const finishError = ref<ApiError | null>(null)
+const showReopenConfirm = ref(false)
 
-async function finishTask() {
+async function updateFinishedState(nextFinished: boolean) {
   finishing.value = true
   finishError.value = null
   try {
-    await taskStore.updateFinished(props.taskId, { isFinished: true })
-    notification.success('タスクを完了にしました。')
+    const updatedTask = await taskStore.updateFinished(props.taskId, { isFinished: nextFinished })
+    notification.success(nextFinished ? 'タスクを完了にしました。' : '完了を解除しました。')
+    if (nextFinished) {
+      reflectionError.value = null
+      reflectionTask.value = toReflectionTask(updatedTask)
+      closeTaskModalWithReflection.value = true
+      showReflectionModal.value = true
+    }
   } catch (e) {
     finishError.value = e as ApiError
   } finally {
@@ -113,8 +131,82 @@ async function finishTask() {
   }
 }
 
+// 作業中へ戻す方向のときだけ、振り返りが破棄されることの確認を挟む（完了にする方向は確認なし）。
+function handleFinishedToggle(nextFinished: boolean) {
+  if (nextFinished) {
+    updateFinishedState(true)
+  } else {
+    showReopenConfirm.value = true
+  }
+}
+
 function close() {
   emit('update:modelValue', false)
+}
+
+// --- クイック振り返り（完了直後に即入力できるようにする） ---
+const showReflectionModal = ref(false)
+const reflectionTask = ref<ReflectionTaskResponse | null>(null)
+const reflectionSubmitting = ref(false)
+const reflectionLoading = ref(false)
+const reflectionError = ref<ApiError | null>(null)
+const reflectionLoadError = ref<ApiError | null>(null)
+const closeTaskModalWithReflection = ref(false)
+
+function findReflectionTask(
+  overview: ProjectReflectionOverviewResponse,
+): ReflectionTaskResponse | null {
+  return (
+    overview.tasks.find((item) => item.id === props.taskId) ??
+    overview.taskGroups.flatMap((group) => group.tasks).find((item) => item.id === props.taskId) ??
+    null
+  )
+}
+
+async function openReflectionModal() {
+  if (!task.value || !finished.value) return
+  reflectionLoading.value = true
+  reflectionLoadError.value = null
+  reflectionError.value = null
+  try {
+    const response = await reflectionsApi.fetchOverview(props.projectId)
+    reflectionTask.value = findReflectionTask(response.data) ?? toReflectionTask(task.value)
+    closeTaskModalWithReflection.value = false
+    showReflectionModal.value = true
+  } catch (e) {
+    reflectionLoadError.value = e as ApiError
+  } finally {
+    reflectionLoading.value = false
+  }
+}
+
+// 振り返りモーダルを閉じる操作（✖・背景クリック・登録完了）は、そのままタスクモーダルも閉じて
+// 元のタスク一覧ページへ戻す（完了操作をタスクモーダルで行った場合の仕様）。
+function handleReflectionModalUpdate(open: boolean) {
+  showReflectionModal.value = open
+  if (!open && closeTaskModalWithReflection.value) {
+    close()
+  }
+  if (!open) closeTaskModalWithReflection.value = false
+}
+
+async function handleReflectionSubmit(payload: ReflectionRequest) {
+  reflectionSubmitting.value = true
+  reflectionError.value = null
+  try {
+    if (reflectionTask.value?.reflection) {
+      await reflectionsApi.update(props.taskId, payload)
+      notification.success('振り返りを更新しました。')
+    } else {
+      await reflectionsApi.create(props.taskId, payload)
+      notification.success('振り返りを登録しました。')
+    }
+    handleReflectionModalUpdate(false)
+  } catch (e) {
+    reflectionError.value = e as ApiError
+  } finally {
+    reflectionSubmitting.value = false
+  }
 }
 </script>
 
@@ -130,7 +222,15 @@ function close() {
 
       <template v-else-if="task">
         <div class="task-state">
-          <span class="status" :class="{ finished }">{{ finished ? '完了' : '未完了' }}</span>
+          <FinishedCheckbox
+            :model-value="finished"
+            :disabled="finishing || (!finished && hasActiveTimer)"
+            @update:model-value="handleFinishedToggle"
+          />
+          <p v-if="!finished && hasActiveTimer" class="section-hint">
+            タイマーを停止してから完了にしてください。
+          </p>
+          <ErrorMessage v-if="finishError" :error="finishError" />
         </div>
 
         <section class="quick-section metrics-section" aria-labelledby="metrics-title">
@@ -171,23 +271,43 @@ function close() {
           />
         </section>
 
-        <ErrorMessage v-if="finishError" :error="finishError" />
-        <div v-if="!finished" class="finish-action">
-          <BaseButton :disabled="finishing || hasActiveTimer" @click="finishTask">
-            完了にする
-          </BaseButton>
-          <p v-if="hasActiveTimer" class="section-hint">
-            タイマーを停止してから完了にしてください。
-          </p>
-        </div>
-
         <footer class="modal-footer">
           <RouterLink :to="detailTo" class="detail-link" @click="close">
             詳細画面で確認・編集する →
           </RouterLink>
+          <template v-if="finished">
+            <ErrorMessage v-if="reflectionLoadError" :error="reflectionLoadError" />
+            <BaseButton
+              class="reflection-button"
+              variant="secondary"
+              :disabled="reflectionLoading"
+              @click="openReflectionModal"
+            >
+              {{ reflectionLoading ? '振り返りを読み込み中…' : '振り返りを入力・確認する' }}
+            </BaseButton>
+          </template>
         </footer>
       </template>
     </div>
+
+    <ConfirmDialog
+      v-model="showReopenConfirm"
+      title="タスクを作業中に戻す"
+      message="このタスクを作業中に戻します。保存済みの振り返りがある場合は削除され、元に戻せません。"
+      confirm-label="作業中に戻す"
+      danger
+      @confirm="updateFinishedState(false)"
+    />
+
+    <ReflectionModal
+      :model-value="showReflectionModal"
+      :task="reflectionTask"
+      :submitting="reflectionSubmitting"
+      :error="reflectionError"
+      defer-hint
+      @update:model-value="handleReflectionModalUpdate"
+      @submit="handleReflectionSubmit"
+    />
   </BaseModal>
 </template>
 
@@ -200,21 +320,10 @@ function close() {
 
 .task-state {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
   margin-top: -0.35rem;
-}
-
-.status {
-  padding: 0.2rem 0.65rem;
-  border-radius: 999px;
-  background: var(--color-surface-muted);
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.status.finished {
-  color: var(--color-success);
 }
 
 .quick-section {
@@ -261,21 +370,11 @@ function close() {
   padding: 0 0.9rem 0.9rem;
 }
 
-.finish-action {
+.modal-footer {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.6rem;
-  padding-top: 0.25rem;
-}
-
-.finish-action .section-hint {
-  margin: 0;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
+  gap: 0.75rem;
   padding-top: 1rem;
   border-top: 1px solid var(--color-surface-muted);
 }

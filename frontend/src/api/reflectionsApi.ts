@@ -1,9 +1,14 @@
 import { httpClient } from './httpClient'
 import type {
   ProjectReflectionOverviewResponse,
+  ReflectionCauseCategoryResponse,
   ReflectionRequest,
   ReflectionResponse,
 } from '@/types/reflection'
+
+export function fetchCauseCategories() {
+  return httpClient.get<ReflectionCauseCategoryResponse[]>('/reflection-cause-categories')
+}
 
 export function fetchOverview(projectId: number) {
   return httpClient.get<ProjectReflectionOverviewResponse>(`/projects/${projectId}/reflections`)
