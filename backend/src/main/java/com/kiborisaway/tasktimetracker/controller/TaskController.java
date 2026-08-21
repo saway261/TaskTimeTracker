@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.controller;
 
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskResponse;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskTagsUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateFinishedRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateParentRequest;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -372,6 +374,50 @@ public class TaskController {
     return ResponseEntity.ok(
         service.updateParent(user.getUserId(), taskId, request.projectId(),
             request.taskGroupId()));
+  }
+
+  @Operation(
+      summary = "タスクのタグ全置換",
+      description = """
+          タスクに付与するタグをリクエストの内容で全置換します。空配列を指定するとタグなしになります。
+          タグIDに重複が含まれる場合、または存在しない／他ユーザーのタグIDが含まれる場合はエラーを返します。
+          アーカイブ済みのタグIDを含めることもできます。
+          """,
+      parameters = {
+          @Parameter(in = ParameterIn.PATH,
+              name = "taskId", required = true,
+              description = "タスクID",
+              schema = @Schema(type = "integer", format = "int32")
+          )
+      },
+      requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+          description = "付与するタグIDの配列（全置換）",
+          required = true,
+          content = @Content(schema = @Schema(implementation = TaskTagsUpdateRequest.class))
+      ),
+      responses = {
+          @ApiResponse(responseCode = "200", description = "更新成功",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = TaskResponse.class))
+          ),
+          @ApiResponse(responseCode = "400",
+              description = "入力値のバリデーションエラー、タグIDの重複、"
+                  + "または存在しない／他ユーザーのタグIDが含まれる場合",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class))
+          ),
+          @ApiResponse(responseCode = "404", description = "指定されたタスクIDが存在しないときのエラー",
+              content = @Content(mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class))
+          )
+      }
+  )
+  @PutMapping("/tasks/{taskId}/tags")
+  public ResponseEntity<TaskResponse> updateTags(
+      @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
+      @PathVariable @Positive int taskId,
+      @RequestBody @Validated TaskTagsUpdateRequest request) {
+    return ResponseEntity.ok(service.updateTags(user.getUserId(), taskId, request));
   }
 
   @Operation(

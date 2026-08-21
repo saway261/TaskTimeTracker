@@ -1,10 +1,13 @@
 package com.kiborisaway.tasktimetracker.repository;
 
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import java.util.List;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -110,4 +113,77 @@ public interface TagRepository {
    */
   @Select("SELECT COUNT(*) FROM task_tags WHERE tag_id = #{tagId}")
   int countAssignedTasks(int tagId);
+
+  /**
+   * タスクへタグを付与します。呼び出し前にタスクの所有権とタグの有効性が検証済みであることが前提です。
+   *
+   * @param taskId タスクID
+   * @param tagId  タグID
+   */
+  @Insert("INSERT INTO task_tags(task_id, tag_id) VALUES(#{taskId}, #{tagId})")
+  void insertLink(int taskId, int tagId);
+
+  /**
+   * タスクに付与されているタグのリンクをすべて削除します。全置換の前処理・タスク削除時に使います。
+   *
+   * @param taskId タスクID
+   * @return 削除件数
+   */
+  @Delete("DELETE FROM task_tags WHERE task_id = #{taskId}")
+  int deleteLinksByTaskId(int taskId);
+
+  /**
+   * タスクに付与されているタグを名前の昇順で取得します。
+   *
+   * @param taskId タスクID
+   * @return タグの要約一覧
+   */
+  @Select("""
+      SELECT t.id AS id, t.name AS name
+      FROM task_tags tt
+      JOIN tags t ON t.id = tt.tag_id
+      WHERE tt.task_id = #{taskId}
+      ORDER BY t.name
+      """)
+  List<TagSummaryResponse> findTagsByTaskId(int taskId);
+
+  /**
+   * 指定したタグIDのうち、認証ユーザーが所有するものの件数を取得します。
+   * リクエストに含まれる全タグIDが有効（存在し、かつ自分のもの）かどうかを1クエリで検証するために使います。
+   *
+   * @param userId 認証ユーザーのID
+   * @param tagIds 検証するタグID一覧
+   * @return 所有するタグの件数
+   */
+  @Select("""
+      <script>
+      SELECT COUNT(*) FROM tags
+      WHERE user_id = #{userId}
+        AND id IN
+        <foreach collection="tagIds" item="id" open="(" separator="," close=")">
+          #{id}
+        </foreach>
+      </script>
+      """)
+  int countOwnedByIds(@Param("userId") int userId, @Param("tagIds") List<Integer> tagIds);
+
+  /**
+   * 複数タスクに付与されているタグを一括取得します。タスク件数に比例したクエリの発行を避けるために使います。
+   *
+   * @param taskIds タスクID一覧
+   * @return タスクIDごとのタグ付与行。タスクID・名前の昇順で並ぶ
+   */
+  @Select("""
+      <script>
+      SELECT tt.task_id AS task_id, t.id AS tag_id, t.name AS name
+      FROM task_tags tt
+      JOIN tags t ON t.id = tt.tag_id
+      WHERE tt.task_id IN
+      <foreach collection="taskIds" item="id" open="(" separator="," close=")">
+        #{id}
+      </foreach>
+      ORDER BY tt.task_id, t.name
+      </script>
+      """)
+  List<TaskTagRow> findTagsInTasks(@Param("taskIds") List<Integer> taskIds);
 }

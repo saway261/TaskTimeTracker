@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.data.dto.task;
 
 import com.kiborisaway.tasktimetracker.data.dto.memo.MemoResponse;
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
@@ -49,7 +50,10 @@ public class TaskResponse {
   @Schema(description = "メモリスト")
   private final List<MemoResponse> memos;
 
-  public TaskResponse(Task task, List<MemoResponse> memos) {
+  @Schema(description = "付与されたタグ 名前の昇順。アーカイブ済みのタグも含む")
+  private final List<TagSummaryResponse> tags;
+
+  public TaskResponse(Task task, List<MemoResponse> memos, List<TagSummaryResponse> tags) {
     this.id = task.getId();
     this.projectId = task.getProjectId();
     this.taskGroupId = task.getTaskGroupId();
@@ -62,5 +66,6 @@ public class TaskResponse {
     this.gapMinutesCached = task.getGapMinutesCached();
     this.gapRateCached = task.getGapRateCached();
     this.memos = memos;
+    this.tags = tags;
   }
 }

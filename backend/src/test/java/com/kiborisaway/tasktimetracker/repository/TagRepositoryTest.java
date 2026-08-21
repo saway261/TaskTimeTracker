@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -330,6 +331,181 @@ class TagRepositoryTest {
     int tagId = insertTag(USER_A, "未使用", "未使用");
 
     assertThat(sut.countAssignedTasks(tagId)).isZero();
+  }
+
+  @Test
+  void タグ付与成功_タスクへタグを付与できること() {
+    int tagId = insertTag(USER_A, "調査", "調査");
+    int taskId = existingTaskIdForUser(USER_A);
+
+    sut.insertLink(taskId, tagId);
+
+    assertThat(sut.findTagsByTaskId(taskId))
+        .extracting(TagSummaryResponse::getId)
+        .containsExactly(tagId);
+  }
+
+  @Test
+  void タグ付与失敗_同じタスクへ同じタグを重複して付与すると一意制約違反が発生すること() {
+    int tagId = insertTag(USER_A, "調査", "調査");
+    int taskId = existingTaskIdForUser(USER_A);
+    sut.insertLink(taskId, tagId);
+
+    assertThatThrownBy(() -> sut.insertLink(taskId, tagId))
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  @Test
+  void タグリンク一括削除成功_タスクに付与されたリンクのみ削除されること() {
+    int tagId = insertTag(USER_A, "調査", "調査");
+    int taskA = existingTaskIdForUser(USER_A);
+    int taskB = anotherExistingTaskIdForUser(USER_A);
+    sut.insertLink(taskA, tagId);
+    sut.insertLink(taskB, tagId);
+
+    int deleted = sut.deleteLinksByTaskId(taskA);
+
+    assertThat(deleted).isEqualTo(1);
+    assertThat(sut.findTagsByTaskId(taskA)).isEmpty();
+    assertThat(sut.findTagsByTaskId(taskB)).extracting(TagSummaryResponse::getId)
+        .containsExactly(tagId);
+  }
+
+  @Test
+  void タグリンク一括削除成功_リンクがなくても0件で成功すること() {
+    int taskId = existingTaskIdForUser(USER_A);
+
+    assertThat(sut.deleteLinksByTaskId(taskId)).isZero();
+  }
+
+  @Test
+  void タスク別タグ取得成功_名前の昇順で返ること() {
+    int taskId = existingTaskIdForUser(USER_A);
+    int tagZ = insertTag(USER_A, "ゼータ", "ぜーた");
+    int tagA = insertTag(USER_A, "アルファ", "あるふあ");
+    sut.insertLink(taskId, tagZ);
+    sut.insertLink(taskId, tagA);
+
+    List<TagSummaryResponse> actual = sut.findTagsByTaskId(taskId);
+
+    assertThat(actual).extracting(TagSummaryResponse::getId).containsExactly(tagA, tagZ);
+  }
+
+  @Test
+  void タスク別タグ取得成功_アーカイブ済みタグも含めて返すこと() {
+    int taskId = existingTaskIdForUser(USER_A);
+    int archivedTagId = insertArchivedTag(USER_A, "調査", "調査");
+    sut.insertLink(taskId, archivedTagId);
+
+    assertThat(sut.findTagsByTaskId(taskId))
+        .extracting(TagSummaryResponse::getId)
+        .containsExactly(archivedTagId);
+  }
+
+  @Test
+  void タスク別タグ取得成功_付与がなければ空リストを返すこと() {
+    int taskId = existingTaskIdForUser(USER_A);
+
+    assertThat(sut.findTagsByTaskId(taskId)).isEmpty();
+  }
+
+  @Test
+  void 所有タグ件数取得成功_すべて所有していれば指定件数と一致すること() {
+    int tag1 = insertTag(USER_A, "調査", "調査");
+    int tag2 = insertTag(USER_A, "設定", "設定");
+
+    int actual = sut.countOwnedByIds(USER_A, List.of(tag1, tag2));
+
+    assertThat(actual).isEqualTo(2);
+  }
+
+  @Test
+  void 所有タグ件数取得成功_存在しないIDを含む場合は所有分のみ数えること() {
+    int tag1 = insertTag(USER_A, "調査", "調査");
+
+    int actual = sut.countOwnedByIds(USER_A, List.of(tag1, 999999));
+
+    assertThat(actual).isEqualTo(1);
+  }
+
+  @Test
+  void 所有タグ件数取得成功_他ユーザーのタグは数えないこと() {
+    int ownTag = insertTag(USER_A, "調査", "調査");
+    int otherUsersTag = insertTag(USER_B, "設定", "設定");
+
+    int actual = sut.countOwnedByIds(USER_A, List.of(ownTag, otherUsersTag));
+
+    assertThat(actual).isEqualTo(1);
+  }
+
+  @Test
+  void 所有タグ件数取得成功_アーカイブ済みタグも数えること() {
+    int archivedTag = insertArchivedTag(USER_A, "調査", "調査");
+
+    int actual = sut.countOwnedByIds(USER_A, List.of(archivedTag));
+
+    assertThat(actual).isEqualTo(1);
+  }
+
+  @Test
+  void 複数タスク一括タグ取得成功_タスクIDと名前の昇順で返ること() {
+    int taskA = existingTaskIdForUser(USER_A);
+    int taskB = anotherExistingTaskIdForUser(USER_A);
+    int tagZ = insertTag(USER_A, "ゼータ", "ぜーた");
+    int tagA = insertTag(USER_A, "アルファ", "あるふあ");
+    sut.insertLink(taskA, tagZ);
+    sut.insertLink(taskA, tagA);
+    sut.insertLink(taskB, tagA);
+
+    List<TaskTagRow> actual = sut.findTagsInTasks(List.of(taskA, taskB));
+
+    assertThat(actual)
+        .extracting(TaskTagRow::getTaskId, TaskTagRow::getTagId)
+        .containsExactly(
+            tuple(taskA, tagA),
+            tuple(taskA, tagZ),
+            tuple(taskB, tagA));
+  }
+
+  @Test
+  void 複数タスク一括タグ取得成功_指定していないタスクのリンクは含まれないこと() {
+    int taskA = existingTaskIdForUser(USER_A);
+    int taskB = anotherExistingTaskIdForUser(USER_A);
+    int tagId = insertTag(USER_A, "調査", "調査");
+    sut.insertLink(taskA, tagId);
+    sut.insertLink(taskB, tagId);
+
+    List<TaskTagRow> actual = sut.findTagsInTasks(List.of(taskA));
+
+    assertThat(actual).extracting(TaskTagRow::getTaskId).containsExactly(taskA);
+  }
+
+  @Test
+  void 全置換_アーカイブ済みタグを含めて置換すると維持され含めなければ外れること() {
+    // TaskService#updateTags が「全削除→再挿入」で行う全置換を、
+    // アーカイブ済みタグを含むタグIDで直接再現して確認する（要件 §8.2 / 実装計画 §0-1-11）。
+    int taskId = existingTaskIdForUser(USER_A);
+    int activeTag = insertTag(USER_A, "調査", "調査");
+    int archivedTag = insertArchivedTag(USER_A, "旧タグ", "旧タグ");
+    sut.insertLink(taskId, activeTag);
+    sut.insertLink(taskId, archivedTag);
+
+    // 全置換その1: アーカイブ済みタグを含めたまま置換 → 維持される
+    sut.deleteLinksByTaskId(taskId);
+    sut.insertLink(taskId, activeTag);
+    sut.insertLink(taskId, archivedTag);
+
+    assertThat(sut.findTagsByTaskId(taskId))
+        .extracting(TagSummaryResponse::getId)
+        .containsExactlyInAnyOrder(activeTag, archivedTag);
+
+    // 全置換その2: アーカイブ済みタグを含めずに置換 → 外れる
+    sut.deleteLinksByTaskId(taskId);
+    sut.insertLink(taskId, activeTag);
+
+    assertThat(sut.findTagsByTaskId(taskId))
+        .extracting(TagSummaryResponse::getId)
+        .containsExactly(activeTag);
   }
 
   private int insertTag(int userId, String name, String nameNormalized) {

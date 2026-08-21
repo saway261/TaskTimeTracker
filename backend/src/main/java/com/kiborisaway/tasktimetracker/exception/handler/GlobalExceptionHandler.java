@@ -17,6 +17,7 @@ import com.kiborisaway.tasktimetracker.exception.PasswordResetInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TagLimitExceededException;
 import com.kiborisaway.tasktimetracker.exception.TagNameDuplicateException;
+import com.kiborisaway.tasktimetracker.exception.TaskTagsInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
@@ -348,6 +349,21 @@ public class GlobalExceptionHandler {
       TagNameDuplicateException ex) {
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
         "tag name duplicate", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+  }
+
+  /**
+   * タスクへのタグ付与リクエストに含まれるタグIDが、重複している、または存在しない／他ユーザーの
+   * ものであることをクライアントに返します。
+   *
+   * @param ex TaskTagsInvalidException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(TaskTagsInvalidException.class)
+  public ResponseEntity<ErrorResponse> handleTaskTagsInvalidException(
+      TaskTagsInvalidException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "task tags invalid", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
   }
 
