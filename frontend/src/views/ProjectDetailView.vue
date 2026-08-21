@@ -11,7 +11,7 @@ import {
 import { useNotificationStore } from '@/stores/notificationStore'
 import { toPositiveInt } from '@/utils/routeParams'
 import { sortProjectItemsByOrder } from '@/utils/sort'
-import { insertStubAt } from '@/utils/dragReorder'
+import { insertStubAt, swapVisibleItems } from '@/utils/dragReorder'
 import { formatMinutes } from '@/utils/duration'
 import { isFinished as isTaskFinished, sumEstimatedMinutes } from '@/utils/task'
 import type { ApiError } from '@/types/apiError'
@@ -26,6 +26,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import AppBreadcrumb from '@/components/common/AppBreadcrumb.vue'
 import FinishedCheckbox from '@/components/common/FinishedCheckbox.vue'
+import CompletedItemsToggle from '@/components/common/CompletedItemsToggle.vue'
 import ProjectForm from '@/components/project/ProjectForm.vue'
 import TaskGroupListItem from '@/components/taskGroup/TaskGroupListItem.vue'
 import TaskGroupForm from '@/components/taskGroup/TaskGroupForm.vue'
@@ -47,6 +48,7 @@ const invalidId = ref(false)
 const showEditModal = ref(false)
 const updating = ref(false)
 const updateError = ref<ApiError | null>(null)
+const showCompletedItems = ref(false)
 
 const numericId = computed(() => toPositiveInt(props.projectId))
 // currentProjectが読み込まれた時点でnumericIdは必ず有効なため、テンプレート内の型絞り込み用に用意する。
@@ -76,6 +78,14 @@ const mergedRawItems = computed<OrderedItem[]>(() => [
 
 const orderedItems = computed(() =>
   sortProjectItemsByOrder(mergedRawItems.value, itemOrderStore.projectItemOrder),
+)
+
+const visibleOrderedItems = computed(() =>
+  showCompletedItems.value
+    ? orderedItems.value
+    : orderedItems.value.filter((item) =>
+        item.kind === 'TASK_GROUP' ? !item.taskGroup.isFinished : !isTaskFinished(item.task),
+      ),
 )
 
 async function load() {
@@ -217,8 +227,9 @@ async function handleCreateTask(payload: {
 
 async function handleMoveUp(index: number) {
   if (index <= 0) return
-  const items = orderedItems.value.map((it) => ({ type: it.kind, id: it.id }))
-  ;[items[index - 1], items[index]] = [items[index], items[index - 1]]
+  const items = swapVisibleItems(orderedItems.value, visibleOrderedItems.value, index, -1).map(
+    (it) => ({ type: it.kind, id: it.id }),
+  )
   try {
     await itemOrderStore.reorderProjectItems(currentProjectId.value, items)
   } catch (e) {
@@ -227,9 +238,10 @@ async function handleMoveUp(index: number) {
 }
 
 async function handleMoveDown(index: number) {
-  if (index >= orderedItems.value.length - 1) return
-  const items = orderedItems.value.map((it) => ({ type: it.kind, id: it.id }))
-  ;[items[index], items[index + 1]] = [items[index + 1], items[index]]
+  if (index >= visibleOrderedItems.value.length - 1) return
+  const items = swapVisibleItems(orderedItems.value, visibleOrderedItems.value, index, 1).map(
+    (it) => ({ type: it.kind, id: it.id }),
+  )
   try {
     await itemOrderStore.reorderProjectItems(currentProjectId.value, items)
   } catch (e) {
@@ -337,6 +349,7 @@ async function handleItemDrop() {
         <div class="section-header">
           <h2>タスクグループ・タスク</h2>
           <div class="section-header-actions">
+            <CompletedItemsToggle v-model="showCompletedItems" />
             <BaseButton variant="secondary" @click="openCreateTaskGroupModal">
               ＋ 新規タスクグループ
             </BaseButton>
@@ -349,17 +362,18 @@ async function handleItemDrop() {
         <LoadingIndicator v-if="taskGroupStore.loading || taskStore.loading" />
         <ErrorMessage v-else-if="taskGroupStore.error" :error="taskGroupStore.error" />
         <ErrorMessage v-else-if="taskStore.error" :error="taskStore.error" />
-        <p v-else-if="orderedItems.length === 0" class="empty">
+        <p v-else-if="visibleOrderedItems.length === 0" class="empty">
           タスクグループ・タスクがまだありません。
         </p>
         <div v-else class="entity-rows">
-          <template v-for="(item, index) in orderedItems" :key="`${item.kind}-${item.id}`">
+          <template v-for="(item, index) in visibleOrderedItems" :key="`${item.kind}-${item.id}`">
             <TaskGroupListItem
               v-if="item.kind === 'TASK_GROUP'"
               :task-group="item.taskGroup"
               :task-groups="taskGroupStore.taskGroups"
+              :show-completed-tasks="showCompletedItems"
               :can-move-up="index > 0"
-              :can-move-down="index < orderedItems.length - 1"
+              :can-move-down="index < visibleOrderedItems.length - 1"
               @move-up="handleMoveUp(index)"
               @move-down="handleMoveDown(index)"
               @item-drop="handleItemDrop"
@@ -372,7 +386,7 @@ async function handleItemDrop() {
               :container-key="`project:${currentProjectId}`"
               :task-groups="taskGroupStore.taskGroups"
               :can-move-up="index > 0"
-              :can-move-down="index < orderedItems.length - 1"
+              :can-move-down="index < visibleOrderedItems.length - 1"
               @move-up="handleMoveUp(index)"
               @move-down="handleMoveDown(index)"
               @item-drop="handleItemDrop"

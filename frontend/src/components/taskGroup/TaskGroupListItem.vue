@@ -11,9 +11,9 @@ import type { TaskGroupResponse } from '@/types/taskGroup'
 import type { TaskCreateRequest } from '@/types/task'
 import type { ApiError } from '@/types/apiError'
 import { sortByItemOrder } from '@/utils/sort'
-import { insertStubAt } from '@/utils/dragReorder'
+import { insertStubAt, swapVisibleItems } from '@/utils/dragReorder'
 import { formatMinutes } from '@/utils/duration'
-import { sumEstimatedMinutes } from '@/utils/task'
+import { isFinished as isTaskFinished, sumEstimatedMinutes } from '@/utils/task'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
@@ -24,6 +24,7 @@ const props = defineProps<{
   taskGroup: TaskGroupResponse
   // 兄弟タスクグループ一覧。配下タスクの「移動先」メニュー用にTaskListItemへ渡す。
   taskGroups: TaskGroupResponse[]
+  showCompletedTasks: boolean
   canMoveUp: boolean
   canMoveDown: boolean
 }>()
@@ -61,10 +62,20 @@ const orderedChildTasks = computed(() =>
   sortByItemOrder(childTasks.value, itemOrderStore.taskGroupItemOrders[props.taskGroup.id] ?? []),
 )
 
+const visibleOrderedChildTasks = computed(() =>
+  props.showCompletedTasks
+    ? orderedChildTasks.value
+    : orderedChildTasks.value.filter((task) => !isTaskFinished(task)),
+)
+
 async function handleChildMoveUp(index: number) {
   if (index <= 0) return
-  const items = orderedChildTasks.value.map((t) => ({ id: t.id }))
-  ;[items[index - 1], items[index]] = [items[index], items[index - 1]]
+  const items = swapVisibleItems(
+    orderedChildTasks.value,
+    visibleOrderedChildTasks.value,
+    index,
+    -1,
+  ).map((task) => ({ id: task.id }))
   try {
     await itemOrderStore.reorderTaskGroupItems(props.taskGroup.id, items)
   } catch (e) {
@@ -73,9 +84,13 @@ async function handleChildMoveUp(index: number) {
 }
 
 async function handleChildMoveDown(index: number) {
-  if (index >= orderedChildTasks.value.length - 1) return
-  const items = orderedChildTasks.value.map((t) => ({ id: t.id }))
-  ;[items[index], items[index + 1]] = [items[index + 1], items[index]]
+  if (index >= visibleOrderedChildTasks.value.length - 1) return
+  const items = swapVisibleItems(
+    orderedChildTasks.value,
+    visibleOrderedChildTasks.value,
+    index,
+    1,
+  ).map((task) => ({ id: task.id }))
   try {
     await itemOrderStore.reorderTaskGroupItems(props.taskGroup.id, items)
   } catch (e) {
@@ -294,9 +309,9 @@ async function handleCreateTask(payload: {
     </div>
 
     <div v-if="isOpen" class="child-tasks">
-      <p v-if="orderedChildTasks.length === 0" class="empty">タスクがまだありません。</p>
+      <p v-if="visibleOrderedChildTasks.length === 0" class="empty">タスクがまだありません。</p>
       <TaskListItem
-        v-for="(task, index) in orderedChildTasks"
+        v-for="(task, index) in visibleOrderedChildTasks"
         :key="task.id"
         :task="task"
         :to="`/projects/${taskGroup.projectId}/task-groups/${taskGroup.id}/tasks/${task.id}`"
@@ -304,7 +319,7 @@ async function handleCreateTask(payload: {
         :container-key="containerKey"
         :task-groups="taskGroups"
         :can-move-up="index > 0"
-        :can-move-down="index < orderedChildTasks.length - 1"
+        :can-move-down="index < visibleOrderedChildTasks.length - 1"
         @move-up="handleChildMoveUp(index)"
         @move-down="handleChildMoveDown(index)"
         @item-drop="handleChildDrop"
