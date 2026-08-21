@@ -15,6 +15,8 @@ import com.kiborisaway.tasktimetracker.exception.ReflectionCauseRequiredExceptio
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.PasswordResetInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TagLimitExceededException;
+import com.kiborisaway.tasktimetracker.exception.TagNameDuplicateException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
@@ -317,6 +319,35 @@ public class GlobalExceptionHandler {
       AnalyticsQueryInvalidException ex) {
     ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
         "analytics query invalid", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+  }
+
+  /**
+   * 保有タグ数（アクティブなタグ）が上限に達しているために、タグの新規作成またはアーカイブ解除ができないことを
+   * クライアントに返します。
+   *
+   * @param ex TagLimitExceededException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(TagLimitExceededException.class)
+  public ResponseEntity<ErrorResponse> handleTagLimitExceededException(
+      TagLimitExceededException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "tag limit exceeded", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.badRequest().body(errorResponse);
+  }
+
+  /**
+   * リネーム後のタグ名が、同一ユーザーの別のタグと正規化後に重複することをクライアントに返します。
+   *
+   * @param ex TagNameDuplicateException
+   * @return HTTPステータス(BAD_REQUEST), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(TagNameDuplicateException.class)
+  public ResponseEntity<ErrorResponse> handleTagNameDuplicateException(
+      TagNameDuplicateException ex) {
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.BAD_REQUEST,
+        "tag name duplicate", errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
   }
 
