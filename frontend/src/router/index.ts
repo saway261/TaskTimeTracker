@@ -82,6 +82,11 @@ const routes = [
     component: () => import('@/views/AnalyticsView.vue'),
   },
   {
+    path: '/tags',
+    name: 'tag-management',
+    component: () => import('@/views/TagManagementView.vue'),
+  },
+  {
     path: '/projects/:projectId',
     name: 'project-detail',
     component: () => import('@/views/ProjectDetailView.vue'),

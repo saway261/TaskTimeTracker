@@ -24,6 +24,8 @@ const EXACT_MATCHES: Record<string, string> = {
   'reflection already exists': 'この振り返りは既に登録されています。画面を読み込み直してください。',
   'reflection operation not allowed': 'このタスクは未完了のため、振り返りを保存できません。',
   'reflection cause required': '選択した原因カテゴリでは、原因の記述が必要です。',
+  'tag limit exceeded': 'タグは50件までです。使っていないタグをアーカイブしてください。',
+  'tag name duplicate': '同じ名前のタグが既にあります。',
 
   // 認証
   'email or password is incorrect': 'メールアドレスまたはパスワードが正しくありません。',

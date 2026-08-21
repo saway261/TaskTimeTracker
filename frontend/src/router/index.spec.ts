@@ -61,6 +61,14 @@ describe('authentication navigation guard', () => {
     expect(router.currentRoute.value.name).toBe('analytics')
   })
 
+  it('認証済みユーザーはタグ管理画面を開ける', async () => {
+    useAuthStore().currentUser = user
+
+    await router.push('/tags')
+
+    expect(router.currentRoute.value.name).toBe('tag-management')
+  })
+
   it('forces users who must change their password to the password change route', async () => {
     useAuthStore().currentUser = {
       ...user,

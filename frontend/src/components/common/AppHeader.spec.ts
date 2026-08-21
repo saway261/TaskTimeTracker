@@ -50,6 +50,7 @@ describe('AppHeader user menu', () => {
 
     expect(trigger.attributes('aria-expanded')).toBe('true')
     expect(wrapper.get('[role="menu"]').text()).toContain(user.email)
+    expect(wrapper.get('a[href="/tags"]').text()).toBe('タグ管理')
     expect(wrapper.get('a[href="/email-change"]').text()).toBe('メールアドレス変更')
     expect(wrapper.get('a[href="/password-change"]').text()).toBe('パスワード変更')
     expect(wrapper.get('.logout-button').text()).toBe('ログアウト')
