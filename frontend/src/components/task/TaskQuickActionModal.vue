@@ -9,8 +9,13 @@ import { toReflectionTask } from '@/utils/reflectionTask'
 import * as reflectionsApi from '@/api/reflectionsApi'
 import type { ApiError } from '@/types/apiError'
 import type { MemoRequest } from '@/types/memo'
-import type { ReflectionRequest } from '@/types/reflection'
+import type {
+  ProjectReflectionOverviewResponse,
+  ReflectionRequest,
+  ReflectionTaskResponse,
+} from '@/types/reflection'
 import BaseModal from '@/components/common/BaseModal.vue'
+import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import FinishedCheckbox from '@/components/common/FinishedCheckbox.vue'
@@ -26,6 +31,7 @@ const props = defineProps<{
   modelValue: boolean
   taskId: number
   taskTitle: string
+  projectId: number
   detailTo: string
 }>()
 
@@ -110,10 +116,12 @@ async function updateFinishedState(nextFinished: boolean) {
   finishing.value = true
   finishError.value = null
   try {
-    await taskStore.updateFinished(props.taskId, { isFinished: nextFinished })
+    const updatedTask = await taskStore.updateFinished(props.taskId, { isFinished: nextFinished })
     notification.success(nextFinished ? 'タスクを完了にしました。' : '完了を解除しました。')
     if (nextFinished) {
       reflectionError.value = null
+      reflectionTask.value = toReflectionTask(updatedTask)
+      closeTaskModalWithReflection.value = true
       showReflectionModal.value = true
     }
   } catch (e) {
@@ -138,26 +146,61 @@ function close() {
 
 // --- クイック振り返り（完了直後に即入力できるようにする） ---
 const showReflectionModal = ref(false)
+const reflectionTask = ref<ReflectionTaskResponse | null>(null)
 const reflectionSubmitting = ref(false)
+const reflectionLoading = ref(false)
 const reflectionError = ref<ApiError | null>(null)
+const reflectionLoadError = ref<ApiError | null>(null)
+const closeTaskModalWithReflection = ref(false)
 
-const reflectionTask = computed(() => (task.value ? toReflectionTask(task.value) : null))
+function findReflectionTask(
+  overview: ProjectReflectionOverviewResponse,
+): ReflectionTaskResponse | null {
+  return (
+    overview.tasks.find((item) => item.id === props.taskId) ??
+    overview.taskGroups.flatMap((group) => group.tasks).find((item) => item.id === props.taskId) ??
+    null
+  )
+}
+
+async function openReflectionModal() {
+  if (!task.value || !finished.value) return
+  reflectionLoading.value = true
+  reflectionLoadError.value = null
+  reflectionError.value = null
+  try {
+    const response = await reflectionsApi.fetchOverview(props.projectId)
+    reflectionTask.value = findReflectionTask(response.data) ?? toReflectionTask(task.value)
+    closeTaskModalWithReflection.value = false
+    showReflectionModal.value = true
+  } catch (e) {
+    reflectionLoadError.value = e as ApiError
+  } finally {
+    reflectionLoading.value = false
+  }
+}
 
 // 振り返りモーダルを閉じる操作（✖・背景クリック・登録完了）は、そのままタスクモーダルも閉じて
 // 元のタスク一覧ページへ戻す（完了操作をタスクモーダルで行った場合の仕様）。
 function handleReflectionModalUpdate(open: boolean) {
   showReflectionModal.value = open
-  if (!open) {
+  if (!open && closeTaskModalWithReflection.value) {
     close()
   }
+  if (!open) closeTaskModalWithReflection.value = false
 }
 
 async function handleReflectionSubmit(payload: ReflectionRequest) {
   reflectionSubmitting.value = true
   reflectionError.value = null
   try {
-    await reflectionsApi.create(props.taskId, payload)
-    notification.success('振り返りを登録しました。')
+    if (reflectionTask.value?.reflection) {
+      await reflectionsApi.update(props.taskId, payload)
+      notification.success('振り返りを更新しました。')
+    } else {
+      await reflectionsApi.create(props.taskId, payload)
+      notification.success('振り返りを登録しました。')
+    }
     handleReflectionModalUpdate(false)
   } catch (e) {
     reflectionError.value = e as ApiError
@@ -232,6 +275,17 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
           <RouterLink :to="detailTo" class="detail-link" @click="close">
             詳細画面で確認・編集する →
           </RouterLink>
+          <template v-if="finished">
+            <ErrorMessage v-if="reflectionLoadError" :error="reflectionLoadError" />
+            <BaseButton
+              class="reflection-button"
+              variant="secondary"
+              :disabled="reflectionLoading"
+              @click="openReflectionModal"
+            >
+              {{ reflectionLoading ? '振り返りを読み込み中…' : '振り返りを入力・確認する' }}
+            </BaseButton>
+          </template>
         </footer>
       </template>
     </div>
@@ -318,7 +372,9 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
 
 .modal-footer {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
   padding-top: 1rem;
   border-top: 1px solid var(--color-surface-muted);
 }

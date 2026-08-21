@@ -123,6 +123,7 @@ const showQuickActions = ref(false)
       v-model="showQuickActions"
       :task-id="task.id"
       :task-title="task.title"
+      :project-id="projectId"
       :detail-to="to"
     />
   </div>

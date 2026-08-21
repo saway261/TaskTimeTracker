@@ -204,6 +204,7 @@ onBeforeUnmount(() => {
     :model-value="selectedTimer !== null"
     :task-id="selectedTimer.taskId"
     :task-title="selectedTimer.taskTitle"
+    :project-id="selectedTimer.projectId"
     :detail-to="detailTo(selectedTimer)"
     @update:model-value="selectedTimer = null"
   />
