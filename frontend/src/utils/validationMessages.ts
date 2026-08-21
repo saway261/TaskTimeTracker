@@ -16,6 +16,7 @@ const EXACT_MATCHES: Record<string, string> = {
   'target not found': '対象が見つかりませんでした。',
   'estimate minutes update not allowed': '作業記録があるため、見積時間を変更できません。',
   'task finish not allowed': '未終了の作業セッションがあるため、完了にできません。',
+  'task group finish not allowed': '未完了のタスクがあるため、タスクグループを完了にできません。',
   'work session operation not allowed': '完了済みのタスクでは作業セッションを操作できません。',
   'work session end not allowed': 'このセッションは終了できません。',
   'invalid item order':
