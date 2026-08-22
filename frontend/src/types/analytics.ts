@@ -1,4 +1,5 @@
 import type { ReflectionCauseCategorySummary } from './reflection'
+import type { TagSummary } from './tag'
 
 export type AnalyticsPeriod = 'ALL' | 'LAST_30_DAYS' | 'LAST_90_DAYS' | 'LAST_YEAR'
 export type AnalyticsOutcome = 'LATE' | 'ON_TIME' | 'EARLY'
@@ -54,6 +55,12 @@ export interface DiagnosisResponse {
   message: string
 }
 
+export interface ProjectBreakdownItemResponse {
+  projectId: number
+  projectTitle: string
+  count: number
+}
+
 export interface ScatterPointResponse {
   taskId: number
   taskTitle: string
@@ -61,6 +68,7 @@ export interface ScatterPointResponse {
   actualMinutes: number
   gapRate: number
   outcome: AnalyticsOutcome
+  tags: TagSummary[]
 }
 
 export interface SizeBucketResponse {
@@ -112,6 +120,7 @@ export interface EstimationAccuracyResponse {
   sizeBuckets: SizeBucketResponse[]
   trend: AccuracyTrendPointResponse[]
   trendAvailability: MetricAvailabilityResponse
+  projectBreakdown: ProjectBreakdownItemResponse[]
 }
 
 export interface ReflectionTimelineItemResponse {
@@ -126,6 +135,7 @@ export interface ReflectionTimelineItemResponse {
   gapRate: number | null
   outcome: AnalyticsOutcome | null
   causeCategories: ReflectionCauseCategorySummary[]
+  tags: TagSummary[]
   cause: string | null
   nextAction: string | null
 }

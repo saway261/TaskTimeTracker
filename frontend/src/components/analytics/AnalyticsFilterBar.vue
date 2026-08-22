@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useId } from 'vue'
+import { computed, useId } from 'vue'
 import type {
   AnalyticsFilter,
   AnalyticsPeriod,
@@ -8,7 +8,7 @@ import type {
 import type { ProjectResponse } from '@/types/project'
 import type { TagSummary } from '@/types/tag'
 
-defineProps<{
+const props = defineProps<{
   filter: AnalyticsFilter
   projects: ProjectResponse[]
   tags: TagSummary[]
@@ -25,6 +25,23 @@ const emit = defineEmits<{
 const projectId = useId()
 const periodId = useId()
 const tagId = useId()
+
+const showProjectBreakdown = computed(
+  () => props.filter.tagId !== null && props.filter.projectId === null && props.accuracy !== null,
+)
+const selectedTagName = computed(
+  () => props.tags.find((tag) => tag.id === props.filter.tagId)?.name ?? `#${props.filter.tagId}`,
+)
+const sortedProjectBreakdown = computed(() =>
+  [...(props.accuracy?.projectBreakdown ?? [])].sort(
+    (a, b) => b.count - a.count || a.projectTitle.localeCompare(b.projectTitle, 'ja'),
+  ),
+)
+const visibleProjectBreakdown = computed(() => sortedProjectBreakdown.value.slice(0, 3))
+const remainingProjectCount = computed(() => Math.max(0, sortedProjectBreakdown.value.length - 3))
+const remainingTaskCount = computed(() =>
+  sortedProjectBreakdown.value.slice(3).reduce((total, project) => total + project.count, 0),
+)
 
 function handleProjectChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
@@ -106,6 +123,28 @@ function handleTagChange(event: Event) {
         <p>同じタスクが複数の理由に該当する場合があります。</p>
       </details>
     </div>
+
+    <div v-if="showProjectBreakdown" class="project-breakdown" aria-live="polite">
+      <p class="breakdown-line">
+        <strong>タグ「{{ selectedTagName }}」の内訳:</strong>
+        <template v-if="visibleProjectBreakdown.length > 0">
+          <span
+            v-for="project in visibleProjectBreakdown"
+            :key="project.projectId"
+            class="breakdown-item"
+          >
+            {{ project.projectTitle }} {{ project.count }}件
+          </span>
+          <span v-if="remainingProjectCount > 0" class="breakdown-item remaining-projects">
+            他{{ remainingProjectCount }}プロジェクト {{ remainingTaskCount }}件
+          </span>
+        </template>
+        <span v-else class="breakdown-empty">対象なし</span>
+      </p>
+      <p class="confounding-note">
+        ※ この数値は特定プロジェクトの傾向を強く反映している場合があります
+      </p>
+    </div>
   </section>
 </template>
 
@@ -119,6 +158,7 @@ function handleTagChange(event: Event) {
   border: 1px solid var(--color-surface-muted);
   border-radius: 8px;
   background: var(--color-surface);
+  flex-wrap: wrap;
 }
 
 .filters,
@@ -190,6 +230,44 @@ details p {
   font-size: 0.8rem;
 }
 
+.project-breakdown {
+  flex-basis: 100%;
+  min-width: 0;
+  padding-top: 0.75em;
+  border-top: 1px solid var(--color-surface-muted);
+}
+
+.breakdown-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25em 0.45em;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.breakdown-line strong {
+  color: var(--color-text);
+}
+
+.breakdown-item + .breakdown-item::before {
+  margin-right: 0.45em;
+  color: var(--color-text-muted);
+  content: '/';
+}
+
+.remaining-projects {
+  font-weight: 600;
+}
+
+.confounding-note {
+  margin: 0.35em 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 @media (max-width: 760px) {
   .analytics-filter-bar,
   .filters {
@@ -200,6 +278,10 @@ details p {
   .filter-field,
   select {
     width: 100%;
+  }
+
+  .project-breakdown {
+    padding-top: 0.65em;
   }
 }
 </style>

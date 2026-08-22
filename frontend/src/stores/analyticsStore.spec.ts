@@ -35,6 +35,7 @@ const accuracy: EstimationAccuracyResponse = {
   sizeBuckets: [],
   trend: [],
   trendAvailability: { available: false, requiredCount: 20, currentCount: 12 },
+  projectBreakdown: [{ projectId: 3, projectTitle: 'プロジェクト', count: 12 }],
 }
 
 const gapCauses: GapCauseAggregateResponse = {
@@ -71,6 +72,7 @@ const timelineItem = (taskId: number): ReflectionTimelineItemResponse => ({
   gapRate: 25,
   outcome: 'LATE',
   causeCategories: [],
+  tags: [],
   cause: null,
   nextAction: null,
 })

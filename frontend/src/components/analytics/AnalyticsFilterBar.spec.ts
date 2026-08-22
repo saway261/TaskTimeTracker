@@ -52,4 +52,70 @@ describe('AnalyticsFilterBar', () => {
     ])
     expect(wrapper.text()).not.toContain('タグ未設定')
   })
+
+  it('タグ絞り込み時だけ上位3プロジェクトと残りの合計・注記を表示する', async () => {
+    const filter = {
+      projectId: null,
+      tagId: 5,
+      period: 'ALL' as const,
+      causeCategory: null,
+      outcome: 'ALL' as const,
+    }
+    const filteredAccuracy = {
+      ...accuracy,
+      projectBreakdown: [
+        { projectId: 4, projectTitle: '改善', count: 2 },
+        { projectId: 1, projectTitle: '開発基盤', count: 18 },
+        { projectId: 5, projectTitle: '運用', count: 1 },
+        { projectId: 3, projectTitle: '学習', count: 3 },
+        { projectId: 2, projectTitle: '社内ツール', count: 4 },
+      ],
+    } as EstimationAccuracyResponse
+    const wrapper = mount(AnalyticsFilterBar, {
+      props: {
+        filter,
+        projects: [],
+        tags: [{ id: 5, name: '調査' }],
+        accuracy: filteredAccuracy,
+      },
+    })
+
+    const breakdown = wrapper.get('.project-breakdown')
+    expect(breakdown.text()).toContain('タグ「調査」の内訳:')
+    expect(breakdown.findAll('.breakdown-item').map((item) => item.text())).toEqual([
+      '開発基盤 18件',
+      '社内ツール 4件',
+      '学習 3件',
+      '他2プロジェクト 3件',
+    ])
+    expect(breakdown.get('.confounding-note').text()).toContain(
+      '特定プロジェクトの傾向を強く反映している場合があります',
+    )
+
+    await wrapper.setProps({ filter: { ...filter, projectId: 1 } })
+    expect(wrapper.find('.project-breakdown').exists()).toBe(false)
+
+    await wrapper.setProps({ filter: { ...filter, tagId: null } })
+    expect(wrapper.find('.project-breakdown').exists()).toBe(false)
+  })
+
+  it('タグ絞り込みの分析対象が0件でも内訳と注記を表示する', () => {
+    const wrapper = mount(AnalyticsFilterBar, {
+      props: {
+        filter: {
+          projectId: null,
+          tagId: 5,
+          period: 'ALL',
+          causeCategory: null,
+          outcome: 'ALL',
+        },
+        projects: [],
+        tags: [{ id: 5, name: '調査' }],
+        accuracy: { ...accuracy, analyzedTaskCount: 0, projectBreakdown: [] },
+      },
+    })
+
+    expect(wrapper.get('.breakdown-empty').text()).toBe('対象なし')
+    expect(wrapper.find('.confounding-note').exists()).toBe(true)
+  })
 })

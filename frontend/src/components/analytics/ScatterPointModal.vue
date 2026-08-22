@@ -4,6 +4,7 @@ import type { AnalyticsOutcome, ScatterPointResponse } from '@/types/analytics'
 import { formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
 import BaseModal from '@/components/common/BaseModal.vue'
 import EstimateOutcomeIcon from '@/components/common/EstimateOutcomeIcon.vue'
+import TagBadgeList from '@/components/tag/TagBadgeList.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -36,6 +37,11 @@ const gapMinutes = computed(() =>
         <EstimateOutcomeIcon :gap-rate="point.gapRate" />
         <strong>{{ outcomeLabels[point.outcome] }}</strong>
       </p>
+      <section class="point-tags" aria-labelledby="scatter-point-tags-title">
+        <h3 id="scatter-point-tags-title">タグ</h3>
+        <TagBadgeList v-if="point.tags.length > 0" :tags="point.tags" :limit="null" />
+        <p v-else>タグはありません。</p>
+      </section>
       <dl>
         <div>
           <dt>見積時間</dt>
@@ -84,6 +90,20 @@ const gapMinutes = computed(() =>
 
 .outcome.early {
   color: var(--color-task-accent);
+}
+
+.point-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.point-tags h3,
+.point-tags p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
 }
 
 dl {
