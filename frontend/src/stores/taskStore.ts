@@ -12,7 +12,6 @@ import type {
 } from '@/types/task'
 import type { MemoRequest, MemoResponse } from '@/types/memo'
 import type { ApiError } from '@/types/apiError'
-import { sortById } from '@/utils/sort'
 
 export const useTaskStore = defineStore('task', {
   state: () => ({
@@ -27,7 +26,7 @@ export const useTaskStore = defineStore('task', {
       this.error = null
       try {
         const res = await tasksApi.fetchAllInProject(projectId, isFinished)
-        this.tasks = sortById(res.data)
+        this.tasks = res.data
       } catch (e) {
         this.error = e as ApiError
         throw e
@@ -41,7 +40,7 @@ export const useTaskStore = defineStore('task', {
       this.error = null
       try {
         const res = await tasksApi.fetchAllInTaskGroup(taskGroupId, isFinished)
-        this.tasks = sortById(res.data)
+        this.tasks = res.data
       } catch (e) {
         this.error = e as ApiError
         throw e
@@ -78,13 +77,13 @@ export const useTaskStore = defineStore('task', {
     // 登録後オブジェクトをそのまま反映するため、再取得は不要。
     async createTaskInProject(projectId: number, req: TaskCreateRequest) {
       const res = await tasksApi.createInProject(projectId, req)
-      this.tasks = sortById([...this.tasks, res.data])
+      this.tasks = [...this.tasks, res.data]
       return res.data
     },
 
     async createTaskInTaskGroup(taskGroupId: number, req: TaskCreateRequest) {
       const res = await tasksApi.createInTaskGroup(taskGroupId, req)
-      this.tasks = sortById([...this.tasks, res.data])
+      this.tasks = [...this.tasks, res.data]
       return res.data
     },
 

@@ -9,7 +9,6 @@ import type {
 } from '@/types/project'
 import type { MemoRequest, MemoResponse } from '@/types/memo'
 import type { ApiError } from '@/types/apiError'
-import { sortById } from '@/utils/sort'
 
 export const useProjectStore = defineStore('project', {
   state: () => ({
@@ -24,7 +23,7 @@ export const useProjectStore = defineStore('project', {
       this.error = null
       try {
         const res = await projectsApi.fetchAll(isFinished)
-        this.projects = sortById(res.data)
+        this.projects = res.data
       } catch (e) {
         this.error = e as ApiError
         throw e
@@ -50,7 +49,7 @@ export const useProjectStore = defineStore('project', {
     // 登録後オブジェクトをそのまま反映するため、再取得は不要。
     async createProject(req: ProjectCreateRequest) {
       const res = await projectsApi.create(req)
-      this.projects = sortById([...this.projects, res.data])
+      this.projects = [...this.projects, res.data]
       return res.data
     },
 

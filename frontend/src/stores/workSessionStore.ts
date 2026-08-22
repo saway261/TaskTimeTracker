@@ -6,7 +6,6 @@ import type {
   WorkSessionUpdateRequest,
 } from '@/types/workSession'
 import type { ApiError } from '@/types/apiError'
-import { sortById } from '@/utils/sort'
 import { toDatetimeLocalValue } from '@/utils/datetimeLocal'
 import { useActiveTimerStore } from '@/stores/activeTimerStore'
 
@@ -26,7 +25,7 @@ export const useWorkSessionStore = defineStore('workSession', {
       this.error = null
       try {
         const res = await workSessionsApi.fetchAllInTask(taskId)
-        this.workSessions = sortById(res.data)
+        this.workSessions = res.data
         this.updateActiveSession()
       } catch (e) {
         this.error = e as ApiError
@@ -45,7 +44,7 @@ export const useWorkSessionStore = defineStore('workSession', {
     async createManualSession(taskId: number, minutes: number) {
       const req: WorkSessionCreateRequest = { type: 'MANUAL', minutes }
       const res = await workSessionsApi.create(taskId, req)
-      this.workSessions = sortById([...this.workSessions, res.data])
+      this.workSessions = [...this.workSessions, res.data]
       return res.data
     },
 
@@ -59,7 +58,7 @@ export const useWorkSessionStore = defineStore('workSession', {
         startedAt: toDatetimeLocalValue(new Date().toISOString()),
       }
       const res = await workSessionsApi.create(taskId, req)
-      this.workSessions = sortById([...this.workSessions, res.data])
+      this.workSessions = [...this.workSessions, res.data]
       this.updateActiveSession()
       const activeTimerStore = useActiveTimerStore()
       activeTimerStore.markTimerStarted()
@@ -97,7 +96,9 @@ export const useWorkSessionStore = defineStore('workSession', {
       this.updateActiveSession()
     },
 
-    // 0件→停止中 / 1件→稼働中 / 2件以上→データ不整合（B6）。最新(id最大)を採用し画面に警告する。
+    // 0件→停止中 / 1件→稼働中 / 2件以上→データ不整合（B6）。最新(startedAtが最後)を採用し画面に警告する。
+    // 稼働中TIMERは startedAt が必ず入る。同時刻で並んだ場合は、
+    // サーバの並び順（ORDER BY ws.id）で後にある方を最新とみなす。
     updateActiveSession() {
       const active = this.workSessions.filter((s) => s.type === 'TIMER' && s.endedAt === null)
       if (active.length === 0) {
@@ -105,7 +106,11 @@ export const useWorkSessionStore = defineStore('workSession', {
         this.multipleActiveSessions = false
         return
       }
-      this.activeSession = active.reduce((latest, s) => (s.id > latest.id ? s : latest))
+      const startedAtTime = (s: WorkSession) =>
+        s.startedAt === null ? Number.NEGATIVE_INFINITY : new Date(s.startedAt).getTime()
+      this.activeSession = active.reduce((latest, s) =>
+        startedAtTime(s) >= startedAtTime(latest) ? s : latest,
+      )
       this.multipleActiveSessions = active.length > 1
     },
   },

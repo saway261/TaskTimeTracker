@@ -9,7 +9,6 @@ import type {
 } from '@/types/taskGroup'
 import type { MemoRequest, MemoResponse } from '@/types/memo'
 import type { ApiError } from '@/types/apiError'
-import { sortById } from '@/utils/sort'
 
 export const useTaskGroupStore = defineStore('taskGroup', {
   state: () => ({
@@ -24,7 +23,7 @@ export const useTaskGroupStore = defineStore('taskGroup', {
       this.error = null
       try {
         const res = await taskGroupsApi.fetchAllInProject(projectId, isFinished)
-        this.taskGroups = sortById(res.data)
+        this.taskGroups = res.data
       } catch (e) {
         this.error = e as ApiError
         throw e
@@ -50,7 +49,7 @@ export const useTaskGroupStore = defineStore('taskGroup', {
     // 登録後オブジェクトをそのまま反映するため、再取得は不要。
     async createTaskGroup(projectId: number, req: TaskGroupCreateRequest) {
       const res = await taskGroupsApi.create(projectId, req)
-      this.taskGroups = sortById([...this.taskGroups, res.data])
+      this.taskGroups = [...this.taskGroups, res.data]
       return res.data
     },
 

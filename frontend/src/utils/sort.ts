@@ -1,16 +1,7 @@
 /**
- * id昇順に整列した新しい配列を返す。
- *
- * バックエンドの一覧APIには work-sessions 以外 ORDER BY が無く取得順が不定なため、
- * フロント側で必ず整列する（docs/frontend-implementation-plan.md §0-1 #11）。
- */
-export function sortById<T extends { id: number }>(items: T[]): T[] {
-  return [...items].sort((a, b) => a.id - b.id)
-}
-
-/**
  * item-order（並べ替えAPI）由来の順に整列した新しい配列を返す（§7.4.3）。
- * order に現れない項目（並び順レコードが未生成の既存データ）は末尾へ回し、末尾の中では id 昇順にする。
+ * order に現れない項目（並び順レコードが未生成の既存データ）は末尾へ回し、
+ * 末尾の中ではサーバから受け取った順（= 一覧APIのORDER BY）を保つ。
  * TaskGroup配下（idの名前空間がTaskのみ）で使う。Project直下の混在リストは
  * sortProjectItemsByOrder を使うこと（Task#3とTaskGroup#3のようなid衝突があるため）。
  */
@@ -19,13 +10,13 @@ export function sortByItemOrder<T extends { id: number }>(
   order: { id: number; position: number }[],
 ): T[] {
   const positionById = new Map(order.map((o) => [o.id, o.position]))
-  return [...items].sort((a, b) => {
+  return stableSort(items, (a, b) => {
     const pa = positionById.get(a.id)
     const pb = positionById.get(b.id)
     if (pa !== undefined && pb !== undefined) return pa - pb
     if (pa !== undefined) return -1
     if (pb !== undefined) return 1
-    return a.id - b.id
+    return 0
   })
 }
 
@@ -39,12 +30,27 @@ export function sortProjectItemsByOrder<T extends { kind: 'TASK' | 'TASK_GROUP';
 ): T[] {
   const key = (type: string, id: number) => `${type}:${id}`
   const positionByKey = new Map(order.map((o) => [key(o.type, o.id), o.position]))
-  return [...items].sort((a, b) => {
+  return stableSort(items, (a, b) => {
     const pa = positionByKey.get(key(a.kind, a.id))
     const pb = positionByKey.get(key(b.kind, b.id))
     if (pa !== undefined && pb !== undefined) return pa - pb
     if (pa !== undefined) return -1
     if (pb !== undefined) return 1
-    return a.id - b.id
+    return 0
   })
+}
+
+/**
+ * 比較関数が同値（0）を返した要素同士について、元の配列での前後関係を保つソート。
+ *
+ * 一覧APIは ORDER BY で順序が確定しているため、比較で決められない項目は
+ * サーバから受け取った順をそのまま維持する。
+ * Array.prototype.sort は仕様上は安定だが、「同値なら元の順を保つ」という意図を
+ * 呼び出し側から読み取れるようにするために明示する。
+ */
+function stableSort<T>(items: T[], compare: (a: T, b: T) => number): T[] {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => compare(a.item, b.item) || a.index - b.index)
+    .map(({ item }) => item)
 }

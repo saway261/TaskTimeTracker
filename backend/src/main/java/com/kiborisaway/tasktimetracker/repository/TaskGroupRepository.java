@@ -14,12 +14,13 @@ public interface TaskGroupRepository {
   /**
    * プロジェクト内タスクグループの全件検索を行います。所有者が一致するプロジェクトのみを対象とします。
    *
-   * @return プロジェクト内のタスクグループ一覧
+   * @return プロジェクト内のタスクグループ一覧（ID昇順）
    */
   @Select("""
       SELECT tg.* FROM task_groups tg
       JOIN projects p ON p.id = tg.project_id
       WHERE tg.project_id=#{projectId} AND p.user_id=#{userId}
+      ORDER BY tg.id
       """)
   List<TaskGroup> findAllInProject(int projectId, int userId);
 
@@ -27,12 +28,13 @@ public interface TaskGroupRepository {
    * プロジェクト内で完了フラグを指定してタスクグループを検索します。所有者が一致するプロジェクトのみを対象とします。
    *
    * @param isFinished 完了フラグ
-   * @return プロジェクト内の指定した完了状態のタスクグループ一覧
+   * @return プロジェクト内の指定した完了状態のタスクグループ一覧（ID昇順）
    */
   @Select("""
       SELECT tg.* FROM task_groups tg
       JOIN projects p ON p.id = tg.project_id
       WHERE tg.project_id=#{projectId} AND tg.is_finished=#{isFinished} AND p.user_id=#{userId}
+      ORDER BY tg.id
       """)
   List<TaskGroup> findAllInProjectByIsFinished(int projectId, boolean isFinished, int userId);
 

@@ -12,22 +12,23 @@ import org.apache.ibatis.annotations.Update;
 public interface ProjectRepository {
 
   /**
-   * 認証ユーザーが所有するプロジェクトの全件検索を行います。
+   * 認証ユーザーが所有するプロジェクトの全件検索を行います。ID昇順で返します。
    *
    * @param userId 認証ユーザーのID
-   * @return プロジェクト一覧
+   * @return プロジェクト一覧（ID昇順）
    */
-  @Select("SELECT * FROM projects WHERE user_id=#{userId}")
+  @Select("SELECT * FROM projects WHERE user_id=#{userId} ORDER BY id")
   List<Project> findAllByUserId(int userId);
 
   /**
-   * 認証ユーザーが所有するプロジェクトのうち、完了フラグを指定して検索します。
+   * 認証ユーザーが所有するプロジェクトのうち、完了フラグを指定して検索します。ID昇順で返します。
    *
    * @param isFinished 完了フラグ
    * @param userId     認証ユーザーのID
-   * @return 指定した完了状態のプロジェクト一覧
+   * @return 指定した完了状態のプロジェクト一覧（ID昇順）
    */
-  @Select("SELECT * FROM projects WHERE is_finished=#{isFinished} AND user_id=#{userId}")
+  @Select("SELECT * FROM projects WHERE is_finished=#{isFinished} AND user_id=#{userId} "
+      + "ORDER BY id")
   List<Project> findAllByIsFinishedAndUserId(boolean isFinished, int userId);
 
   /**
