@@ -2,8 +2,8 @@ export type WorkSessionType = 'TIMER' | 'MANUAL'
 
 // DTOではなくEntityがそのまま返る（docs/frontend-implementation-plan.md §5.1）。
 export interface WorkSession {
-  id: number
-  taskId: number
+  id: string
+  taskId: string
   minutes: number | null // DB上の秒数をセッション単位で切り捨てた表示値。稼働中TIMERは null
   startedAt: string | null // MANUAL は null
   endedAt: string | null // 稼働中TIMERは null
@@ -26,10 +26,10 @@ export interface WorkSessionUpdateRequest {
 }
 
 export interface ActiveTimer {
-  sessionId: number
-  taskId: number
+  sessionId: string
+  taskId: string
   taskTitle: string
-  projectId: number
-  taskGroupId: number | null
+  projectId: string
+  taskGroupId: string | null
   startedAt: string
 }

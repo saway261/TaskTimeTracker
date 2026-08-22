@@ -12,11 +12,11 @@ export function sumEstimatedMinutes(
   return tasks.reduce((total, task) => total + (task.estimatedMinutes ?? 0), 0)
 }
 
-export type TaskParent = { type: 'project'; id: number } | { type: 'taskGroup'; id: number }
+export type TaskParent = { type: 'project'; id: string } | { type: 'taskGroup'; id: string }
 
 /** projectId と taskGroupId は排他のため、どちらに属するかをまとめて返す。 */
 export function parentOf(task: TaskResponse): TaskParent {
   return task.projectId !== null
     ? { type: 'project', id: task.projectId }
-    : { type: 'taskGroup', id: task.taskGroupId as number }
+    : { type: 'taskGroup', id: task.taskGroupId as string }
 }

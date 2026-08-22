@@ -14,17 +14,17 @@ import type { ApiError } from '@/types/apiError'
 // コンテナ識別子。'project:{pId}' | 'taskGroup:{tgId}'。
 export type ContainerKey = string
 
-export function projectContainerKey(projectId: number): ContainerKey {
+export function projectContainerKey(projectId: string): ContainerKey {
   return `project:${projectId}`
 }
 
-export function taskGroupContainerKey(taskGroupId: number): ContainerKey {
+export function taskGroupContainerKey(taskGroupId: string): ContainerKey {
   return `taskGroup:${taskGroupId}`
 }
 
 export interface DragPayload {
   kind: ItemType
-  id: number
+  id: string
   sourceContainer: ContainerKey
 }
 
@@ -38,27 +38,27 @@ export const useItemOrderStore = defineStore('itemOrder', {
   state: () => ({
     projectItemOrder: [] as ProjectItemOrderResponse[],
     // taskGroupIdをキーにしたマップ。Project詳細画面で複数のタスクグループを同時に展開できるため（§7.4.4）。
-    taskGroupItemOrders: {} as Record<number, TaskGroupItemOrderResponse[]>,
+    taskGroupItemOrders: {} as Record<string, TaskGroupItemOrderResponse[]>,
     // 送信中のコンテナ識別子。多重送信防止用。他のコンテナの操作は止めない。
     reorderingContainer: null as ContainerKey | null,
     draggedItem: null as DragPayload | null,
     dragOverTarget: null as DragOverTarget | null,
   }),
   actions: {
-    async fetchProjectItemOrder(projectId: number) {
+    async fetchProjectItemOrder(projectId: string) {
       const res = await itemOrderApi.fetchProjectItemOrder(projectId)
       this.projectItemOrder = res.data
     },
 
     // 取得済みならスキップする（展開のたびに再取得しない。forceで強制再取得）。
-    async fetchTaskGroupItemOrder(taskGroupId: number, force = false) {
+    async fetchTaskGroupItemOrder(taskGroupId: string, force = false) {
       if (!force && this.taskGroupItemOrders[taskGroupId]) return
       const res = await itemOrderApi.fetchTaskGroupItemOrder(taskGroupId)
       this.taskGroupItemOrders = { ...this.taskGroupItemOrders, [taskGroupId]: res.data }
     },
 
     // 楽観的更新：先にローカルの並び順を入れ替えて描画し、APIを呼ぶ。失敗したら元に戻す（§7.4.4）。
-    async reorderProjectItems(projectId: number, items: ProjectItemOrderItemRequest[]) {
+    async reorderProjectItems(projectId: string, items: ProjectItemOrderItemRequest[]) {
       const containerKey = projectContainerKey(projectId)
       const previous = this.projectItemOrder
       this.reorderingContainer = containerKey
@@ -82,7 +82,7 @@ export const useItemOrderStore = defineStore('itemOrder', {
       }
     },
 
-    async reorderTaskGroupItems(taskGroupId: number, items: TaskGroupItemOrderItemRequest[]) {
+    async reorderTaskGroupItems(taskGroupId: string, items: TaskGroupItemOrderItemRequest[]) {
       const containerKey = taskGroupContainerKey(taskGroupId)
       const previous = this.taskGroupItemOrders[taskGroupId] ?? []
       this.reorderingContainer = containerKey
@@ -111,7 +111,7 @@ export const useItemOrderStore = defineStore('itemOrder', {
     // 並べ替えPUTは呼ばず、対象コンテナのitem-orderがキャッシュ済みならローカルで末尾へ追記するだけで
     // 整合する（バックエンドが常に末尾へ追加するため）。移動元コンテナへのリクエストも不要（§7.4.2 #7-b）。
     async moveTaskViaMenu(params: {
-      taskId: number
+      taskId: string
       parentReq: TaskUpdateParentRequest
       sourceContainer: ContainerKey
       targetContainer: ContainerKey
@@ -125,12 +125,12 @@ export const useItemOrderStore = defineStore('itemOrder', {
     // ドラッグ操作での所属変更（ケースB。ドロップ位置を尊重する）。
     // 所属変更が成功した後に並べ替えが失敗しても、所属変更はロールバックしない（§7.4.5 中間状態）。
     async moveTaskAcrossContainer(params: {
-      taskId: number
+      taskId: string
       parentReq: TaskUpdateParentRequest
       sourceContainer: ContainerKey
       target:
-        | { type: 'project'; projectId: number; items: ProjectItemOrderItemRequest[] }
-        | { type: 'taskGroup'; taskGroupId: number; items: TaskGroupItemOrderItemRequest[] }
+        | { type: 'project'; projectId: string; items: ProjectItemOrderItemRequest[] }
+        | { type: 'taskGroup'; taskGroupId: string; items: TaskGroupItemOrderItemRequest[] }
     }): Promise<{ reorderFailed: boolean }> {
       const taskStore = useTaskStore()
       await taskStore.updateTaskParent(params.taskId, params.parentReq)
@@ -147,14 +147,14 @@ export const useItemOrderStore = defineStore('itemOrder', {
       }
     },
 
-    removeFromContainerOrder(containerKey: ContainerKey, kind: ItemType, id: number) {
+    removeFromContainerOrder(containerKey: ContainerKey, kind: ItemType, id: string) {
       if (containerKey.startsWith('project:')) {
         this.projectItemOrder = this.projectItemOrder.filter(
           (o) => !(o.type === kind && o.id === id),
         )
         return
       }
-      const taskGroupId = Number(containerKey.split(':')[1])
+      const taskGroupId = containerKey.split(':')[1]
       const current = this.taskGroupItemOrders[taskGroupId]
       if (!current) return
       this.taskGroupItemOrders = {
@@ -163,7 +163,7 @@ export const useItemOrderStore = defineStore('itemOrder', {
       }
     },
 
-    appendToContainerOrder(containerKey: ContainerKey, kind: ItemType, id: number) {
+    appendToContainerOrder(containerKey: ContainerKey, kind: ItemType, id: string) {
       if (containerKey.startsWith('project:')) {
         const nextPosition = Math.max(-1, ...this.projectItemOrder.map((o) => o.position)) + 1
         this.projectItemOrder = [
@@ -172,7 +172,7 @@ export const useItemOrderStore = defineStore('itemOrder', {
         ]
         return
       }
-      const taskGroupId = Number(containerKey.split(':')[1])
+      const taskGroupId = containerKey.split(':')[1]
       const current = this.taskGroupItemOrders[taskGroupId]
       if (!current) return // 未取得（未展開）のコンテナはローカル反映不要。次回展開時に取得される。
       const nextPosition = Math.max(-1, ...current.map((o) => o.position)) + 1

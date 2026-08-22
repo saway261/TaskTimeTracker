@@ -32,7 +32,7 @@ export const useProjectStore = defineStore('project', {
       }
     },
 
-    async fetchProject(id: number) {
+    async fetchProject(id: string) {
       this.loading = true
       this.error = null
       try {
@@ -54,7 +54,7 @@ export const useProjectStore = defineStore('project', {
     },
 
     // 更新後オブジェクトをそのまま反映するため、再取得は不要。
-    async updateProject(id: number, req: ProjectUpdateRequest) {
+    async updateProject(id: string, req: ProjectUpdateRequest) {
       const res = await projectsApi.update(id, req)
       if (this.currentProject?.id === id) {
         this.currentProject = res.data
@@ -67,7 +67,7 @@ export const useProjectStore = defineStore('project', {
     },
 
     // 更新後オブジェクトをそのまま反映するため、再取得は不要。
-    async updateFinished(id: number, req: ProjectUpdateFinishedRequest) {
+    async updateFinished(id: string, req: ProjectUpdateFinishedRequest) {
       const res = await projectsApi.updateFinished(id, req)
       if (this.currentProject?.id === id) {
         this.currentProject = res.data
@@ -80,7 +80,7 @@ export const useProjectStore = defineStore('project', {
     },
 
     // メモCRUDはMemoResponseしか返らないため、currentProject.memos は自前で更新する。
-    async createProjectMemo(projectId: number, req: MemoRequest) {
+    async createProjectMemo(projectId: string, req: MemoRequest) {
       const res = await memosApi.createMemoInProject(projectId, req)
       if (this.currentProject?.id === projectId) {
         this.currentProject.memos.push(res.data)
@@ -96,7 +96,7 @@ export const useProjectStore = defineStore('project', {
       }
     },
 
-    syncMemoRemoved(id: number) {
+    syncMemoRemoved(id: string) {
       if (!this.currentProject) return
       this.currentProject.memos = this.currentProject.memos.filter((m) => m.id !== id)
     },

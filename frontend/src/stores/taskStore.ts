@@ -21,7 +21,7 @@ export const useTaskStore = defineStore('task', {
     error: null as ApiError | null,
   }),
   actions: {
-    async fetchTasksInProject(projectId: number, isFinished?: boolean) {
+    async fetchTasksInProject(projectId: string, isFinished?: boolean) {
       this.loading = true
       this.error = null
       try {
@@ -35,7 +35,7 @@ export const useTaskStore = defineStore('task', {
       }
     },
 
-    async fetchTasksInTaskGroup(taskGroupId: number, isFinished?: boolean) {
+    async fetchTasksInTaskGroup(taskGroupId: string, isFinished?: boolean) {
       this.loading = true
       this.error = null
       try {
@@ -49,7 +49,7 @@ export const useTaskStore = defineStore('task', {
       }
     },
 
-    async fetchTask(id: number) {
+    async fetchTask(id: string) {
       this.loading = true
       this.error = null
       try {
@@ -64,7 +64,7 @@ export const useTaskStore = defineStore('task', {
 
     // 一覧上の操作モーダルや作業セッション更新後の再取得用。
     // 一覧全体のローディング状態を変更せず、開いているモーダルがアンマウントされるのを防ぐ。
-    async fetchTaskForInteraction(id: number) {
+    async fetchTaskForInteraction(id: string) {
       const res = await tasksApi.fetchById(id)
       this.currentTask = res.data
       const idx = this.tasks.findIndex((task) => task.id === id)
@@ -75,50 +75,50 @@ export const useTaskStore = defineStore('task', {
     },
 
     // 登録後オブジェクトをそのまま反映するため、再取得は不要。
-    async createTaskInProject(projectId: number, req: TaskCreateRequest) {
+    async createTaskInProject(projectId: string, req: TaskCreateRequest) {
       const res = await tasksApi.createInProject(projectId, req)
       this.tasks = [...this.tasks, res.data]
       return res.data
     },
 
-    async createTaskInTaskGroup(taskGroupId: number, req: TaskCreateRequest) {
+    async createTaskInTaskGroup(taskGroupId: string, req: TaskCreateRequest) {
       const res = await tasksApi.createInTaskGroup(taskGroupId, req)
       this.tasks = [...this.tasks, res.data]
       return res.data
     },
 
-    async updateTaskProperty(id: number, req: TaskUpdatePropertyRequest) {
+    async updateTaskProperty(id: string, req: TaskUpdatePropertyRequest) {
       const res = await tasksApi.updateProperty(id, req)
       this.applyUpdated(res.data)
       return res.data
     },
 
-    async updateEstimatedMinutes(id: number, req: TaskUpdateEstimatedMinutesRequest) {
+    async updateEstimatedMinutes(id: string, req: TaskUpdateEstimatedMinutesRequest) {
       const res = await tasksApi.updateEstimatedMinutes(id, req)
       this.applyUpdated(res.data)
       return res.data
     },
 
-    async updateFinished(id: number, req: TaskUpdateFinishedRequest) {
+    async updateFinished(id: string, req: TaskUpdateFinishedRequest) {
       const res = await tasksApi.updateFinished(id, req)
       this.applyUpdated(res.data)
       return res.data
     },
 
-    async updateTaskParent(id: number, req: TaskUpdateParentRequest) {
+    async updateTaskParent(id: string, req: TaskUpdateParentRequest) {
       const res = await tasksApi.updateParent(id, req)
       this.applyUpdated(res.data)
       return res.data
     },
 
-    async updateTaskTags(id: number, req: TaskTagsUpdateRequest) {
+    async updateTaskTags(id: string, req: TaskTagsUpdateRequest) {
       const res = await tasksApi.updateTags(id, req)
       this.applyUpdated(res.data)
       return res.data
     },
 
     // B1修正済みのため、セッションを持つタスクも通常どおり削除できる前提。204のため本文は読まない。
-    async removeTask(id: number) {
+    async removeTask(id: string) {
       await tasksApi.remove(id)
       this.tasks = this.tasks.filter((t) => t.id !== id)
       if (this.currentTask?.id === id) {
@@ -137,7 +137,7 @@ export const useTaskStore = defineStore('task', {
     },
 
     // メモCRUDはMemoResponseしか返らないため、currentTask.memos は自前で更新する。
-    async createTaskMemo(taskId: number, req: MemoRequest) {
+    async createTaskMemo(taskId: string, req: MemoRequest) {
       const res = await memosApi.createMemoInTask(taskId, req)
       if (this.currentTask?.id === taskId) {
         this.currentTask.memos.push(res.data)
@@ -153,7 +153,7 @@ export const useTaskStore = defineStore('task', {
       }
     },
 
-    syncMemoRemoved(id: number) {
+    syncMemoRemoved(id: string) {
       if (!this.currentTask) return
       this.currentTask.memos = this.currentTask.memos.filter((m) => m.id !== id)
     },

@@ -96,7 +96,7 @@ export const useTagStore = defineStore('tag', {
       }
     },
 
-    async renameTag(id: number, name: string) {
+    async renameTag(id: string, name: string) {
       const userId = currentUserId()
       this.error = null
       try {
@@ -111,7 +111,7 @@ export const useTagStore = defineStore('tag', {
       }
     },
 
-    async setArchived(id: number, isArchived: boolean) {
+    async setArchived(id: string, isArchived: boolean) {
       const userId = currentUserId()
       this.error = null
       try {

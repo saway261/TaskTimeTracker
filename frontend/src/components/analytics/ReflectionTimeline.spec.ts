@@ -8,9 +8,9 @@ import ReflectionTimeline from './ReflectionTimeline.vue'
 const timeline: ReflectionTimelineResponse = {
   items: [
     {
-      taskId: 1,
+      taskId: 'task1',
       taskTitle: 'タスク',
-      projectId: 2,
+      projectId: 'p2',
       projectTitle: 'プロジェクト',
       finishedAt: '2026-08-20T10:00:00',
       estimatedMinutes: 30,

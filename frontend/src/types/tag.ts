@@ -1,12 +1,12 @@
 export interface TagResponse {
-  id: number
+  id: string
   name: string
   isArchived: boolean
   assignedTaskCount: number
 }
 
 export interface TagSummary {
-  id: number
+  id: string
   name: string
 }
 

@@ -9,7 +9,7 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const props = defineProps<{
-  taskId: number
+  taskId: string
 }>()
 
 const workSessionStore = useWorkSessionStore()

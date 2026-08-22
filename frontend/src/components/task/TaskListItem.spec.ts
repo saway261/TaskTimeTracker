@@ -7,8 +7,8 @@ import type { TaskResponse } from '@/types/task'
 import TaskListItem from './TaskListItem.vue'
 
 const task: TaskResponse = {
-  id: 10,
-  projectId: 1,
+  id: 'task10',
+  projectId: 'p1',
   taskGroupId: null,
   title: '実装する',
   description: null,
@@ -20,11 +20,11 @@ const task: TaskResponse = {
   gapRateCached: null,
   memos: [],
   tags: [
-    { id: 1, name: '調査' },
-    { id: 2, name: '設計' },
-    { id: 3, name: '実装' },
-    { id: 4, name: '検証' },
-    { id: 5, name: '改善' },
+    { id: 'tag1', name: '調査' },
+    { id: 'tag2', name: '設計' },
+    { id: 'tag3', name: '実装' },
+    { id: 'tag4', name: '検証' },
+    { id: 'tag5', name: '改善' },
   ],
 }
 
@@ -33,9 +33,9 @@ describe('TaskListItem', () => {
     const wrapper = mount(TaskListItem, {
       props: {
         task,
-        to: `/projects/1/tasks/${task.id}`,
-        projectId: 1,
-        containerKey: 'project:1',
+        to: `/projects/p1/tasks/${task.id}`,
+        projectId: 'p1',
+        containerKey: 'project:p1',
         taskGroups: [],
         canMoveUp: false,
         canMoveDown: false,

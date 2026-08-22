@@ -5,9 +5,9 @@
  * TaskGroup配下（idの名前空間がTaskのみ）で使う。Project直下の混在リストは
  * sortProjectItemsByOrder を使うこと（Task#3とTaskGroup#3のようなid衝突があるため）。
  */
-export function sortByItemOrder<T extends { id: number }>(
+export function sortByItemOrder<T extends { id: string }>(
   items: T[],
-  order: { id: number; position: number }[],
+  order: { id: string; position: number }[],
 ): T[] {
   const positionById = new Map(order.map((o) => [o.id, o.position]))
   return stableSort(items, (a, b) => {
@@ -24,11 +24,11 @@ export function sortByItemOrder<T extends { id: number }>(
  * Project直下（TaskとTaskGroupが同じ並び順を共有し、idの名前空間が別）用のitem-order整列。
  * Task#3 と TaskGroup#3 を取り違えないよう、type と id の組でキーを引く（§7.4.3）。
  */
-export function sortProjectItemsByOrder<T extends { kind: 'TASK' | 'TASK_GROUP'; id: number }>(
+export function sortProjectItemsByOrder<T extends { kind: 'TASK' | 'TASK_GROUP'; id: string }>(
   items: T[],
-  order: { type: 'TASK' | 'TASK_GROUP'; id: number; position: number }[],
+  order: { type: 'TASK' | 'TASK_GROUP'; id: string; position: number }[],
 ): T[] {
-  const key = (type: string, id: number) => `${type}:${id}`
+  const key = (type: string, id: string) => `${type}:${id}`
   const positionByKey = new Map(order.map((o) => [key(o.type, o.id), o.position]))
   return stableSort(items, (a, b) => {
     const pa = positionByKey.get(key(a.kind, a.id))

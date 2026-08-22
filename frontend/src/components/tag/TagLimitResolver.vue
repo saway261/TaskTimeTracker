@@ -18,7 +18,7 @@ const emit = defineEmits<{
 const CANDIDATE_LIMIT = 5
 const tagStore = useTagStore()
 const headingId = useId()
-const selectedTagId = ref<number | null>(null)
+const selectedTagId = ref<string | null>(null)
 const resolving = ref(false)
 const error = ref<ApiError | null>(null)
 

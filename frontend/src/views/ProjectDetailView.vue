@@ -9,7 +9,6 @@ import {
   useItemOrderStore,
 } from '@/stores/itemOrderStore'
 import { useNotificationStore } from '@/stores/notificationStore'
-import { toPositiveInt } from '@/utils/routeParams'
 import { sortProjectItemsByOrder } from '@/utils/sort'
 import { insertStubAt, swapVisibleItems } from '@/utils/dragReorder'
 import { formatMinutes } from '@/utils/duration'
@@ -44,15 +43,12 @@ const taskStore = useTaskStore()
 const itemOrderStore = useItemOrderStore()
 const notification = useNotificationStore()
 
-const invalidId = ref(false)
 const showEditModal = ref(false)
 const updating = ref(false)
 const updateError = ref<ApiError | null>(null)
 const showCompletedItems = ref(false)
 
-const numericId = computed(() => toPositiveInt(props.projectId))
-// currentProjectが読み込まれた時点でnumericIdは必ず有効なため、テンプレート内の型絞り込み用に用意する。
-const currentProjectId = computed(() => projectStore.currentProject?.id ?? numericId.value ?? 0)
+const currentProjectId = computed(() => projectStore.currentProject?.id ?? props.projectId)
 
 const breadcrumbItems = computed(() => {
   const project = projectStore.currentProject
@@ -64,8 +60,8 @@ const directTasks = computed(() => taskStore.tasks.filter((t) => t.projectId !==
 const projectEstimatedMinutes = computed(() => sumEstimatedMinutes(taskStore.tasks))
 
 type OrderedItem =
-  | { kind: 'TASK_GROUP'; id: number; taskGroup: TaskGroupResponse }
-  | { kind: 'TASK'; id: number; task: TaskResponse }
+  | { kind: 'TASK_GROUP'; id: string; taskGroup: TaskGroupResponse }
+  | { kind: 'TASK'; id: string; task: TaskResponse }
 
 const mergedRawItems = computed<OrderedItem[]>(() => [
   ...taskGroupStore.taskGroups.map((tg) => ({
@@ -89,12 +85,7 @@ const visibleOrderedItems = computed(() =>
 )
 
 async function load() {
-  const id = numericId.value
-  if (id === null) {
-    invalidId.value = true
-    return
-  }
-  invalidId.value = false
+  const id = props.projectId
   try {
     await projectStore.fetchProject(id)
     await Promise.all([taskGroupStore.fetchTaskGroups(id), taskStore.fetchTasksInProject(id)])
@@ -114,8 +105,7 @@ function openEditModal() {
 }
 
 async function handleUpdate(payload: { title: string; description: string | null }) {
-  const id = numericId.value
-  if (id === null) return
+  const id = props.projectId
   updating.value = true
   updateError.value = null
   try {
@@ -135,8 +125,7 @@ const finishedError = ref<ApiError | null>(null)
 const hasUnfinishedTasks = computed(() => taskStore.tasks.some((t) => !isTaskFinished(t)))
 
 async function handleFinishedToggle(nextFinished: boolean) {
-  const id = numericId.value
-  if (id === null) return
+  const id = props.projectId
   finishedUpdating.value = true
   finishedError.value = null
   try {
@@ -150,11 +139,7 @@ async function handleFinishedToggle(nextFinished: boolean) {
 }
 
 function handleMemoCreate(req: MemoRequest) {
-  const id = numericId.value
-  if (id === null) {
-    return Promise.reject(new Error('invalid project id'))
-  }
-  return projectStore.createProjectMemo(id, req)
+  return projectStore.createProjectMemo(props.projectId, req)
 }
 
 const showCreateTaskGroupModal = ref(false)
@@ -167,8 +152,7 @@ function openCreateTaskGroupModal() {
 }
 
 async function handleCreateTaskGroup(payload: { title: string; description: string | null }) {
-  const id = numericId.value
-  if (id === null) return
+  const id = props.projectId
   creatingTaskGroup.value = true
   createTaskGroupError.value = null
   try {
@@ -196,11 +180,10 @@ async function handleCreateTask(payload: {
   title: string
   description: string | null
   estimatedMinutes?: number
-  taskGroupId?: number | null
-  tagIds?: number[]
+  taskGroupId?: string | null
+  tagIds?: string[]
 }) {
-  const id = numericId.value
-  if (id === null) return
+  const id = props.projectId
   creatingTask.value = true
   createTaskError.value = null
   try {
@@ -269,7 +252,7 @@ async function handleItemDrop() {
   const newStubs = insertStubAt(currentStubs, draggedStub, target.beforeKey)
   const items: ProjectItemOrderItemRequest[] = newStubs.map((s) => {
     const [type, idStr] = s.key.split(':')
-    return { type: type as ItemType, id: Number(idStr) }
+    return { type: type as ItemType, id: idStr }
   })
 
   if (dragged.sourceContainer === containerKey) {
@@ -307,8 +290,7 @@ async function handleItemDrop() {
   <div class="project-detail-view">
     <AppBreadcrumb v-if="breadcrumbItems.length > 0" :items="breadcrumbItems" />
 
-    <p v-if="invalidId">不正なプロジェクトIDです。</p>
-    <LoadingIndicator v-else-if="projectStore.loading" />
+    <LoadingIndicator v-if="projectStore.loading" />
     <ErrorMessage v-else-if="projectStore.error" :error="projectStore.error" />
     <template v-else-if="projectStore.currentProject">
       <div class="header">

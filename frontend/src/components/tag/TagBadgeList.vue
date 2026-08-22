@@ -17,7 +17,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  remove: [tagId: number]
+  remove: [tagId: string]
 }>()
 
 const visibleTags = computed(() =>

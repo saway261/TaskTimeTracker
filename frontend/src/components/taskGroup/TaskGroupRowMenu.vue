@@ -12,7 +12,7 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 // TaskRowMenuと違い上下の並べ替えのみを提供する。
 const props = defineProps<{
   modelValue: boolean
-  taskGroupId: number
+  taskGroupId: string
   detailTo: string
   finished: boolean
   canMoveUp: boolean

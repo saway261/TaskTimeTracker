@@ -34,8 +34,8 @@ const emit = defineEmits<{
       title: string
       description: string | null
       estimatedMinutes?: number
-      taskGroupId?: number | null
-      tagIds?: number[]
+      taskGroupId?: string | null
+      tagIds?: string[]
     },
   ]
   cancel: []
@@ -45,7 +45,7 @@ const title = ref(props.task?.title ?? '')
 const description = ref(props.task?.description ?? '')
 // 見積時間は登録時のみ入力する。更新時は別API・別UI（§4.4）のためここでは扱わない。
 const estimatedMinutes = ref(props.task?.estimatedMinutes?.toString() ?? '')
-const selectedTaskGroupId = ref<number | ''>('')
+const selectedTaskGroupId = ref<string>('')
 const selectedTags = ref<TagSummary[]>([])
 const taskGroupSelectId = useId()
 
@@ -80,12 +80,12 @@ function handleSubmit() {
           tagIds: selectedTags.value.map((tag) => tag.id),
         }),
     ...(props.showTaskGroupSelector
-      ? { taskGroupId: selectedTaskGroupId.value === '' ? null : Number(selectedTaskGroupId.value) }
+      ? { taskGroupId: selectedTaskGroupId.value === '' ? null : selectedTaskGroupId.value }
       : {}),
   })
 }
 
-function removeSelectedTag(tagId: number) {
+function removeSelectedTag(tagId: string) {
   selectedTags.value = selectedTags.value.filter((tag) => tag.id !== tagId)
 }
 </script>

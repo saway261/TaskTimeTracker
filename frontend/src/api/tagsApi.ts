@@ -14,10 +14,10 @@ export function create(req: TagCreateRequest) {
   return httpClient.post<TagResponse>('/tags', req)
 }
 
-export function update(id: number, req: TagUpdateRequest) {
+export function update(id: string, req: TagUpdateRequest) {
   return httpClient.put<TagResponse>(`/tags/${id}`, req)
 }
 
-export function updateArchived(id: number, req: TagUpdateArchivedRequest) {
+export function updateArchived(id: string, req: TagUpdateArchivedRequest) {
   return httpClient.patch<TagResponse>(`/tags/${id}/archived`, req)
 }

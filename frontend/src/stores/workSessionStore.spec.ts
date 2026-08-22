@@ -10,8 +10,8 @@ import type { WorkSession } from '@/types/workSession'
 vi.mock('@/api/workSessionsApi')
 
 const startedSession: WorkSession = {
-  id: 10,
-  taskId: 20,
+  id: 'ws10',
+  taskId: 'task20',
   minutes: null,
   startedAt: '2026-08-18T10:00:00+09:00',
   endedAt: null,

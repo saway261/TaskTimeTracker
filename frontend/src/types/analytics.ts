@@ -10,8 +10,8 @@ export type BiasDirection = 'LATE' | 'EARLY' | 'NONE'
 export type GapCauseDirection = 'OVER' | 'UNDER' | 'BOTH'
 
 export interface AnalyticsFilter {
-  projectId: number | null
-  tagId: number | null
+  projectId: string | null
+  tagId: string | null
   period: AnalyticsPeriod
   causeCategory: string | null
   outcome: ReflectionOutcomeFilter
@@ -56,13 +56,13 @@ export interface DiagnosisResponse {
 }
 
 export interface ProjectBreakdownItemResponse {
-  projectId: number
+  projectId: string
   projectTitle: string
   count: number
 }
 
 export interface ScatterPointResponse {
-  taskId: number
+  taskId: string
   taskTitle: string
   estimatedMinutes: number
   actualMinutes: number
@@ -124,9 +124,9 @@ export interface EstimationAccuracyResponse {
 }
 
 export interface ReflectionTimelineItemResponse {
-  taskId: number
+  taskId: string
   taskTitle: string
-  projectId: number
+  projectId: string
   projectTitle: string
   finishedAt: string
   estimatedMinutes: number
@@ -149,8 +149,8 @@ export interface ReflectionTimelineResponse {
 }
 
 export interface AnalyticsCommonQuery {
-  projectId?: number
-  tagId?: number
+  projectId?: string
+  tagId?: string
   from?: string
   to?: string
 }

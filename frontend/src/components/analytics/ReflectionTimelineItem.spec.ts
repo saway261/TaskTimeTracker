@@ -7,9 +7,9 @@ import type { ReflectionTimelineItemResponse } from '@/types/analytics'
 import ReflectionTimelineItem from './ReflectionTimelineItem.vue'
 
 const item: ReflectionTimelineItemResponse = {
-  taskId: 9,
+  taskId: 'task9',
   taskTitle: '分析画面を実装する',
-  projectId: 3,
+  projectId: 'p3',
   projectTitle: 'TaskTimeTracker',
   finishedAt: '2026-08-20T10:00:00',
   estimatedMinutes: 60,
@@ -22,8 +22,8 @@ const item: ReflectionTimelineItemResponse = {
     { code: 'RESEARCH', label: '調査不足' },
   ],
   tags: [
-    { id: 1, name: '調査' },
-    { id: 2, name: '実装' },
+    { id: 'tag1', name: '調査' },
+    { id: 'tag2', name: '実装' },
   ],
   cause: 'API仕様の確認に時間がかかった。\n事前調査が足りなかった。',
   nextAction: '実装前にレスポンス例を確認する。',
@@ -44,7 +44,7 @@ describe('ReflectionTimelineItem', () => {
       },
     })
 
-    expect(wrapper.get('h3 a').attributes('href')).toBe('/projects/3/tasks/9')
+    expect(wrapper.get('h3 a').attributes('href')).toBe('/projects/p3/tasks/task9')
     expect(wrapper.text()).toContain('超過')
     expect(wrapper.findAll('.category-badge').map((badge) => badge.text())).toEqual([
       '想定外の作業',

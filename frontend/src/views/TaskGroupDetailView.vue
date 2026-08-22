@@ -5,7 +5,6 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { taskGroupContainerKey, useItemOrderStore } from '@/stores/itemOrderStore'
 import { useNotificationStore } from '@/stores/notificationStore'
-import { toPositiveInt } from '@/utils/routeParams'
 import { sortByItemOrder } from '@/utils/sort'
 import { insertStubAt, swapVisibleItems } from '@/utils/dragReorder'
 import { isFinished as isTaskFinished } from '@/utils/task'
@@ -36,14 +35,12 @@ const taskStore = useTaskStore()
 const itemOrderStore = useItemOrderStore()
 const notification = useNotificationStore()
 
-const invalidId = ref(false)
 const showEditModal = ref(false)
 const updating = ref(false)
 const updateError = ref<ApiError | null>(null)
 const showCompletedTasks = ref(false)
 
-const numericId = computed(() => toPositiveInt(props.taskGroupId))
-const currentGroupId = computed(() => taskGroupStore.currentTaskGroup?.id ?? numericId.value ?? 0)
+const currentGroupId = computed(() => taskGroupStore.currentTaskGroup?.id ?? props.taskGroupId)
 const containerKey = computed(() => taskGroupContainerKey(currentGroupId.value))
 
 const breadcrumbItems = computed(() => {
@@ -76,12 +73,7 @@ const visibleOrderedTasks = computed(() =>
 )
 
 async function load() {
-  const id = numericId.value
-  if (id === null) {
-    invalidId.value = true
-    return
-  }
-  invalidId.value = false
+  const id = props.taskGroupId
   await taskGroupStore.fetchTaskGroup(id).catch(() => {})
 
   const taskGroup = taskGroupStore.currentTaskGroup
@@ -103,8 +95,7 @@ function openEditModal() {
 }
 
 async function handleUpdate(payload: { title: string; description: string | null }) {
-  const id = numericId.value
-  if (id === null) return
+  const id = props.taskGroupId
   updating.value = true
   updateError.value = null
   try {
@@ -124,8 +115,7 @@ const finishedError = ref<ApiError | null>(null)
 const hasUnfinishedTasks = computed(() => groupTasks.value.some((t) => !isTaskFinished(t)))
 
 async function handleFinishedToggle(nextFinished: boolean) {
-  const id = numericId.value
-  if (id === null) return
+  const id = props.taskGroupId
   finishedUpdating.value = true
   finishedError.value = null
   try {
@@ -139,11 +129,7 @@ async function handleFinishedToggle(nextFinished: boolean) {
 }
 
 function handleMemoCreate(req: MemoRequest) {
-  const id = numericId.value
-  if (id === null) {
-    return Promise.reject(new Error('invalid task group id'))
-  }
-  return taskGroupStore.createTaskGroupMemo(id, req)
+  return taskGroupStore.createTaskGroupMemo(props.taskGroupId, req)
 }
 
 const showCreateTaskModal = ref(false)
@@ -159,10 +145,9 @@ async function handleCreateTask(payload: {
   title: string
   description: string | null
   estimatedMinutes?: number
-  tagIds?: number[]
+  tagIds?: string[]
 }) {
-  const id = numericId.value
-  if (id === null) return
+  const id = props.taskGroupId
   creatingTask.value = true
   createTaskError.value = null
   try {
@@ -217,7 +202,7 @@ async function handleItemDrop() {
   const draggedStub = { key: `TASK:${dragged.id}` }
   const currentStubs = orderedTasks.value.map((t) => ({ key: `TASK:${t.id}` }))
   const newStubs = insertStubAt(currentStubs, draggedStub, target.beforeKey)
-  const items = newStubs.map((s) => ({ id: Number(s.key.split(':')[1]) }))
+  const items = newStubs.map((s) => ({ id: s.key.split(':')[1] }))
 
   if (dragged.sourceContainer === containerKey.value) {
     try {
@@ -252,8 +237,7 @@ async function handleItemDrop() {
   <div class="task-group-detail-view">
     <AppBreadcrumb v-if="breadcrumbItems.length > 0" :items="breadcrumbItems" />
 
-    <p v-if="invalidId">不正なタスクグループIDです。</p>
-    <LoadingIndicator v-else-if="taskGroupStore.loading" />
+    <LoadingIndicator v-if="taskGroupStore.loading" />
     <ErrorMessage v-else-if="taskGroupStore.error" :error="taskGroupStore.error" />
     <template v-else-if="taskGroupStore.currentTaskGroup">
       <div class="header">

@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest'
 import TagBadgeList from './TagBadgeList.vue'
 
 const tags = [
-  { id: 1, name: '調査' },
-  { id: 2, name: '設計' },
-  { id: 3, name: '実装' },
-  { id: 4, name: '検証' },
-  { id: 5, name: '改善' },
+  { id: 'tag1', name: '調査' },
+  { id: 'tag2', name: '設計' },
+  { id: 'tag3', name: '実装' },
+  { id: 'tag4', name: '検証' },
+  { id: 'tag5', name: '改善' },
 ]
 
 describe('TagBadgeList', () => {
@@ -38,6 +38,6 @@ describe('TagBadgeList', () => {
 
     await removeButtons[0].trigger('click')
 
-    expect(wrapper.emitted('remove')?.[0]).toEqual([1])
+    expect(wrapper.emitted('remove')?.[0]).toEqual(['tag1'])
   })
 })

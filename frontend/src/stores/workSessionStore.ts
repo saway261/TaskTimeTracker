@@ -20,7 +20,7 @@ export const useWorkSessionStore = defineStore('workSession', {
     error: null as ApiError | null,
   }),
   actions: {
-    async fetchSessions(taskId: number) {
+    async fetchSessions(taskId: string) {
       this.loading = true
       this.error = null
       try {
@@ -35,13 +35,13 @@ export const useWorkSessionStore = defineStore('workSession', {
       }
     },
 
-    async fetchTotalMinutes(taskId: number) {
+    async fetchTotalMinutes(taskId: string) {
       const res = await workSessionsApi.fetchTotalMinutes(taskId)
       this.totalMinutes = res.data
     },
 
     // 登録後オブジェクトをそのまま反映するため、再取得は不要。
-    async createManualSession(taskId: number, minutes: number) {
+    async createManualSession(taskId: string, minutes: number) {
       const req: WorkSessionCreateRequest = { type: 'MANUAL', minutes }
       const res = await workSessionsApi.create(taskId, req)
       this.workSessions = [...this.workSessions, res.data]
@@ -52,7 +52,7 @@ export const useWorkSessionStore = defineStore('workSession', {
     // このエンドポイントの startedAt は §22 Q1 の対称化修正の対象外で、依然オフセット無し
     // （LocalDateTime互換）の文字列としてしか受け付けない（付録C #17）。オフセット付きを送ると
     // Jacksonのデシリアライズで汎用400になり、タイマーが開始できない。
-    async startTimer(taskId: number) {
+    async startTimer(taskId: string) {
       const req: WorkSessionCreateRequest = {
         type: 'TIMER',
         startedAt: toDatetimeLocalValue(new Date().toISOString()),
@@ -66,7 +66,7 @@ export const useWorkSessionStore = defineStore('workSession', {
       return res.data
     },
 
-    async stopTimer(workSessionId: number) {
+    async stopTimer(workSessionId: string) {
       const res = await workSessionsApi.end(workSessionId)
       const idx = this.workSessions.findIndex((s) => s.id === workSessionId)
       if (idx !== -1) {
@@ -79,7 +79,7 @@ export const useWorkSessionStore = defineStore('workSession', {
       return res.data
     },
 
-    async updateSession(id: number, req: WorkSessionUpdateRequest) {
+    async updateSession(id: string, req: WorkSessionUpdateRequest) {
       const res = await workSessionsApi.update(id, req)
       const idx = this.workSessions.findIndex((s) => s.id === id)
       if (idx !== -1) {
@@ -90,7 +90,7 @@ export const useWorkSessionStore = defineStore('workSession', {
     },
 
     // 204で本文が無いため、ローカル配列から該当要素を除去する。
-    async removeSession(id: number) {
+    async removeSession(id: string) {
       await workSessionsApi.remove(id)
       this.workSessions = this.workSessions.filter((s) => s.id !== id)
       this.updateActiveSession()

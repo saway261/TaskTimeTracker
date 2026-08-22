@@ -74,7 +74,7 @@ watch([matchingTags, canCreate], () => {
   activeIndex.value = -1
 })
 
-function isArchived(tagId: number) {
+function isArchived(tagId: string) {
   return tagStore.tags.find((tag) => tag.id === tagId)?.isArchived === true
 }
 
@@ -88,7 +88,7 @@ function selectTag(tag: TagResponse | TagSummary) {
   createError.value = null
 }
 
-function removeTag(tagId: number) {
+function removeTag(tagId: string) {
   emit(
     'update:modelValue',
     props.modelValue.filter((tag) => tag.id !== tagId),

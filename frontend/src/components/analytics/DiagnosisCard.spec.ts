@@ -27,8 +27,8 @@ describe('DiagnosisCard', () => {
         diagnosis,
         filter: {
           ...allFilter,
-          projectId: 3,
-          tagId: 5,
+          projectId: 'p3',
+          tagId: 't5',
           period: 'LAST_90_DAYS',
         },
         analyzedTaskCount: 24,
@@ -46,7 +46,7 @@ describe('DiagnosisCard', () => {
     const wrapper = mount(DiagnosisCard, {
       props: {
         diagnosis,
-        filter: { ...allFilter, projectId: 3 },
+        filter: { ...allFilter, projectId: 'p3' },
         analyzedTaskCount: 8,
         projectName: '開発基盤',
       },

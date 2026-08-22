@@ -35,7 +35,7 @@ const accuracy: EstimationAccuracyResponse = {
   sizeBuckets: [],
   trend: [],
   trendAvailability: { available: false, requiredCount: 20, currentCount: 12 },
-  projectBreakdown: [{ projectId: 3, projectTitle: 'プロジェクト', count: 12 }],
+  projectBreakdown: [{ projectId: 'p3', projectTitle: 'プロジェクト', count: 12 }],
 }
 
 const gapCauses: GapCauseAggregateResponse = {
@@ -60,10 +60,10 @@ const gapCauses: GapCauseAggregateResponse = {
   ],
 }
 
-const timelineItem = (taskId: number): ReflectionTimelineItemResponse => ({
+const timelineItem = (taskId: string): ReflectionTimelineItemResponse => ({
   taskId,
   taskTitle: `タスク${taskId}`,
-  projectId: 3,
+  projectId: 'p3',
   projectTitle: 'プロジェクト',
   finishedAt: '2026-08-20T10:00:00',
   estimatedMinutes: 60,
@@ -107,24 +107,24 @@ describe('analyticsStore', () => {
   it('共通フィルターを使って精度・原因集計・タイムラインを同時に再取得する', async () => {
     vi.mocked(analyticsApi.fetchEstimationAccuracy).mockResolvedValue({ data: accuracy } as never)
     vi.mocked(analyticsApi.fetchReflectionTimeline).mockResolvedValue({
-      data: timeline([timelineItem(1)]),
+      data: timeline([timelineItem('task1')]),
     } as never)
     vi.mocked(analyticsApi.fetchGapCauses).mockResolvedValue({ data: gapCauses } as never)
     const store = useAnalyticsStore()
-    store.filter.projectId = 3
-    store.filter.tagId = 7
+    store.filter.projectId = 'p3'
+    store.filter.tagId = 't7'
     store.filter.period = 'LAST_90_DAYS'
 
     await store.refresh()
 
     expect(analyticsApi.fetchEstimationAccuracy).toHaveBeenCalledWith({
-      projectId: 3,
-      tagId: 7,
+      projectId: 'p3',
+      tagId: 't7',
       from: expect.any(String),
     })
     expect(analyticsApi.fetchReflectionTimeline).toHaveBeenCalledWith({
-      projectId: 3,
-      tagId: 7,
+      projectId: 'p3',
+      tagId: 't7',
       from: expect.any(String),
       causeCategory: undefined,
       outcome: 'ALL',
@@ -132,8 +132,8 @@ describe('analyticsStore', () => {
       size: 20,
     })
     expect(analyticsApi.fetchGapCauses).toHaveBeenCalledWith({
-      projectId: 3,
-      tagId: 7,
+      projectId: 'p3',
+      tagId: 't7',
       from: expect.any(String),
     })
     expect(store.accuracy).toEqual(accuracy)
@@ -144,8 +144,8 @@ describe('analyticsStore', () => {
 
   it('さらに読み込むと次ページを既存項目へ追加する', async () => {
     vi.mocked(analyticsApi.fetchReflectionTimeline)
-      .mockResolvedValueOnce({ data: timeline([timelineItem(1)], 0, true) } as never)
-      .mockResolvedValueOnce({ data: timeline([timelineItem(2)], 1, false) } as never)
+      .mockResolvedValueOnce({ data: timeline([timelineItem('task1')], 0, true) } as never)
+      .mockResolvedValueOnce({ data: timeline([timelineItem('task2')], 1, false) } as never)
     const store = useAnalyticsStore()
 
     await store.fetchTimeline(true)
@@ -160,7 +160,7 @@ describe('analyticsStore', () => {
       page: 1,
       size: 20,
     })
-    expect(store.timeline?.items.map((item) => item.taskId)).toEqual([1, 2])
+    expect(store.timeline?.items.map((item) => item.taskId)).toEqual(['task1', 'task2'])
     expect(store.timeline?.page).toBe(1)
   })
 
@@ -191,9 +191,9 @@ describe('analyticsStore', () => {
     const previousAccuracy = store.accuracy
     const previousGapCauses = store.gapCauses
 
-    const refresh = store.setTag(7)
+    const refresh = store.setTag('t7')
 
-    expect(store.filter.tagId).toBe(7)
+    expect(store.filter.tagId).toBe('t7')
     expect(store.accuracy).toBe(previousAccuracy)
     expect(store.gapCauses).toBe(previousGapCauses)
     await refresh

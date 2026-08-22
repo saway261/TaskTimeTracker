@@ -17,8 +17,8 @@ describe('tagStore', () => {
   it('アーカイブ済みを含めて一度だけ取得し、選択候補はアクティブなタグに限定する', async () => {
     vi.mocked(tagsApi.fetchAll).mockResolvedValue({
       data: [
-        { id: 1, name: '調査', isArchived: false, assignedTaskCount: 4 },
-        { id: 2, name: '旧タグ', isArchived: true, assignedTaskCount: 1 },
+        { id: 'tag1', name: '調査', isArchived: false, assignedTaskCount: 4 },
+        { id: 'tag2', name: '旧タグ', isArchived: true, assignedTaskCount: 1 },
       ],
     } as never)
     const store = useTagStore()
@@ -33,48 +33,48 @@ describe('tagStore', () => {
 
   it('作成結果を追加し、既存タグの再利用時は重複させない', async () => {
     const store = useTagStore()
-    store.tags = [{ id: 1, name: '調査', isArchived: false, assignedTaskCount: 4 }]
+    store.tags = [{ id: 'tag1', name: '調査', isArchived: false, assignedTaskCount: 4 }]
     vi.mocked(tagsApi.create)
       .mockResolvedValueOnce({
-        data: { id: 2, name: '設計', isArchived: false, assignedTaskCount: 0 },
+        data: { id: 'tag2', name: '設計', isArchived: false, assignedTaskCount: 0 },
       } as never)
       .mockResolvedValueOnce({
-        data: { id: 1, name: '調査', isArchived: false, assignedTaskCount: 4 },
+        data: { id: 'tag1', name: '調査', isArchived: false, assignedTaskCount: 4 },
       } as never)
 
     await store.createTag('設計')
     await store.createTag('調査')
 
     expect(tagsApi.create).toHaveBeenNthCalledWith(1, { name: '設計' })
-    expect(store.tags.map((tag) => tag.id)).toEqual([1, 2])
+    expect(store.tags.map((tag) => tag.id)).toEqual(['tag1', 'tag2'])
   })
 
   it('リネーム結果で該当タグを差し替えて並び順も更新する', async () => {
     const store = useTagStore()
     store.tags = [
-      { id: 1, name: '調査', isArchived: false, assignedTaskCount: 2 },
-      { id: 2, name: '設計', isArchived: false, assignedTaskCount: 2 },
+      { id: 'tag1', name: '調査', isArchived: false, assignedTaskCount: 2 },
+      { id: 'tag2', name: '設計', isArchived: false, assignedTaskCount: 2 },
     ]
     vi.mocked(tagsApi.update).mockResolvedValue({
-      data: { id: 1, name: 'アイデア', isArchived: false, assignedTaskCount: 2 },
+      data: { id: 'tag1', name: 'アイデア', isArchived: false, assignedTaskCount: 2 },
     } as never)
 
-    await store.renameTag(1, 'アイデア')
+    await store.renameTag('tag1', 'アイデア')
 
-    expect(tagsApi.update).toHaveBeenCalledWith(1, { name: 'アイデア' })
+    expect(tagsApi.update).toHaveBeenCalledWith('tag1', { name: 'アイデア' })
     expect(store.tags.map((tag) => tag.name)).toEqual(['アイデア', '設計'])
   })
 
   it('アーカイブ結果で該当タグを差し替え、アクティブ候補から除外する', async () => {
     const store = useTagStore()
-    store.tags = [{ id: 1, name: '調査', isArchived: false, assignedTaskCount: 4 }]
+    store.tags = [{ id: 'tag1', name: '調査', isArchived: false, assignedTaskCount: 4 }]
     vi.mocked(tagsApi.updateArchived).mockResolvedValue({
-      data: { id: 1, name: '調査', isArchived: true, assignedTaskCount: 4 },
+      data: { id: 'tag1', name: '調査', isArchived: true, assignedTaskCount: 4 },
     } as never)
 
-    await store.setArchived(1, true)
+    await store.setArchived('tag1', true)
 
-    expect(tagsApi.updateArchived).toHaveBeenCalledWith(1, { isArchived: true })
+    expect(tagsApi.updateArchived).toHaveBeenCalledWith('tag1', { isArchived: true })
     expect(store.tags[0].isArchived).toBe(true)
     expect(store.activeTags).toEqual([])
   })
@@ -82,10 +82,10 @@ describe('tagStore', () => {
   it('ログインユーザーが変わったときは一覧を再取得する', async () => {
     vi.mocked(tagsApi.fetchAll)
       .mockResolvedValueOnce({
-        data: [{ id: 1, name: 'ユーザー1のタグ', isArchived: false, assignedTaskCount: 1 }],
+        data: [{ id: 'tag1', name: 'ユーザー1のタグ', isArchived: false, assignedTaskCount: 1 }],
       } as never)
       .mockResolvedValueOnce({
-        data: [{ id: 2, name: 'ユーザー2のタグ', isArchived: false, assignedTaskCount: 2 }],
+        data: [{ id: 'tag2', name: 'ユーザー2のタグ', isArchived: false, assignedTaskCount: 2 }],
       } as never)
     const authStore = useAuthStore()
     const store = useTagStore()

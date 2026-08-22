@@ -12,8 +12,8 @@ function mountMenu(finished = false) {
   return mount(TaskGroupRowMenu, {
     props: {
       modelValue: true,
-      taskGroupId: 2,
-      detailTo: '/projects/1/task-groups/2',
+      taskGroupId: 'tg2',
+      detailTo: '/projects/p1/task-groups/tg2',
       finished,
       canMoveUp: false,
       canMoveDown: false,
@@ -53,8 +53,8 @@ describe('TaskGroupRowMenu', () => {
   it('未完了のタスクグループには完了にするボタンが表示され、押すと完了状態を更新してメニューを閉じること', async () => {
     vi.mocked(taskGroupsApi.updateFinished).mockResolvedValue({
       data: {
-        id: 2,
-        projectId: 1,
+        id: 'tg2',
+        projectId: 'p1',
         title: 'タスクグループ',
         description: null,
         isFinished: true,
@@ -71,7 +71,7 @@ describe('TaskGroupRowMenu', () => {
     await finishButton?.trigger('click')
     await flushPromises()
 
-    expect(taskGroupsApi.updateFinished).toHaveBeenCalledWith(2, { isFinished: true })
+    expect(taskGroupsApi.updateFinished).toHaveBeenCalledWith('tg2', { isFinished: true })
     expect(wrapper.emitted('update:modelValue')).toContainEqual([false])
   })
 

@@ -17,9 +17,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  projectChange: [projectId: number | null]
+  projectChange: [projectId: string | null]
   periodChange: [period: AnalyticsPeriod]
-  tagChange: [tagId: number | null]
+  tagChange: [tagId: string | null]
 }>()
 
 const projectId = useId()
@@ -45,7 +45,7 @@ const remainingTaskCount = computed(() =>
 
 function handleProjectChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  emit('projectChange', value === '' ? null : Number(value))
+  emit('projectChange', value === '' ? null : value)
 }
 
 function handlePeriodChange(event: Event) {
@@ -54,7 +54,7 @@ function handlePeriodChange(event: Event) {
 
 function handleTagChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  emit('tagChange', value === '' ? null : Number(value))
+  emit('tagChange', value === '' ? null : value)
 }
 </script>
 

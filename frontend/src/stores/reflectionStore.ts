@@ -10,12 +10,12 @@ import type { ApiError } from '@/types/apiError'
 export const useReflectionStore = defineStore('reflection', {
   state: () => ({
     overview: null as ProjectReflectionOverviewResponse | null,
-    selectedProjectId: null as number | null,
+    selectedProjectId: null as string | null,
     loading: false,
     error: null as ApiError | null,
   }),
   actions: {
-    async fetchOverview(projectId: number) {
+    async fetchOverview(projectId: string) {
       this.selectedProjectId = projectId
       this.loading = true
       this.error = null
@@ -38,19 +38,19 @@ export const useReflectionStore = defineStore('reflection', {
     },
 
     // 登録後オブジェクトをそのまま対象タスク行へ反映するため、一覧の再取得は不要。
-    async createReflection(taskId: number, req: ReflectionRequest) {
+    async createReflection(taskId: string, req: ReflectionRequest) {
       const res = await reflectionsApi.create(taskId, req)
       this.applyReflection(taskId, res.data)
       return res.data
     },
 
-    async updateReflection(taskId: number, req: ReflectionRequest) {
+    async updateReflection(taskId: string, req: ReflectionRequest) {
       const res = await reflectionsApi.update(taskId, req)
       this.applyReflection(taskId, res.data)
       return res.data
     },
 
-    applyReflection(taskId: number, reflection: ReflectionResponse) {
+    applyReflection(taskId: string, reflection: ReflectionResponse) {
       if (!this.overview) return
       const task =
         this.overview.tasks.find((t) => t.id === taskId) ??

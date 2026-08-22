@@ -8,7 +8,7 @@ import type { ReflectionTaskResponse } from '@/types/reflection'
 import ReflectionTaskRow from './ReflectionTaskRow.vue'
 
 const task: ReflectionTaskResponse = {
-  id: 10,
+  id: 'task10',
   title: '画面実装',
   finishedAt: '2026-08-16T00:00:00',
   actualMinutesCached: 90,
@@ -16,7 +16,7 @@ const task: ReflectionTaskResponse = {
   gapRateCached: 50,
   reflection: {
     id: 1,
-    taskId: 10,
+    taskId: 'task10',
     causeCategories: [
       { code: 'TASK_BREAKDOWN', label: '作業の洗い出しが足りなかった' },
       { code: 'OTHER', label: 'その他' },

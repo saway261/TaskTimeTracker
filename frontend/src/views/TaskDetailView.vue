@@ -6,7 +6,6 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useTaskGroupStore } from '@/stores/taskGroupStore'
 import { useWorkSessionStore } from '@/stores/workSessionStore'
 import { useNotificationStore } from '@/stores/notificationStore'
-import { toPositiveInt } from '@/utils/routeParams'
 import { isFinished as isTaskFinished } from '@/utils/task'
 import { toReflectionTask } from '@/utils/reflectionTask'
 import * as reflectionsApi from '@/api/reflectionsApi'
@@ -46,16 +45,8 @@ const taskGroupStore = useTaskGroupStore()
 const workSessionStore = useWorkSessionStore()
 const notification = useNotificationStore()
 
-const invalidId = ref(false)
-
-const numericTaskId = computed(() => toPositiveInt(props.taskId))
-const numericProjectId = computed(() => toPositiveInt(props.projectId))
-const numericTaskGroupId = computed(() =>
-  props.taskGroupId === null ? null : toPositiveInt(props.taskGroupId),
-)
-
 const backLink = computed(() =>
-  numericTaskGroupId.value !== null
+  props.taskGroupId !== null
     ? `/projects/${props.projectId}/task-groups/${props.taskGroupId}`
     : `/projects/${props.projectId}`,
 )
@@ -71,16 +62,16 @@ const breadcrumbItems = computed(() => {
   const task = taskStore.currentTask
   if (!task) return []
   const projectLabel =
-    projectStore.currentProject?.id === numericProjectId.value
+    projectStore.currentProject?.id === props.projectId
       ? projectStore.currentProject.title
       : `プロジェクト #${props.projectId}`
   const items: { label: string; to?: string }[] = [
     { label: 'タスク管理', to: '/projects' },
     { label: projectLabel, to: `/projects/${props.projectId}` },
   ]
-  if (numericTaskGroupId.value !== null) {
+  if (props.taskGroupId !== null) {
     const taskGroupLabel =
-      taskGroupStore.currentTaskGroup?.id === numericTaskGroupId.value
+      taskGroupStore.currentTaskGroup?.id === props.taskGroupId
         ? taskGroupStore.currentTaskGroup.title
         : `タスクグループ #${props.taskGroupId}`
     items.push({ label: taskGroupLabel, to: backLink.value })
@@ -90,22 +81,15 @@ const breadcrumbItems = computed(() => {
 })
 
 async function load() {
-  const id = numericTaskId.value
-  if (id === null) {
-    invalidId.value = true
-    return
-  }
-  invalidId.value = false
+  const id = props.taskId
   addingTags.value = false
   tagsError.value = null
   await taskStore.fetchTask(id).catch(() => {})
 
   // パンくず表示用のベストエフォート取得。失敗しても "#id" 表示にフォールバックする。
-  if (numericProjectId.value !== null) {
-    projectStore.fetchProject(numericProjectId.value).catch(() => {})
-  }
-  if (numericTaskGroupId.value !== null) {
-    taskGroupStore.fetchTaskGroup(numericTaskGroupId.value).catch(() => {})
+  projectStore.fetchProject(props.projectId).catch(() => {})
+  if (props.taskGroupId !== null) {
+    taskGroupStore.fetchTaskGroup(props.taskGroupId).catch(() => {})
   }
 
   // 一覧は完了済みタスクでも読み取り専用で表示する（Q5-A）。実績（total-minutes）は
@@ -130,8 +114,7 @@ function openEditModal() {
 }
 
 async function handleUpdate(payload: { title: string; description: string | null }) {
-  const id = numericTaskId.value
-  if (id === null) return
+  const id = props.taskId
   updating.value = true
   updateError.value = null
   try {
@@ -161,8 +144,8 @@ function closeTagAdder() {
 }
 
 async function replaceTaskTags(tags: TagSummary[], successMessage: string) {
-  const id = numericTaskId.value
-  if (id === null || tagsUpdating.value) return
+  const id = props.taskId
+  if (tagsUpdating.value) return
   tagsUpdating.value = true
   tagsError.value = null
   try {
@@ -181,7 +164,7 @@ function addTaskTag(tags: TagSummary[]) {
   return replaceTaskTags(tags, 'タグを追加しました。')
 }
 
-function removeTaskTag(tagId: number) {
+function removeTaskTag(tagId: string) {
   const tags = taskStore.currentTask?.tags.filter((tag) => tag.id !== tagId) ?? []
   return replaceTaskTags(tags, 'タグを外しました。')
 }
@@ -205,10 +188,10 @@ function cancelEstimateEditor() {
 }
 
 async function submitEstimate() {
-  const id = numericTaskId.value
+  const id = props.taskId
   const trimmed = estimateInput.value.trim()
   const n = Number(trimmed)
-  if (id === null || trimmed === '' || !Number.isInteger(n) || n <= 0) return
+  if (trimmed === '' || !Number.isInteger(n) || n <= 0) return
   estimateUpdating.value = true
   estimateError.value = null
   try {
@@ -228,8 +211,7 @@ const finishing = ref(false)
 const actionError = ref<ApiError | null>(null)
 
 async function toggleFinished() {
-  const id = numericTaskId.value
-  if (id === null) return
+  const id = props.taskId
   finishing.value = true
   actionError.value = null
   const wasFinished = finished.value
@@ -257,8 +239,7 @@ const quickReflectionTask = computed(() =>
 )
 
 async function handleQuickReflectionSubmit(payload: ReflectionRequest) {
-  const id = numericTaskId.value
-  if (id === null) return
+  const id = props.taskId
   quickReflectionSubmitting.value = true
   quickReflectionError.value = null
   try {
@@ -286,8 +267,7 @@ function handleToggleFinishedClick() {
 const showDeleteConfirm = ref(false)
 
 async function handleDelete() {
-  const id = numericTaskId.value
-  if (id === null) return
+  const id = props.taskId
   actionError.value = null
   try {
     await taskStore.removeTask(id)
@@ -303,8 +283,7 @@ const creatingSession = ref(false)
 const createSessionError = ref<ApiError | null>(null)
 
 async function handleCreateManualSession(minutes: number) {
-  const id = numericTaskId.value
-  if (id === null) return
+  const id = props.taskId
   creatingSession.value = true
   createSessionError.value = null
   try {
@@ -320,11 +299,7 @@ async function handleCreateManualSession(minutes: number) {
 
 // --- メモ ---
 function handleMemoCreate(req: MemoRequest) {
-  const id = numericTaskId.value
-  if (id === null) {
-    return Promise.reject(new Error('invalid task id'))
-  }
-  return taskStore.createTaskMemo(id, req)
+  return taskStore.createTaskMemo(props.taskId, req)
 }
 </script>
 
@@ -332,8 +307,7 @@ function handleMemoCreate(req: MemoRequest) {
   <div class="task-detail-view">
     <AppBreadcrumb v-if="breadcrumbItems.length > 0" :items="breadcrumbItems" />
 
-    <p v-if="invalidId">不正なタスクIDです。</p>
-    <LoadingIndicator v-else-if="taskStore.loading" />
+    <LoadingIndicator v-if="taskStore.loading" />
     <ErrorMessage v-else-if="taskStore.error" :error="taskStore.error" />
     <template v-else-if="taskStore.currentTask">
       <div class="header">
@@ -449,13 +423,9 @@ function handleMemoCreate(req: MemoRequest) {
       <section class="work-section">
         <h2>作業セッション</h2>
 
-        <WorkTimer v-if="!finished && numericTaskId !== null" :task-id="numericTaskId" />
+        <WorkTimer v-if="!finished" :task-id="props.taskId" />
 
-        <WorkSessionList
-          v-if="numericTaskId !== null"
-          :task-id="numericTaskId"
-          :task-finished="finished"
-        />
+        <WorkSessionList :task-id="props.taskId" :task-finished="finished" />
 
         <template v-if="!finished">
           <h3>手動で記録を追加</h3>
