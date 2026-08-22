@@ -47,6 +47,9 @@ dependencies {
     // MyBatis
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.1'
 
+    // 公開ID（内部の連番IDをURL・APIへ露出させないための可逆エンコード）
+    implementation 'org.sqids:sqids:0.1.0'
+
     // SpringBoot Test 本体
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     // SpringBoot WebMvcTest
