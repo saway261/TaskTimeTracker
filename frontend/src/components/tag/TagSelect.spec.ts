@@ -83,6 +83,19 @@ describe('TagSelect', () => {
     expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toHaveLength(7)
   })
 
+  it('追加専用表示では選択済みタグを重複表示しない', () => {
+    prepareStore()
+    const wrapper = mount(TagSelect, {
+      props: {
+        modelValue: [{ id: 1, name: '調査' }],
+        showSelected: false,
+      },
+    })
+
+    expect(wrapper.find('.selected-tags').exists()).toBe(false)
+    expect(wrapper.find('input[role="combobox"]').exists()).toBe(true)
+  })
+
   it('上限を解決した後に作成を再実行して選択する', async () => {
     const store = prepareStore()
     store.tags = [{ id: 1, name: '未使用', isArchived: false, assignedTaskCount: 0 }]

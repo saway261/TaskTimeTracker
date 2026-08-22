@@ -96,7 +96,7 @@ async function load() {
     return
   }
   invalidId.value = false
-  editingTags.value = false
+  addingTags.value = false
   tagsError.value = null
   await taskStore.fetchTask(id).catch(() => {})
 
@@ -145,39 +145,45 @@ async function handleUpdate(payload: { title: string; description: string | null
   }
 }
 
-// --- タグ編集（完了済みタスクでも許可） ---
-const editingTags = ref(false)
-const selectedTags = ref<TagSummary[]>([])
+// --- タグ追加・削除（完了済みタスクでも許可） ---
+const addingTags = ref(false)
 const tagsUpdating = ref(false)
 const tagsError = ref<ApiError | null>(null)
 
-function openTagEditor() {
-  selectedTags.value = [...(taskStore.currentTask?.tags ?? [])]
+function openTagAdder() {
   tagsError.value = null
-  editingTags.value = true
+  addingTags.value = true
 }
 
-function cancelTagEditor() {
-  editingTags.value = false
+function closeTagAdder() {
+  addingTags.value = false
   tagsError.value = null
 }
 
-async function submitTags() {
+async function replaceTaskTags(tags: TagSummary[], successMessage: string) {
   const id = numericTaskId.value
-  if (id === null) return
+  if (id === null || tagsUpdating.value) return
   tagsUpdating.value = true
   tagsError.value = null
   try {
     await taskStore.updateTaskTags(id, {
-      tagIds: selectedTags.value.map((tag) => tag.id),
+      tagIds: tags.map((tag) => tag.id),
     })
-    notification.success('タグを更新しました。')
-    editingTags.value = false
+    notification.success(successMessage)
   } catch (e) {
     tagsError.value = e as ApiError
   } finally {
     tagsUpdating.value = false
   }
+}
+
+function addTaskTag(tags: TagSummary[]) {
+  return replaceTaskTags(tags, 'タグを追加しました。')
+}
+
+function removeTaskTag(tagId: number) {
+  const tags = taskStore.currentTask?.tags.filter((tag) => tag.id !== tagId) ?? []
+  return replaceTaskTags(tags, 'タグを外しました。')
 }
 
 // --- 見積時間の編集（B5対策：完了済みでは出さない。セッションが1件でもあれば無効化） ---
@@ -354,32 +360,44 @@ function handleMemoCreate(req: MemoRequest) {
 
       <p v-if="taskStore.currentTask.description">{{ taskStore.currentTask.description }}</p>
 
-      <section class="tag-section">
-        <div class="section-heading">
-          <h2>タグ</h2>
-          <BaseButton v-if="!editingTags" variant="secondary" @click="openTagEditor">
-            編集
+      <section class="tag-section" aria-label="タグ">
+        <div class="tag-toolbar">
+          <BaseButton
+            class="tag-add-button"
+            variant="secondary"
+            :disabled="tagsUpdating"
+            :aria-expanded="addingTags"
+            @click="openTagAdder"
+          >
+            <svg class="tag-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 13 13 20 4 11V4h7l9 9Z" />
+              <circle cx="8.5" cy="8.5" r="1.25" />
+            </svg>
+            タグを追加
           </BaseButton>
+          <TagBadgeList
+            :tags="taskStore.currentTask.tags"
+            :limit="null"
+            removable
+            :disabled="tagsUpdating"
+            @remove="removeTaskTag"
+          />
         </div>
 
-        <form v-if="editingTags" class="tag-form" @submit.prevent="submitTags">
-          <ErrorMessage v-if="tagsError" :error="tagsError" />
+        <ErrorMessage v-if="tagsError" :error="tagsError" />
+        <div v-if="addingTags" class="tag-add-panel">
           <TagSelect
-            v-model="selectedTags"
+            :model-value="taskStore.currentTask.tags"
             :disabled="tagsUpdating"
             :error="tagsError?.fieldErrors.tagIds"
+            :show-selected="false"
+            label="追加するタグ"
+            @update:model-value="addTaskTag"
           />
-          <div class="actions">
-            <BaseButton type="button" variant="secondary" @click="cancelTagEditor">
-              キャンセル
-            </BaseButton>
-            <BaseButton type="submit" :disabled="tagsUpdating">更新する</BaseButton>
-          </div>
-        </form>
-        <template v-else>
-          <TagBadgeList :tags="taskStore.currentTask.tags" :limit="null" />
-          <p v-if="taskStore.currentTask.tags.length === 0" class="hint">タグはありません。</p>
-        </template>
+          <BaseButton variant="secondary" :disabled="tagsUpdating" @click="closeTagAdder">
+            閉じる
+          </BaseButton>
+        </div>
       </section>
 
       <MemoList
@@ -524,25 +542,43 @@ function handleMemoCreate(req: MemoRequest) {
   gap: 0.8em;
 }
 
-.tag-section h2,
 .estimation-section h2,
 .work-section h2 {
   margin: 0;
   font-size: 1.05rem;
 }
 
-.section-heading {
+.tag-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1em;
+  flex-wrap: wrap;
+  gap: 0.5em;
 }
 
-.tag-form {
+.tag-add-button {
+  flex-shrink: 0;
+}
+
+.tag-icon {
+  width: 1.1em;
+  height: 1.1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.tag-add-panel {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 1em;
   max-width: 32em;
+}
+
+.tag-add-panel :deep(.tag-select) {
+  width: 100%;
 }
 
 .estimate-form {

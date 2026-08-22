@@ -12,10 +12,14 @@ const props = withDefaults(
     modelValue: TagSummary[]
     error?: string
     disabled?: boolean
+    showSelected?: boolean
+    label?: string
   }>(),
   {
     error: undefined,
     disabled: false,
+    showSelected: true,
+    label: 'タグ',
   },
 )
 
@@ -207,9 +211,13 @@ onMounted(() => {
 
 <template>
   <div ref="root" class="tag-select" @focusout="handleFocusout" @keydown.esc="handleRootEscape">
-    <label :for="inputId">タグ</label>
+    <label :for="inputId">{{ label }}</label>
 
-    <div v-if="modelValue.length > 0" class="selected-tags" aria-label="付与済みタグ">
+    <div
+      v-if="showSelected && modelValue.length > 0"
+      class="selected-tags"
+      aria-label="付与済みタグ"
+    >
       <span v-for="tag in modelValue" :key="tag.id" class="selected-tag">
         <span>{{ tag.name }}</span>
         <span v-if="isArchived(tag.id)" class="archived-mark">アーカイブ済み</span>

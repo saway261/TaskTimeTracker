@@ -37,7 +37,7 @@ describe('TaskDetailView', () => {
     vi.resetAllMocks()
   })
 
-  it('完了済みタスクでもタグを編集して専用APIで更新できる', async () => {
+  it('完了済みタスクでもタグをその場で追加・削除できる', async () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     const router = createRouter({
@@ -47,9 +47,14 @@ describe('TaskDetailView', () => {
     await router.push('/')
     await router.isReady()
     vi.mocked(tasksApi.fetchById).mockResolvedValue({ data: completedTask } as never)
-    vi.mocked(tasksApi.updateTags).mockResolvedValue({
-      data: { ...completedTask, tags: [...completedTask.tags, { id: 2, name: '設計' }] },
-    } as never)
+    vi.mocked(tasksApi.updateTags).mockImplementation((_taskId, request) =>
+      Promise.resolve({
+        data: {
+          ...completedTask,
+          tags: request.tagIds.map((id) => ({ id, name: id === 1 ? '調査' : '設計' })),
+        },
+      } as never),
+    )
     vi.mocked(projectsApi.fetchById).mockResolvedValue({
       data: { id: 1, title: 'プロジェクト', description: null, isFinished: false, memos: [] },
     } as never)
@@ -75,13 +80,26 @@ describe('TaskDetailView', () => {
     await flushPromises()
 
     expect(wrapper.get('.tag-section').text()).toContain('調査')
-    await wrapper.get('.tag-section .secondary').trigger('click')
+    expect(wrapper.find('.tag-section h2').exists()).toBe(false)
+    expect(wrapper.get('.tag-add-button').text()).toContain('タグを追加')
+    expect(wrapper.find('.tag-add-button .tag-icon').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="調査を外す"]').exists()).toBe(true)
+
+    await wrapper.get('.tag-add-button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.tag-select label').text()).toBe('追加するタグ')
     await wrapper.get('.tag-select input').trigger('focus')
     await wrapper.get('.tag-select .suggestion').trigger('click')
-    await wrapper.get('.tag-form').trigger('submit')
     await flushPromises()
 
     expect(tasksApi.updateTags).toHaveBeenCalledWith(10, { tagIds: [1, 2] })
     expect(wrapper.get('.tag-section').text()).toContain('設計')
+    expect(wrapper.find('.tag-select .selected-tags').exists()).toBe(false)
+
+    await wrapper.get('[aria-label="調査を外す"]').trigger('click')
+    await flushPromises()
+
+    expect(tasksApi.updateTags).toHaveBeenLastCalledWith(10, { tagIds: [2] })
+    expect(wrapper.find('[aria-label="調査を外す"]').exists()).toBe(false)
   })
 })

@@ -6,11 +6,19 @@ const props = withDefaults(
   defineProps<{
     tags: TagSummary[]
     limit?: number | null
+    removable?: boolean
+    disabled?: boolean
   }>(),
   {
     limit: 3,
+    removable: false,
+    disabled: false,
   },
 )
+
+const emit = defineEmits<{
+  remove: [tagId: number]
+}>()
 
 const visibleTags = computed(() =>
   props.limit === null ? props.tags : props.tags.slice(0, props.limit),
@@ -23,6 +31,16 @@ const remainingCount = computed(() => props.tags.length - visibleTags.value.leng
     <span v-for="tag in visibleTags" :key="tag.id" class="tag-badge">
       <span class="badge-label">タグ</span>
       {{ tag.name }}
+      <button
+        v-if="removable"
+        type="button"
+        class="remove-button"
+        :aria-label="`${tag.name}を外す`"
+        :disabled="disabled"
+        @click.stop="emit('remove', tag.id)"
+      >
+        ×
+      </button>
     </span>
     <span v-if="remainingCount > 0" class="remaining-badge">他{{ remainingCount }}件</span>
   </span>
@@ -50,6 +68,37 @@ const remainingCount = computed(() => props.tags.length - visibleTags.value.leng
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.3;
+}
+
+.remove-button {
+  display: grid;
+  place-items: center;
+  width: 1.45em;
+  height: 1.45em;
+  margin: -0.1em -0.25em -0.1em 0.1em;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove-button:not(:disabled):hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.remove-button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.remove-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .tag-badge {

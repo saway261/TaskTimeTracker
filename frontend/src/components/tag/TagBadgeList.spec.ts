@@ -26,4 +26,18 @@ describe('TagBadgeList', () => {
     expect(wrapper.findAll('.tag-badge')).toHaveLength(5)
     expect(wrapper.find('.remaining-badge').exists()).toBe(false)
   })
+
+  it('removableなら各タグに削除ボタンを表示して対象IDを通知する', async () => {
+    const wrapper = mount(TagBadgeList, {
+      props: { tags: tags.slice(0, 2), removable: true },
+    })
+
+    const removeButtons = wrapper.findAll('.remove-button')
+    expect(removeButtons).toHaveLength(2)
+    expect(removeButtons[0].attributes('aria-label')).toBe('調査を外す')
+
+    await removeButtons[0].trigger('click')
+
+    expect(wrapper.emitted('remove')?.[0]).toEqual([1])
+  })
 })
