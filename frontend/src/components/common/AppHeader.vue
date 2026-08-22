@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
       </RouterLink>
       <nav class="main-nav" aria-label="メインナビゲーション">
         <RouterLink
-          to="/projects?isFinished=false"
+          to="/projects"
           class="nav-link"
           :class="{ active: isTaskManagementActive }"
           :aria-current="isTaskManagementActive ? 'page' : undefined"
@@ -227,7 +227,7 @@ onBeforeUnmount(() => {
           aria-label="モバイルナビゲーション"
         >
           <RouterLink
-            to="/projects?isFinished=false"
+            to="/projects"
             class="mobile-nav-item"
             :class="{ active: isTaskManagementActive }"
             :aria-current="isTaskManagementActive ? 'page' : undefined"

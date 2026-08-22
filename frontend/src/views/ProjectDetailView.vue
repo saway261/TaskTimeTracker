@@ -57,7 +57,7 @@ const currentProjectId = computed(() => projectStore.currentProject?.id ?? numer
 const breadcrumbItems = computed(() => {
   const project = projectStore.currentProject
   if (!project) return []
-  return [{ label: 'プロジェクト一覧', to: '/projects' }, { label: project.title }]
+  return [{ label: 'タスク管理', to: '/projects' }, { label: project.title }]
 })
 
 const directTasks = computed(() => taskStore.tasks.filter((t) => t.projectId !== null))

@@ -75,7 +75,7 @@ const breadcrumbItems = computed(() => {
       ? projectStore.currentProject.title
       : `プロジェクト #${props.projectId}`
   const items: { label: string; to?: string }[] = [
-    { label: 'プロジェクト一覧', to: '/projects' },
+    { label: 'タスク管理', to: '/projects' },
     { label: projectLabel, to: `/projects/${props.projectId}` },
   ]
   if (numericTaskGroupId.value !== null) {

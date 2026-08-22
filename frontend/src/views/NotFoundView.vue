@@ -6,7 +6,7 @@ import { RouterLink } from 'vue-router'
   <div class="not-found">
     <h1>ページが見つかりません</h1>
     <p>指定されたURLに対応するページは存在しません。</p>
-    <RouterLink to="/projects">プロジェクト一覧へ戻る</RouterLink>
+    <RouterLink to="/projects">タスク管理へ戻る</RouterLink>
   </div>
 </template>
 
