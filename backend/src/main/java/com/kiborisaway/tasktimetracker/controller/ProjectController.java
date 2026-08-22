@@ -93,13 +93,7 @@ public class ProjectController {
                   schema = @Schema(implementation = ProjectResponse.class)
               )),
           @ApiResponse(
-              responseCode = "404", description = "指定されたプロジェクトIDが存在しなかったときのエラー",
-              content = @Content(
-                  mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class)
-              )),
-          @ApiResponse(
-              responseCode = "400", description = "プロジェクトIDの形式が不正であったときのエラー",
+              responseCode = "404", description = "プロジェクトIDが不正、または指定されたプロジェクトが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)

@@ -17,7 +17,7 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class TaskResponse {
 
-  @Schema(description = "プロジェクトID", example = "Xr9mQ2vKp3")
+  @Schema(description = "タスクID", example = "Xr9mQ2vKp3")
   private final TaskId id;
 
   @Schema(description = "親となるプロジェクトID", example = "Xr9mQ2vKp3", nullable = true)

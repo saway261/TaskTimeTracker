@@ -59,12 +59,7 @@ public class WorkSessionController {
                   schema = @Schema(type = "integer", format = "int32", example = "120"))
           ),
           @ApiResponse(
-              responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定されたタスクIDが存在しないときのエラー",
+              responseCode = "404", description = "タスクIDが不正、または指定されたタスクが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -94,12 +89,8 @@ public class WorkSessionController {
                   schema = @Schema(type = "integer", format = "int32", example = "300"))
           ),
           @ApiResponse(
-              responseCode = "400", description = "タスクグループIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定されたタスクグループIDが存在しないときのエラー",
+              responseCode = "404",
+              description = "タスクグループIDが不正、または指定されたタスクグループが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -129,12 +120,7 @@ public class WorkSessionController {
                   schema = @Schema(type = "integer", format = "int32", example = "900"))
           ),
           @ApiResponse(
-              responseCode = "400", description = "プロジェクトIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定されたプロジェクトIDが存在しないときのエラー",
+              responseCode = "404", description = "プロジェクトIDが不正、または指定されたプロジェクトが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -164,7 +150,7 @@ public class WorkSessionController {
                   array = @ArraySchema(schema = @Schema(implementation = WorkSession.class)))
           ),
           @ApiResponse(
-              responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",
+              responseCode = "404", description = "タスクIDが不正、または指定されたタスクが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -211,12 +197,8 @@ public class WorkSessionController {
                   schema = @Schema(implementation = WorkSession.class))
           ),
           @ApiResponse(
-              responseCode = "400", description = "作業セッションIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定された作業セッションIDが存在しないときのエラー",
+              responseCode = "404",
+              description = "作業セッションIDが不正、または指定された作業セッションが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -289,12 +271,13 @@ public class WorkSessionController {
                   schema = @Schema(implementation = WorkSession.class))
           ),
           @ApiResponse(
-              responseCode = "400", description = "作業セッションIDの形式が不正、またはTIMER以外のセッションへの操作など",
+              responseCode = "400", description = "TIMER以外のセッションへの操作など、終了条件を満たさないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           ),
           @ApiResponse(
-              responseCode = "404", description = "指定された作業セッションIDが存在しないときのエラー",
+              responseCode = "404",
+              description = "作業セッションIDが不正、または指定された作業セッションが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -368,12 +351,8 @@ public class WorkSessionController {
               responseCode = "204", description = "削除成功"
           ),
           @ApiResponse(
-              responseCode = "400", description = "作業セッションIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定された作業セッションIDが存在しないときのエラー",
+              responseCode = "404",
+              description = "作業セッションIDが不正、または指定された作業セッションが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )

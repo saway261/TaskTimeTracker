@@ -51,10 +51,8 @@ public class ReflectionController {
           @ApiResponse(responseCode = "200", description = "取得成功",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ProjectReflectionOverviewResponse.class))),
-          @ApiResponse(responseCode = "400", description = "プロジェクトIDの形式が不正なときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))),
-          @ApiResponse(responseCode = "404", description = "指定されたプロジェクトが存在しないときのエラー",
+          @ApiResponse(responseCode = "404",
+              description = "プロジェクトIDが不正、または指定されたプロジェクトが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)))
       }

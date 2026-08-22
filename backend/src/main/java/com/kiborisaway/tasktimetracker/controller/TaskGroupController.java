@@ -46,7 +46,7 @@ public class TaskGroupController {
       summary = "プロジェクト内タスクグループ全件取得（完了フラグ指定可）",
       description = """
           完了フラグを指定して、指定プロジェクト内の完了済み・未完了のタスクグループをリストで取得します。
-          例: /api/projects/1/task-groups?isFinished=false
+          例: /api/projects/PwGV1OpDZQ/task-groups?isFinished=false
           クエリパラメータを省略した場合は、プロジェクト内のタスクグループを全件取得します。
           """,
       parameters = {
@@ -67,7 +67,15 @@ public class TaskGroupController {
           ),
           @ApiResponse(
               responseCode = "400",
-              description = "パスパラメータまたはクエリパラメータの形式が不正であったときのエラー",
+              description = "クエリパラメータの形式が不正であったときのエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          ),
+          @ApiResponse(
+              responseCode = "404",
+              description = "プロジェクトIDが不正、または指定されたプロジェクトが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)
@@ -103,14 +111,8 @@ public class TaskGroupController {
               )
           ),
           @ApiResponse(
-              responseCode = "404", description = "指定されたタスクグループIDが存在しなかったときのエラー",
-              content = @Content(
-                  mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class)
-              )
-          ),
-          @ApiResponse(
-              responseCode = "400", description = "タスクグループIDの形式が不正であったときのエラー",
+              responseCode = "404",
+              description = "タスクグループIDが不正、または指定されたタスクグループが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)

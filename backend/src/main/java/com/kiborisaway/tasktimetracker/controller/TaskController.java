@@ -51,7 +51,7 @@ public class TaskController {
       summary = "プロジェクト内タスク全件取得（完了フラグ指定可）",
       description = """
           完了フラグを指定して、指定プロジェクト内の完了済み・未完了のタスクをリストで取得します。
-          例: /api/projects/1/tasks?isFinished=false
+          例: /api/projects/PwGV1OpDZQ/tasks?isFinished=false
           クエリパラメータを省略した場合は、プロジェクト内のタスクを全件取得します。
           """,
       parameters = {
@@ -72,7 +72,15 @@ public class TaskController {
           ),
           @ApiResponse(
               responseCode = "400",
-              description = "パスパラメータまたはクエリパラメータの形式が不正であったときのエラー",
+              description = "クエリパラメータの形式が不正であったときのエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          ),
+          @ApiResponse(
+              responseCode = "404",
+              description = "プロジェクトIDが不正、または指定されたプロジェクトが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)
@@ -93,7 +101,7 @@ public class TaskController {
       summary = "タスクグループ内タスク全件取得（完了フラグ指定可）",
       description = """
           完了フラグを指定して、指定タスクグループ内の完了済み・未完了のタスクをリストで取得します。
-          例: /api/task-groups/1/tasks?isFinished=true
+          例: /api/task-groups/DyLb0hrJEZ/tasks?isFinished=true
           クエリパラメータを省略した場合は、タスクグループ内のタスクを全件取得します。
           """,
       parameters = {
@@ -114,7 +122,15 @@ public class TaskController {
           ),
           @ApiResponse(
               responseCode = "400",
-              description = "パスパラメータまたはクエリパラメータの形式が不正であったときのエラー",
+              description = "クエリパラメータの形式が不正であったときのエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          ),
+          @ApiResponse(
+              responseCode = "404",
+              description = "タスクグループIDが不正、または指定されたタスクグループが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)
@@ -150,14 +166,7 @@ public class TaskController {
               )
           ),
           @ApiResponse(
-              responseCode = "404", description = "指定されたタスクIDが存在しなかったときのエラー",
-              content = @Content(
-                  mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class)
-              )
-          ),
-          @ApiResponse(
-              responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",
+              responseCode = "404", description = "タスクIDが不正、または指定されたタスクが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)
@@ -475,11 +484,8 @@ public class TaskController {
       },
       responses = {
           @ApiResponse(responseCode = "204", description = "削除成功"),
-          @ApiResponse(responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(responseCode = "404", description = "指定されたタスクIDが存在しないときのエラー",
+          @ApiResponse(responseCode = "404",
+              description = "タスクIDが不正、または指定されたタスクが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )

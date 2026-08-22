@@ -54,12 +54,8 @@ public class TaskGroupItemOrderController {
               )
           ),
           @ApiResponse(
-              responseCode = "404", description = "指定されたタスクグループIDが存在しないときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "400", description = "タスクグループIDの形式が不正であったときのエラー",
+              responseCode = "404",
+              description = "タスクグループIDが不正、または指定されたタスクグループが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
