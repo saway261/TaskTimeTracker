@@ -61,6 +61,13 @@ watch(
   { immediate: true },
 )
 
+const estimateText = computed(() => {
+  const actual = props.task?.actualMinutesCached
+  const gap = props.task?.gapMinutesCached
+  return actual === undefined || actual === null || gap === undefined || gap === null
+    ? '-'
+    : formatMinutes(actual - gap)
+})
 const actualText = computed(() => {
   const minutes = props.task?.actualMinutesCached
   return minutes === undefined || minutes === null ? '-' : formatMinutes(minutes)
@@ -129,12 +136,13 @@ function close() {
 <template>
   <BaseModal :model-value="modelValue" :title="title" @update:model-value="close">
     <template v-if="task">
+      <h3 class="task-title">{{ task.title }}</h3>
       <p v-if="deferHint" class="defer-hint">後で入力する場合は✖ボタンで閉じてください。</p>
 
       <dl class="reference-info">
         <div>
-          <dt>タスク</dt>
-          <dd>{{ task.title }}</dd>
+          <dt>見積時間</dt>
+          <dd>{{ estimateText }}</dd>
         </div>
         <div>
           <dt>実績時間</dt>
@@ -199,6 +207,12 @@ function close() {
 </template>
 
 <style scoped>
+.task-title {
+  margin: 0 0 0.8em;
+  font-size: 1.05rem;
+  color: var(--color-text);
+}
+
 .reference-info {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
