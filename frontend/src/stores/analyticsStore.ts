@@ -34,6 +34,7 @@ export function periodStart(period: AnalyticsPeriod, now = new Date()): string |
 function commonQuery(filter: AnalyticsFilter): AnalyticsCommonQuery {
   return {
     projectId: filter.projectId ?? undefined,
+    tagId: filter.tagId ?? undefined,
     from: periodStart(filter.period),
   }
 }
@@ -50,6 +51,7 @@ export const useAnalyticsStore = defineStore('analytics', {
     gapCauses: null as GapCauseAggregateResponse | null,
     filter: {
       projectId: null,
+      tagId: null,
       period: 'ALL',
       causeCategory: null,
       outcome: 'ALL',
@@ -64,9 +66,6 @@ export const useAnalyticsStore = defineStore('analytics', {
     async refresh() {
       const requestId = ++refreshRequestId
       this.error = null
-      this.accuracy = null
-      this.timeline = null
-      this.gapCauses = null
       this.refreshing = true
       await Promise.allSettled([
         this.fetchAccuracy(),
@@ -138,6 +137,11 @@ export const useAnalyticsStore = defineStore('analytics', {
 
     setPeriod(period: AnalyticsPeriod) {
       this.filter.period = period
+      return this.refresh()
+    },
+
+    setTag(tagId: number | null) {
+      this.filter.tagId = tagId
       return this.refresh()
     },
 

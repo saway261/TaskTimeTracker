@@ -13,12 +13,15 @@ import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseItemResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.MetricAvailabilityResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.OutcomeBreakdownResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ProjectBreakdownItemResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineItemResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineQueryCondition;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ScatterPointResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.SizeBucketResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
+import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
@@ -30,10 +33,13 @@ import com.kiborisaway.tasktimetracker.repository.AnalyticsSummaryRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsTrendRow;
 import com.kiborisaway.tasktimetracker.repository.ExcludedCountRow;
 import com.kiborisaway.tasktimetracker.repository.GapCauseRow;
+import com.kiborisaway.tasktimetracker.repository.ProjectBreakdownRow;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionTimelineRow;
+import com.kiborisaway.tasktimetracker.repository.TagRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskTagRow;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -97,17 +103,20 @@ public class AnalyticsService {
   private AnalyticsThresholdProperties thresholdProperties;
   private ProjectRepository projectRepository;
   private ReflectionCauseCategoryRepository causeCategoryRepository;
+  private TagRepository tagRepository;
 
   @Autowired
   public AnalyticsService(
       AnalyticsRepository analyticsRepository,
       AnalyticsThresholdProperties thresholdProperties,
       ProjectRepository projectRepository,
-      ReflectionCauseCategoryRepository causeCategoryRepository) {
+      ReflectionCauseCategoryRepository causeCategoryRepository,
+      TagRepository tagRepository) {
     this.analyticsRepository = analyticsRepository;
     this.thresholdProperties = thresholdProperties;
     this.projectRepository = projectRepository;
     this.causeCategoryRepository = causeCategoryRepository;
+    this.tagRepository = tagRepository;
   }
 
   /**
@@ -121,6 +130,7 @@ public class AnalyticsService {
   public EstimationAccuracyResponse getEstimationAccuracy(
       int userId, AnalyticsQueryCondition condition) {
     requireProjectOwnership(condition.getProjectId(), userId);
+    requireTagOwnership(condition.getTagId(), userId);
     requireValidPeriod(condition);
 
     double threshold = thresholdProperties.getOnTimePercent();
@@ -138,6 +148,9 @@ public class AnalyticsService {
         analyticsRepository.findScatterPoints(userId, condition, threshold, SCATTER_MAX_POINTS);
     List<AnalyticsSizeBucketRow> sizeBucketRows =
         analyticsRepository.findSizeBuckets(userId, condition, threshold);
+    // フィルタ条件・分析対象件数によらず常に返す。タグ絞り込み時の交絡確認に用いる（タグ要件§1.4/§5.3）。
+    List<ProjectBreakdownRow> projectBreakdownRows =
+        analyticsRepository.findProjectBreakdown(userId, condition);
 
     int analyzedCount = summaryRow.getAnalyzedCount();
     ExcludedTaskCountResponse excluded = buildExcluded(excludedRow, analyzedCount);
@@ -167,7 +180,8 @@ public class AnalyticsService {
         scatterTruncated,
         sizeBuckets,
         trend,
-        trendAvailability);
+        trendAvailability,
+        buildProjectBreakdown(projectBreakdownRows));
   }
 
   /**
@@ -181,6 +195,7 @@ public class AnalyticsService {
   @Transactional(readOnly = true)
   public GapCauseAggregateResponse getGapCauses(int userId, AnalyticsQueryCondition condition) {
     requireProjectOwnership(condition.getProjectId(), userId);
+    requireTagOwnership(condition.getTagId(), userId);
     requireValidPeriod(condition);
 
     double threshold = thresholdProperties.getOnTimePercent();
@@ -215,6 +230,10 @@ public class AnalyticsService {
    */
   private List<ScatterPointResponse> buildScatter(List<AnalyticsScatterPointRow> rows, int limit) {
     List<AnalyticsScatterPointRow> trimmed = rows.size() > limit ? rows.subList(0, limit) : rows;
+    // 新しいクエリは書かず、取得済みのtaskId群に対してB2で作成済みのfindTagsInTasksをそのまま使う
+    // （タグ機能実装計画フェーズB4 §2）。
+    Map<Integer, List<TagSummaryResponse>> tagsByTaskId = tagsByTaskId(
+        trimmed.stream().map(AnalyticsScatterPointRow::getTaskId).toList());
     List<ScatterPointResponse> result = new ArrayList<>(trimmed.stream()
         .map(row -> new ScatterPointResponse(
             row.getTaskId(),
@@ -222,10 +241,35 @@ public class AnalyticsService {
             row.getEstimatedMinutes(),
             row.getActualMinutes(),
             row.getGapRate(),
-            row.getOutcome()))
+            row.getOutcome(),
+            tagsByTaskId.getOrDefault(row.getTaskId(), List.of())))
         .toList());
     Collections.reverse(result);
     return result;
+  }
+
+  /**
+   * タスクIDの一覧から、タスクごとに付与されたタグ（名前昇順・アーカイブ済みを含む）へのマップを
+   * 一括取得します。空リストで問い合わせるとMyBatisの{@code IN ()}が構文エラーになるため、
+   * 呼び出し前に空チェックを行います（既存のmemoRepository.findAllInTasksと同じ扱い）。
+   */
+  private Map<Integer, List<TagSummaryResponse>> tagsByTaskId(List<Integer> taskIds) {
+    if (taskIds.isEmpty()) {
+      return Map.of();
+    }
+    return tagRepository.findTagsInTasks(taskIds).stream()
+        .collect(Collectors.groupingBy(
+            TaskTagRow::getTaskId,
+            Collectors.mapping(
+                row -> new TagSummaryResponse(row.getTagId(), row.getName()),
+                Collectors.toList())));
+  }
+
+  private List<ProjectBreakdownItemResponse> buildProjectBreakdown(List<ProjectBreakdownRow> rows) {
+    return rows.stream()
+        .map(row -> new ProjectBreakdownItemResponse(
+            row.getProjectId(), row.getProjectTitle(), row.getCount()))
+        .toList();
   }
 
   /**
@@ -278,6 +322,7 @@ public class AnalyticsService {
   public ReflectionTimelineResponse getReflectionTimeline(
       int userId, ReflectionTimelineQueryCondition condition) {
     requireProjectOwnership(condition.getProjectId(), userId);
+    requireTagOwnership(condition.getTagId(), userId);
     requireValidPeriod(condition);
     if (condition.getCauseCategory() != null
         && causeCategoryRepository.findActiveByCode(condition.getCauseCategory()) == null) {
@@ -291,6 +336,8 @@ public class AnalyticsService {
     int totalCount = analyticsRepository.countReflectionTimeline(userId, condition, threshold);
     List<ReflectionCauseCategoryLinkRow> categoryRows =
         analyticsRepository.findReflectionTimelineCategories(userId, condition, threshold);
+    List<TaskTagRow> tagRows =
+        analyticsRepository.findReflectionTimelineTags(userId, condition, threshold);
 
     Map<Integer, List<ReflectionCauseCategorySummaryResponse>> categoriesByReflectionId =
         categoryRows.stream()
@@ -301,9 +348,17 @@ public class AnalyticsService {
                     row -> new ReflectionCauseCategorySummaryResponse(
                         row.getCauseCategoryCode(), row.getCauseCategoryLabel()),
                     Collectors.toList())));
+    // タグはタスク単位で付与されるため、原因カテゴリ（reflectionId単位）とは異なりtaskIdでグループ化する。
+    Map<Integer, List<TagSummaryResponse>> tagsByTaskId = tagRows.stream()
+        .collect(Collectors.groupingBy(
+            TaskTagRow::getTaskId,
+            LinkedHashMap::new,
+            Collectors.mapping(
+                row -> new TagSummaryResponse(row.getTagId(), row.getName()),
+                Collectors.toList())));
 
     List<ReflectionTimelineItemResponse> items = rows.stream()
-        .map(row -> toTimelineItem(row, categoriesByReflectionId))
+        .map(row -> toTimelineItem(row, categoriesByReflectionId, tagsByTaskId))
         .toList();
 
     boolean hasNext = (long) (condition.getPage() + 1) * condition.getSize() < totalCount;
@@ -313,7 +368,8 @@ public class AnalyticsService {
 
   private ReflectionTimelineItemResponse toTimelineItem(
       ReflectionTimelineRow row,
-      Map<Integer, List<ReflectionCauseCategorySummaryResponse>> categoriesByReflectionId) {
+      Map<Integer, List<ReflectionCauseCategorySummaryResponse>> categoriesByReflectionId,
+      Map<Integer, List<TagSummaryResponse>> tagsByTaskId) {
     return new ReflectionTimelineItemResponse(
         row.getTaskId(),
         row.getTaskTitle(),
@@ -327,13 +383,33 @@ public class AnalyticsService {
         row.getOutcome(),
         categoriesByReflectionId.getOrDefault(row.getReflectionId(), List.of()),
         row.getCause(),
-        row.getNextAction());
+        row.getNextAction(),
+        tagsByTaskId.getOrDefault(row.getTaskId(), List.of()));
   }
 
   private void requireProjectOwnership(Integer projectId, int userId) {
     if (projectId != null && !projectRepository.existsByIdAndUserId(projectId, userId)) {
       throw new TargetNotFoundException(
           "projectId", "指定したIDのプロジェクトは見つかりませんでした");
+    }
+  }
+
+  /**
+   * 絞り込み対象タグの所有権と、アーカイブ状態を検証します。存在しない、または他ユーザーのタグは
+   * 404（projectIdと同じ扱い）、アーカイブ済みのタグは400とします。アーカイブは「このタグでの分析を
+   * やめる」という宣言であり、存在は隠さないが宣言に反して集計しません（タグ要件§3.5 / §8.3）。
+   */
+  private void requireTagOwnership(Integer tagId, int userId) {
+    if (tagId == null) {
+      return;
+    }
+    Tag tag = tagRepository.findByIdAndUserId(tagId, userId);
+    if (tag == null) {
+      throw new TargetNotFoundException("tagId", "指定したIDのタグは見つかりませんでした");
+    }
+    if (Boolean.TRUE.equals(tag.getIsArchived())) {
+      throw new AnalyticsQueryInvalidException(
+          "tagId", "アーカイブ済みのタグは分析の絞り込みに指定できません");
     }
   }
 

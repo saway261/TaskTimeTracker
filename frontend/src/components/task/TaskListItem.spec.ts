@@ -19,6 +19,13 @@ const task: TaskResponse = {
   gapMinutesCached: null,
   gapRateCached: null,
   memos: [],
+  tags: [
+    { id: 1, name: '調査' },
+    { id: 2, name: '設計' },
+    { id: 3, name: '実装' },
+    { id: 4, name: '検証' },
+    { id: 5, name: '改善' },
+  ],
 }
 
 describe('TaskListItem', () => {
@@ -47,6 +54,12 @@ describe('TaskListItem', () => {
 
     expect(wrapper.get('.task-row').element.tagName).toBe('BUTTON')
     expect(wrapper.find('.quick-action-modal-stub').exists()).toBe(false)
+    expect(wrapper.findAll('.tag-badge').map((badge) => badge.text())).toEqual([
+      'タグ 調査',
+      'タグ 設計',
+      'タグ 実装',
+    ])
+    expect(wrapper.get('.remaining-badge').text()).toBe('他2件')
 
     await wrapper.get('.task-row').trigger('click')
 

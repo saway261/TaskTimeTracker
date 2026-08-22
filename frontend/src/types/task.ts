@@ -1,4 +1,5 @@
 import type { MemoResponse } from './memo'
+import type { TagSummary } from './tag'
 
 export interface TaskResponse {
   id: number
@@ -13,12 +14,14 @@ export interface TaskResponse {
   gapMinutesCached: number | null // 未完了時は null
   gapRateCached: number | null // 未完了時は null。単位は「％」（100倍しない）
   memos: MemoResponse[]
+  tags: TagSummary[]
 }
 
 export interface TaskCreateRequest {
   title: string
   description: string | null
   estimatedMinutes: number
+  tagIds: number[]
 }
 
 export interface TaskUpdatePropertyRequest {
@@ -37,4 +40,8 @@ export interface TaskUpdateFinishedRequest {
 export interface TaskUpdateParentRequest {
   projectId: number | null
   taskGroupId: number | null
+}
+
+export interface TaskTagsUpdateRequest {
+  tagIds: number[]
 }

@@ -4,9 +4,12 @@ import BaseInput from '@/components/common/BaseInput.vue'
 import BaseTextarea from '@/components/common/BaseTextarea.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import TagSelect from '@/components/tag/TagSelect.vue'
+import TagBadgeList from '@/components/tag/TagBadgeList.vue'
 import type { ApiError } from '@/types/apiError'
 import type { TaskResponse } from '@/types/task'
 import type { TaskGroupResponse } from '@/types/taskGroup'
+import type { TagSummary } from '@/types/tag'
 
 const props = withDefaults(
   defineProps<{
@@ -32,6 +35,7 @@ const emit = defineEmits<{
       description: string | null
       estimatedMinutes?: number
       taskGroupId?: number | null
+      tagIds?: number[]
     },
   ]
   cancel: []
@@ -42,6 +46,7 @@ const description = ref(props.task?.description ?? '')
 // 見積時間は登録時のみ入力する。更新時は別API・別UI（§4.4）のためここでは扱わない。
 const estimatedMinutes = ref(props.task?.estimatedMinutes?.toString() ?? '')
 const selectedTaskGroupId = ref<number | ''>('')
+const selectedTags = ref<TagSummary[]>([])
 const taskGroupSelectId = useId()
 
 watch(
@@ -50,6 +55,7 @@ watch(
     title.value = task?.title ?? ''
     description.value = task?.description ?? ''
     estimatedMinutes.value = task?.estimatedMinutes?.toString() ?? ''
+    selectedTags.value = []
   },
 )
 
@@ -67,11 +73,20 @@ function handleSubmit() {
   emit('submit', {
     title: title.value,
     description: description.value === '' ? null : description.value,
-    ...(props.task ? {} : { estimatedMinutes: Number(estimatedMinutes.value) }),
+    ...(props.task
+      ? {}
+      : {
+          estimatedMinutes: Number(estimatedMinutes.value),
+          tagIds: selectedTags.value.map((tag) => tag.id),
+        }),
     ...(props.showTaskGroupSelector
       ? { taskGroupId: selectedTaskGroupId.value === '' ? null : Number(selectedTaskGroupId.value) }
       : {}),
   })
+}
+
+function removeSelectedTag(tagId: number) {
+  selectedTags.value = selectedTags.value.filter((tag) => tag.id !== tagId)
 }
 </script>
 
@@ -99,6 +114,27 @@ function handleSubmit() {
       type="number"
       :error="error?.fieldErrors.estimatedMinutes"
     />
+    <template v-if="!task">
+      <div class="selected-task-tags" aria-live="polite">
+        <span class="selected-task-tags-label">選択中のタグ</span>
+        <TagBadgeList
+          v-if="selectedTags.length > 0"
+          :tags="selectedTags"
+          :limit="null"
+          removable
+          :disabled="submitting"
+          @remove="removeSelectedTag"
+        />
+        <span v-else class="selected-task-tags-empty">なし</span>
+      </div>
+      <TagSelect
+        v-model="selectedTags"
+        :disabled="submitting"
+        :error="error?.fieldErrors.tagIds"
+        :show-selected="false"
+        label="タグを追加"
+      />
+    </template>
     <div v-if="!task && showTaskGroupSelector" class="select-field">
       <label :for="taskGroupSelectId">作成先</label>
       <select :id="taskGroupSelectId" v-model="selectedTaskGroupId" :disabled="submitting">
@@ -130,6 +166,30 @@ function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 0.3em;
+}
+
+.selected-task-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  min-height: 2em;
+  padding: 0.55em 0.65em;
+  border: 1px solid var(--color-surface-muted);
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+
+.selected-task-tags-label {
+  flex-shrink: 0;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.selected-task-tags-empty {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
 }
 
 .select-field label {

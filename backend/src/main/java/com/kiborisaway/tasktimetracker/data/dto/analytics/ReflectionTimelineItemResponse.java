@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.data.dto.analytics;
 
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -53,6 +54,9 @@ public class ReflectionTimelineItemResponse {
   @Schema(description = "次回に向けた改善アクション", example = "類似タスクの実績を見積もり前に確認する")
   private final String nextAction;
 
+  @Schema(description = "付与されたタグ 名前の昇順。アーカイブ済みのタグも含む。未付与の場合は空配列")
+  private final List<TagSummaryResponse> tags;
+
   public ReflectionTimelineItemResponse(
       int taskId,
       String taskTitle,
@@ -66,7 +70,8 @@ public class ReflectionTimelineItemResponse {
       String outcome,
       List<ReflectionCauseCategorySummaryResponse> causeCategories,
       String cause,
-      String nextAction) {
+      String nextAction,
+      List<TagSummaryResponse> tags) {
     this.taskId = taskId;
     this.taskTitle = taskTitle;
     this.projectId = projectId;
@@ -80,5 +85,6 @@ public class ReflectionTimelineItemResponse {
     this.causeCategories = causeCategories;
     this.cause = cause;
     this.nextAction = nextAction;
+    this.tags = tags;
   }
 }

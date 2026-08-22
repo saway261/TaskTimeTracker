@@ -14,6 +14,7 @@ const points: ScatterPointResponse[] = [
     actualMinutes: 10,
     gapRate: 0,
     outcome: 'ON_TIME',
+    tags: [],
   },
   {
     taskId: 2,
@@ -22,6 +23,10 @@ const points: ScatterPointResponse[] = [
     actualMinutes: 120,
     gapRate: 100,
     outcome: 'LATE',
+    tags: [
+      { id: 1, name: '調査' },
+      { id: 2, name: 'API' },
+    ],
   },
   {
     taskId: 3,
@@ -30,6 +35,7 @@ const points: ScatterPointResponse[] = [
     actualMinutes: 50,
     gapRate: -50,
     outcome: 'EARLY',
+    tags: [],
   },
 ]
 
@@ -96,6 +102,9 @@ describe('EstimateActualScatter', () => {
     expect(dialog).not.toBeNull()
     expect(dialog?.textContent).toContain('超過したタスク')
     expect(dialog?.textContent).toContain('2時間')
+    expect(dialog?.textContent).toContain('タグ')
+    expect(dialog?.textContent).toContain('調査')
+    expect(dialog?.textContent).toContain('API')
     wrapper.unmount()
   })
 

@@ -8,6 +8,9 @@ import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidE
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseRequiredException;
 import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TagLimitExceededException;
+import com.kiborisaway.tasktimetracker.exception.TagNameDuplicateException;
+import com.kiborisaway.tasktimetracker.exception.TaskTagsInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
@@ -299,6 +302,57 @@ public class ErrorDetailsBuilder {
    * @return エラー発生個所とエラーメッセージ
    */
   public List<Map<String, String>> buildErrorDetails(AnalyticsQueryInvalidException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * TagLimitExceededExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex TagLimitExceededException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(TagLimitExceededException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * TagNameDuplicateExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex TagNameDuplicateException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(TagNameDuplicateException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", ex.getField());
+    error.put("message", ex.getMessage());
+    errors.add(error);
+
+    return errors;
+  }
+
+  /**
+   * TaskTagsInvalidExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * @param ex TaskTagsInvalidException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(TaskTagsInvalidException ex) {
     List<Map<String, String>> errors = new ArrayList<>();
 
     Map<String, String> error = new HashMap<>();

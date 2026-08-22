@@ -14,8 +14,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskResponse;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskTagsUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
@@ -24,13 +26,16 @@ import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskTagsInvalidException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionRepository;
+import com.kiborisaway.tasktimetracker.repository.TagRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskTagRow;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -68,6 +73,9 @@ class TaskServiceTest {
   private ReflectionRepository reflectionRepository;
 
   @Mock
+  private TagRepository tagRepository;
+
+  @Mock
   private ProjectItemOrderRepository pjItemOrderRepository;
 
   @Mock
@@ -90,6 +98,10 @@ class TaskServiceTest {
     when(memoRepository.findAllInTasks(List.of(1, 2))).thenReturn(List.of(
         new Memo(1, null, null, 1, "タスク1メモ"),
         new Memo(2, null, null, 2, "タスク2メモ")));
+    when(tagRepository.findTagsInTasks(List.of(1, 2))).thenReturn(List.of(
+        new TaskTagRow(1, 10, "調査"),
+        new TaskTagRow(2, 20, "設定"),
+        new TaskTagRow(2, 30, "レビュー")));
 
     // Act
     List<TaskResponse> actual = sut.findAllInTaskGroupByCondition(USER_ID, tgId,null);
@@ -107,7 +119,15 @@ class TaskServiceTest {
     verify(tsRepository, never()).findAllInTaskGroupByCondition(anyInt(), anyBoolean(), anyInt());
     verify(memoRepository, times(1)).findAllInTasks(List.of(1, 2));
     verify(memoRepository, never()).findAllInTask(anyInt());
+    verify(tagRepository, times(1)).findTagsInTasks(List.of(1, 2));
+    verify(tagRepository, never()).findTagsByTaskId(anyInt());
     assertThat(actual).allSatisfy(response -> assertThat(response.getMemos()).hasSize(1));
+    assertThat(actual.get(0).getTags())
+        .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
+        .containsExactly(tuple(10, "調査"));
+    assertThat(actual.get(1).getTags())
+        .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
+        .containsExactly(tuple(20, "設定"), tuple(30, "レビュー"));
   }
 
   @ParameterizedTest(name = "[{index}]タスクグループ内タスク一覧検索_第2引数に{0}を指定すると完了フラグ指定検索用のリポジトリのメソッドに{0}を指定して呼び出すこと")
@@ -160,6 +180,7 @@ class TaskServiceTest {
 
     assertThat(actual).isEmpty();
     verify(memoRepository, never()).findAllInTasks(any());
+    verify(tagRepository, never()).findTagsInTasks(any());
   }
 
   @Test
@@ -237,6 +258,8 @@ class TaskServiceTest {
     Task expected = new Task(id, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
 
     when(tsRepository.findById(id, USER_ID)).thenReturn(expected);
+    when(tagRepository.findTagsByTaskId(id)).thenReturn(List.of(
+        new TagSummaryResponse(10, "調査")));
 
     // Act
     TaskResponse actual = sut.findById(USER_ID, id);
@@ -249,7 +272,11 @@ class TaskServiceTest {
     assertThat(actual.getDescription()).isEqualTo(expected.getDescription());
     assertThat(actual.getEstimatedMinutes()).isEqualTo(expected.getEstimatedMinutes());
     assertThat(actual.getMemos()).isEmpty();
+    assertThat(actual.getTags())
+        .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
+        .containsExactly(tuple(10, "調査"));
     verify(tsRepository, times(1)).findById(id, USER_ID);
+    verify(tagRepository, times(1)).findTagsByTaskId(id);
   }
 
   @Test
@@ -397,6 +424,134 @@ class TaskServiceTest {
 
     verify(pjRepository, times(1)).existsByIdAndUserId(pId, USER_ID);
     verify(tsRepository, times(1)).insert(any(Task.class));
+  }
+
+  @Test
+  void 登録成功_tagIdsを渡すと検証のうえタグを付与すること() {
+    // Arrange
+    int pId = 1;
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle("タスク１");
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
+    request.setTagIds(List.of(10, 20));
+
+    when(pjRepository.existsByIdAndUserId(pId, USER_ID)).thenReturn(true);
+    when(tagRepository.countOwnedByIds(USER_ID, List.of(10, 20))).thenReturn(2);
+    doAnswer(invocation -> {
+      Task task = invocation.getArgument(0);
+      task.setId(10);
+      return null;
+    }).when(tsRepository).insert(any(Task.class));
+    Task registered = new Task(10, pId, null, "タスク１", "説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(10, USER_ID)).thenReturn(registered);
+
+    // Act
+    sut.register(USER_ID, pId, null, request);
+
+    // Assert
+    verify(tagRepository, times(1)).countOwnedByIds(USER_ID, List.of(10, 20));
+    verify(tagRepository, times(1)).insertLink(10, 10);
+    verify(tagRepository, times(1)).insertLink(10, 20);
+  }
+
+  @Test
+  void 登録成功_付与件数に上限がなく6件以上でも付与できること() {
+    // Arrange
+    int pId = 1;
+    List<Integer> tagIds = List.of(1, 2, 3, 4, 5, 6);
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle("タスク１");
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
+    request.setTagIds(tagIds);
+
+    when(pjRepository.existsByIdAndUserId(pId, USER_ID)).thenReturn(true);
+    when(tagRepository.countOwnedByIds(USER_ID, tagIds)).thenReturn(tagIds.size());
+    doAnswer(invocation -> {
+      Task task = invocation.getArgument(0);
+      task.setId(10);
+      return null;
+    }).when(tsRepository).insert(any(Task.class));
+    Task registered = new Task(10, pId, null, "タスク１", "説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(10, USER_ID)).thenReturn(registered);
+
+    // Act
+    sut.register(USER_ID, pId, null, request);
+
+    // Assert
+    for (int tagId : tagIds) {
+      verify(tagRepository, times(1)).insertLink(10, tagId);
+    }
+  }
+
+  @Test
+  void 登録成功_tagIdsを省略するとタグ検証も付与も行わないこと() {
+    // Arrange
+    int pId = 1;
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle("タスク１");
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
+
+    when(pjRepository.existsByIdAndUserId(pId, USER_ID)).thenReturn(true);
+    doAnswer(invocation -> {
+      Task task = invocation.getArgument(0);
+      task.setId(10);
+      return null;
+    }).when(tsRepository).insert(any(Task.class));
+    Task registered = new Task(10, pId, null, "タスク１", "説明", 60,
+        null, null, null, null, null);
+    when(tsRepository.findById(10, USER_ID)).thenReturn(registered);
+
+    // Act
+    sut.register(USER_ID, pId, null, request);
+
+    // Assert
+    verify(tagRepository, never()).countOwnedByIds(anyInt(), any());
+    verify(tagRepository, never()).insertLink(anyInt(), anyInt());
+  }
+
+  @Test
+  void 登録失敗_tagIdsに重複が含まれる場合は例外を投げてタスクを登録しないこと() {
+    // Arrange
+    int pId = 1;
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle("タスク１");
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
+    request.setTagIds(List.of(10, 10));
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.register(USER_ID, pId, null, request))
+        .isInstanceOf(TaskTagsInvalidException.class);
+
+    verify(pjRepository, never()).existsByIdAndUserId(anyInt(), anyInt());
+    verify(tsRepository, never()).insert(any());
+    verify(tagRepository, never()).insertLink(anyInt(), anyInt());
+  }
+
+  @Test
+  void 登録失敗_存在しないまたは他ユーザーのtagIdsが含まれる場合は例外を投げてタスクを登録しないこと() {
+    // Arrange
+    int pId = 1;
+    TaskCreateRequest request = new TaskCreateRequest();
+    request.setTitle("タスク１");
+    request.setDescription("説明");
+    request.setEstimatedMinutes(60);
+    request.setTagIds(List.of(10, 999));
+
+    when(tagRepository.countOwnedByIds(USER_ID, List.of(10, 999))).thenReturn(1);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.register(USER_ID, pId, null, request))
+        .isInstanceOf(TaskTagsInvalidException.class);
+
+    verify(pjRepository, never()).existsByIdAndUserId(anyInt(), anyInt());
+    verify(tsRepository, never()).insert(any());
+    verify(tagRepository, never()).insertLink(anyInt(), anyInt());
   }
 
   @Test
@@ -657,6 +812,101 @@ class TaskServiceTest {
   }
 
   @Test
+  void タグ全置換成功_既存のリンクを削除してから検証済みのタグを付与すること() {
+    // Arrange
+    int taskId = 1;
+    Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
+    TaskTagsUpdateRequest request = new TaskTagsUpdateRequest();
+    request.setTagIds(List.of(10, 20));
+
+    when(tsRepository.findById(taskId, USER_ID)).thenReturn(task);
+    when(tagRepository.countOwnedByIds(USER_ID, List.of(10, 20))).thenReturn(2);
+
+    // Act
+    sut.updateTags(USER_ID, taskId, request);
+
+    // Assert
+    InOrder inOrder = org.mockito.Mockito.inOrder(tagRepository);
+    inOrder.verify(tagRepository, times(1)).countOwnedByIds(USER_ID, List.of(10, 20));
+    inOrder.verify(tagRepository, times(1)).deleteLinksByTaskId(taskId);
+    inOrder.verify(tagRepository, times(1)).insertLink(taskId, 10);
+    inOrder.verify(tagRepository, times(1)).insertLink(taskId, 20);
+  }
+
+  @Test
+  void タグ全置換成功_空配列を指定するとタグなしになること() {
+    // Arrange
+    int taskId = 1;
+    Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
+    TaskTagsUpdateRequest request = new TaskTagsUpdateRequest();
+    request.setTagIds(List.of());
+
+    when(tsRepository.findById(taskId, USER_ID)).thenReturn(task);
+
+    // Act
+    sut.updateTags(USER_ID, taskId, request);
+
+    // Assert
+    verify(tagRepository, times(1)).deleteLinksByTaskId(taskId);
+    verify(tagRepository, never()).insertLink(anyInt(), anyInt());
+    verify(tagRepository, never()).countOwnedByIds(anyInt(), any());
+  }
+
+  @Test
+  void タグ全置換失敗_対象タスクが存在しない場合は例外を投げて置換処理を呼び出さないこと() {
+    // Arrange
+    int taskId = 999;
+    TaskTagsUpdateRequest request = new TaskTagsUpdateRequest();
+    request.setTagIds(List.of(10));
+
+    when(tsRepository.findById(taskId, USER_ID)).thenReturn(null);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateTags(USER_ID, taskId, request))
+        .isInstanceOf(TargetNotFoundException.class);
+
+    verify(tagRepository, never()).deleteLinksByTaskId(anyInt());
+    verify(tagRepository, never()).insertLink(anyInt(), anyInt());
+  }
+
+  @Test
+  void タグ全置換失敗_tagIdsに重複が含まれる場合は例外を投げて既存のリンクを削除しないこと() {
+    // Arrange
+    int taskId = 1;
+    Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
+    TaskTagsUpdateRequest request = new TaskTagsUpdateRequest();
+    request.setTagIds(List.of(10, 10));
+
+    when(tsRepository.findById(taskId, USER_ID)).thenReturn(task);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateTags(USER_ID, taskId, request))
+        .isInstanceOf(TaskTagsInvalidException.class);
+
+    verify(tagRepository, never()).deleteLinksByTaskId(anyInt());
+    verify(tagRepository, never()).insertLink(anyInt(), anyInt());
+  }
+
+  @Test
+  void タグ全置換失敗_存在しないまたは他ユーザーのtagIdsが含まれる場合は例外を投げて既存のリンクを削除しないこと() {
+    // Arrange
+    int taskId = 1;
+    Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
+    TaskTagsUpdateRequest request = new TaskTagsUpdateRequest();
+    request.setTagIds(List.of(10, 999));
+
+    when(tsRepository.findById(taskId, USER_ID)).thenReturn(task);
+    when(tagRepository.countOwnedByIds(USER_ID, List.of(10, 999))).thenReturn(1);
+
+    // Act & Assert
+    assertThatThrownBy(() -> sut.updateTags(USER_ID, taskId, request))
+        .isInstanceOf(TaskTagsInvalidException.class);
+
+    verify(tagRepository, never()).deleteLinksByTaskId(anyInt());
+    verify(tagRepository, never()).insertLink(anyInt(), anyInt());
+  }
+
+  @Test
   void 見積もり作業時間更新成功_WorkSessionが存在しない場合はtsRepositoryのメソッドを呼び出すこと() {
     // Arrange
     int taskId = 1;
@@ -778,6 +1028,8 @@ class TaskServiceTest {
     verify(wsRepository, never()).existsUnfinishedByTaskId(anyInt(), anyInt());
     verify(tsRepository, times(1)).updateFinished(id, isFinished, USER_ID);
     verify(reflectionRepository, times(1)).deleteByTaskId(id);
+    // 作業中へ戻してもタグ付与は維持される（タグ機能実装計画 §0-2-3の回帰確認）
+    verify(tagRepository, never()).deleteLinksByTaskId(anyInt());
   }
 
   @Test
@@ -845,10 +1097,11 @@ class TaskServiceTest {
 
     // Assert
     InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, reflectionRepository,
-        pjItemOrderRepository, tgItemOrderRepository, tsRepository);
+        tagRepository, pjItemOrderRepository, tgItemOrderRepository, tsRepository);
     inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
     inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
     inOrder.verify(reflectionRepository, times(1)).deleteByTaskId(id);
+    inOrder.verify(tagRepository, times(1)).deleteLinksByTaskId(id);
     inOrder.verify(pjItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tgItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tsRepository, times(1)).deleteById(id, USER_ID);
@@ -868,6 +1121,7 @@ class TaskServiceTest {
     verify(wsRepository, never()).deleteAllByTaskId(anyInt());
     verify(memoRepository, never()).deleteAllInTask(anyInt());
     verify(reflectionRepository, never()).deleteByTaskId(anyInt());
+    verify(tagRepository, never()).deleteLinksByTaskId(anyInt());
     verify(pjItemOrderRepository, never()).deleteByTaskId(anyInt());
     verify(tgItemOrderRepository, never()).deleteByTaskId(anyInt());
     verify(tsRepository, never()).deleteById(anyInt(), anyInt());
@@ -886,10 +1140,11 @@ class TaskServiceTest {
         .isInstanceOf(TargetNotFoundException.class);
 
     InOrder inOrder = org.mockito.Mockito.inOrder(wsRepository, memoRepository, reflectionRepository,
-        pjItemOrderRepository, tgItemOrderRepository, tsRepository);
+        tagRepository, pjItemOrderRepository, tgItemOrderRepository, tsRepository);
     inOrder.verify(wsRepository, times(1)).deleteAllByTaskId(id);
     inOrder.verify(memoRepository, times(1)).deleteAllInTask(id);
     inOrder.verify(reflectionRepository, times(1)).deleteByTaskId(id);
+    inOrder.verify(tagRepository, times(1)).deleteLinksByTaskId(id);
     inOrder.verify(pjItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tgItemOrderRepository, times(1)).deleteByTaskId(id);
     inOrder.verify(tsRepository, times(1)).deleteById(id, USER_ID);

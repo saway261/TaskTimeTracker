@@ -19,6 +19,7 @@ const timeline: ReflectionTimelineResponse = {
       gapRate: 0,
       outcome: 'ON_TIME',
       causeCategories: [],
+      tags: [],
       cause: null,
       nextAction: null,
     },

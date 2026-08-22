@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import type { AnalyticsOutcome, ReflectionTimelineItemResponse } from '@/types/analytics'
 import { formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
 import EstimateOutcomeIcon from '@/components/common/EstimateOutcomeIcon.vue'
+import TagBadgeList from '@/components/tag/TagBadgeList.vue'
 
 const props = defineProps<{
   item: ReflectionTimelineItemResponse
@@ -53,6 +54,7 @@ const taskPath = computed(() => `/projects/${props.item.projectId}/tasks/${props
           {{ category.label }}
         </span>
       </div>
+      <TagBadgeList :tags="item.tags" :limit="null" />
     </div>
 
     <dl class="task-metrics">

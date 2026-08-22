@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
       </RouterLink>
       <nav class="main-nav" aria-label="メインナビゲーション">
         <RouterLink
-          to="/projects?isFinished=false"
+          to="/projects"
           class="nav-link"
           :class="{ active: isTaskManagementActive }"
           :aria-current="isTaskManagementActive ? 'page' : undefined"
@@ -179,6 +179,9 @@ onBeforeUnmount(() => {
             </span>
           </div>
           <div class="user-menu-separator" role="separator"></div>
+          <RouterLink to="/tags" class="user-menu-item" role="menuitem" @click="closeMenu">
+            タグ管理
+          </RouterLink>
           <RouterLink to="/email-change" class="user-menu-item" role="menuitem" @click="closeMenu">
             メールアドレス変更
           </RouterLink>
@@ -224,7 +227,7 @@ onBeforeUnmount(() => {
           aria-label="モバイルナビゲーション"
         >
           <RouterLink
-            to="/projects?isFinished=false"
+            to="/projects"
             class="mobile-nav-item"
             :class="{ active: isTaskManagementActive }"
             :aria-current="isTaskManagementActive ? 'page' : undefined"

@@ -24,4 +24,8 @@ public class AnalyticsQueryCondition implements AnalyticsPeriod {
   @Schema(description = "完了日時の上限（この日時未満） 未指定で上限なし",
       example = "2026-02-01T00:00:00+09:00")
   private LocalDateTime to;
+
+  @Schema(description = "絞り込み対象タグID 未指定でタグの有無を問わず全タスクが対象", example = "1")
+  @Positive
+  private Integer tagId;
 }

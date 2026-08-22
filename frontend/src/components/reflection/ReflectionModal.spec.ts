@@ -137,6 +137,17 @@ describe('ReflectionModal', () => {
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
   })
 
+  it('タスク名をサマリー外の上部に表示し、サマリー内に見積時間を表示する', () => {
+    const wrapper = mountModal(baseTask)
+
+    expect(wrapper.get('.task-title').text()).toBe(baseTask.title)
+    expect(wrapper.find('.reference-info').text()).not.toContain(baseTask.title)
+
+    const summaryText = wrapper.get('.reference-info').text()
+    expect(summaryText).toContain('見積時間')
+    expect(summaryText).toContain('1時間')
+  })
+
   it('ストアのしきい値をカテゴリの出し分けにも使用する', () => {
     useAppSettingsStore().onTimeThresholdPercent = 60
     const wrapper = mountModal(baseTask)

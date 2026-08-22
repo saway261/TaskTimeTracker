@@ -221,6 +221,179 @@ class AnalyticsRepositoryTest {
   }
 
   @Test
+  void タグ絞り込み_tagId指定時は指定タグが付与されたタスクのみ集計されタグなしなら未指定で含まれること() {
+    int projectId = insertProject(USER_ID, "タグ絞り込み検証");
+    int tagA = insertTag(USER_ID, "タグA");
+    int tagB = insertTag(USER_ID, "タグB");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int taskWithA1 = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int taskWithA2 = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, -5.0);
+    int taskWithB = insertFinishedTaskForTimeline(projectId, base.plusDays(2), 100, 10.0);
+    insertFinishedTaskForTimeline(projectId, base.plusDays(3), 100, 0.0); // タグなし
+    linkTag(taskWithA1, tagA);
+    linkTag(taskWithA2, tagA);
+    linkTag(taskWithB, tagB);
+
+    AnalyticsQueryCondition conditionA = conditionFor(projectId);
+    conditionA.setTagId(tagA);
+    AnalyticsQueryCondition conditionB = conditionFor(projectId);
+    conditionB.setTagId(tagB);
+    AnalyticsQueryCondition conditionAll = conditionFor(projectId);
+
+    assertThat(sut.findSummary(USER_ID, conditionA, THRESHOLD).getAnalyzedCount()).isEqualTo(2);
+    assertThat(sut.findSummary(USER_ID, conditionB, THRESHOLD).getAnalyzedCount()).isEqualTo(1);
+    // tagId未指定ならタグなしタスクも含めて4件全て対象になる
+    assertThat(sut.findSummary(USER_ID, conditionAll, THRESHOLD).getAnalyzedCount()).isEqualTo(4);
+  }
+
+  @Test
+  void タグ絞り込み_複数タグが付いたタスクでも二重に数えられないこと() {
+    int projectId = insertProject(USER_ID, "タグ重複防止検証");
+    int tagA = insertTag(USER_ID, "重複タグA");
+    int tagB = insertTag(USER_ID, "重複タグB");
+    int taskId = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    linkTag(taskId, tagA);
+    linkTag(taskId, tagB);
+
+    AnalyticsQueryCondition condition = conditionFor(projectId);
+    condition.setTagId(tagA);
+
+    assertThat(sut.findSummary(USER_ID, condition, THRESHOLD).getAnalyzedCount()).isEqualTo(1);
+  }
+
+  @Test
+  void AND絞り込み_tagIdとprojectIdと期間を同時指定すると絞り込みがANDで効くこと() {
+    int projectA = insertProject(USER_ID, "AND検証A");
+    int projectB = insertProject(USER_ID, "AND検証B");
+    int tag = insertTag(USER_ID, "AND検証タグ");
+    LocalDateTime inRange = LocalDateTime.of(2026, 3, 1, 0, 0);
+    LocalDateTime outOfRange = LocalDateTime.of(2026, 6, 1, 0, 0);
+
+    int matchAll = insertFinishedTaskForTimeline(projectA, inRange, 100, 5.0);
+    int wrongProject = insertFinishedTaskForTimeline(projectB, inRange, 100, 5.0);
+    int wrongPeriod = insertFinishedTaskForTimeline(projectA, outOfRange, 100, 5.0);
+    insertFinishedTaskForTimeline(projectA, inRange, 100, 5.0); // タグなし
+    linkTag(matchAll, tag);
+    linkTag(wrongProject, tag);
+    linkTag(wrongPeriod, tag);
+
+    AnalyticsQueryCondition condition = conditionFor(projectA);
+    condition.setTagId(tag);
+    condition.setFrom(LocalDateTime.of(2026, 2, 1, 0, 0));
+    condition.setTo(LocalDateTime.of(2026, 4, 1, 0, 0));
+
+    assertThat(sut.findSummary(USER_ID, condition, THRESHOLD).getAnalyzedCount()).isEqualTo(1);
+  }
+
+  @Test
+  void findExcludedCounts_tagId指定時も指定タグのタスクのみ集計されること() {
+    int projectId = insertProject(USER_ID, "除外件数タグ絞り込み検証");
+    int tag = insertTag(USER_ID, "除外検証タグ");
+    int taggedMissingActual = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 0, -100.0);
+    insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 2, 0, 0), 0, -100.0); // タグなし
+    linkTag(taggedMissingActual, tag);
+
+    AnalyticsQueryCondition condition = conditionFor(projectId);
+    condition.setTagId(tag);
+
+    ExcludedCountRow actual = sut.findExcludedCounts(USER_ID, condition);
+
+    assertThat(actual.getFinishedCount()).isEqualTo(1);
+    assertThat(actual.getMissingActualMinutes()).isEqualTo(1);
+  }
+
+  @Test
+  void findProjectBreakdown_プロジェクト別件数が件数降順プロジェクト名昇順で返り合計が分析対象件数と一致すること() {
+    int projectA = insertProject(USER_ID, "分布検証A");
+    int projectB = insertProject(USER_ID, "分布検証B");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    insertFinishedTaskForTimeline(projectA, base, 100, 5.0);
+    insertFinishedTaskForTimeline(projectA, base.plusDays(1), 100, 5.0);
+    insertFinishedTaskForTimeline(projectA, base.plusDays(2), 100, 5.0);
+    insertFinishedTaskForTimeline(projectB, base, 100, 5.0);
+
+    // 自分の他フィクスチャの影響を受けないよう、両プロジェクトに絞り込んだ集計と個別集計を突き合わせる
+    AnalyticsQueryCondition conditionA = conditionFor(projectA);
+    AnalyticsQueryCondition conditionB = conditionFor(projectB);
+    int countA = sut.findSummary(USER_ID, conditionA, THRESHOLD).getAnalyzedCount();
+    int countB = sut.findSummary(USER_ID, conditionB, THRESHOLD).getAnalyzedCount();
+
+    List<ProjectBreakdownRow> actual = sut.findProjectBreakdown(USER_ID, new AnalyticsQueryCondition());
+
+    ProjectBreakdownRow rowA = actual.stream()
+        .filter(row -> row.getProjectId() == projectA).findFirst().orElseThrow();
+    ProjectBreakdownRow rowB = actual.stream()
+        .filter(row -> row.getProjectId() == projectB).findFirst().orElseThrow();
+    assertThat(rowA.getCount()).isEqualTo(countA);
+    assertThat(rowA.getProjectTitle()).isEqualTo("分布検証A");
+    assertThat(rowB.getCount()).isEqualTo(countB);
+    // 分布の合計は分析対象件数の総数と一致する（タスクは必ず1プロジェクトに属するため）
+    int totalBreakdown = actual.stream().mapToInt(ProjectBreakdownRow::getCount).sum();
+    int totalAnalyzed = sut.findSummary(USER_ID, new AnalyticsQueryCondition(), THRESHOLD)
+        .getAnalyzedCount();
+    assertThat(totalBreakdown).isEqualTo(totalAnalyzed);
+  }
+
+  @Test
+  void findProjectBreakdown_同数の場合はプロジェクト名の昇順で並ぶこと() {
+    int projectZ = insertProject(USER_ID, "並び順検証Z");
+    int projectA = insertProject(USER_ID, "並び順検証A");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    insertFinishedTaskForTimeline(projectZ, base, 100, 5.0);
+    insertFinishedTaskForTimeline(projectA, base, 100, 5.0);
+
+    AnalyticsQueryCondition condition = new AnalyticsQueryCondition();
+    List<ProjectBreakdownRow> actual = sut.findProjectBreakdown(USER_ID, condition);
+
+    // count=1のプロジェクトが複数あってもZ・Aの相対順序はプロジェクト名昇順になる
+    // （streamのfilterはDBが返した順序を保持する）。
+    List<ProjectBreakdownRow> ordered = actual.stream()
+        .filter(row -> row.getProjectId() == projectZ || row.getProjectId() == projectA)
+        .toList();
+    assertThat(ordered).extracting(ProjectBreakdownRow::getProjectTitle)
+        .containsExactly("並び順検証A", "並び順検証Z");
+  }
+
+  @Test
+  void findProjectBreakdown_tagId指定時は指定タグのタスクのみ集計されること() {
+    int projectA = insertProject(USER_ID, "分布タグ検証A");
+    int projectB = insertProject(USER_ID, "分布タグ検証B");
+    int tag = insertTag(USER_ID, "分布タグ");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int taggedInA = insertFinishedTaskForTimeline(projectA, base, 100, 5.0);
+    insertFinishedTaskForTimeline(projectA, base.plusDays(1), 100, 5.0); // タグなし
+    int taggedInB = insertFinishedTaskForTimeline(projectB, base, 100, 5.0);
+    linkTag(taggedInA, tag);
+    linkTag(taggedInB, tag);
+
+    AnalyticsQueryCondition condition = new AnalyticsQueryCondition();
+    condition.setTagId(tag);
+    List<ProjectBreakdownRow> actual = sut.findProjectBreakdown(USER_ID, condition);
+
+    List<ProjectBreakdownRow> relevant = actual.stream()
+        .filter(row -> row.getProjectId() == projectA || row.getProjectId() == projectB)
+        .toList();
+    assertThat(relevant).extracting(ProjectBreakdownRow::getCount).containsOnly(1);
+    assertThat(relevant).hasSize(2);
+  }
+
+  @Test
+  void findProjectBreakdown_分析対象0件のときは空配列でエラーにならないこと() {
+    int projectId = insertProject(USER_ID, "分布0件検証");
+    int tag = insertTag(USER_ID, "誰も付与していないタグ");
+
+    AnalyticsQueryCondition condition = conditionFor(projectId);
+    condition.setTagId(tag);
+
+    List<ProjectBreakdownRow> actual = sut.findProjectBreakdown(USER_ID, condition);
+
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
   void findScatterPoints_完了日時降順で上限プラス1件まで取得できること() {
     int projectId = insertProject(USER_ID, "散布図検証");
     LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
@@ -251,6 +424,24 @@ class AnalyticsRepositoryTest {
     assertThat(actual)
         .extracting(AnalyticsScatterPointRow::getOutcome)
         .containsExactly("EARLY", "ON_TIME"); // finished_at DESCなので新しい順
+  }
+
+  @Test
+  void findScatterPoints_tagId指定時は指定タグのタスクのみ返ること() {
+    int projectId = insertProject(USER_ID, "散布図タグ絞り込み検証");
+    int tag = insertTag(USER_ID, "散布図タグ");
+    int tagged = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 90, 50.0);
+    insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 2, 0, 0), 90, 50.0); // タグなし
+    linkTag(tagged, tag);
+
+    AnalyticsQueryCondition condition = conditionFor(projectId);
+    condition.setTagId(tag);
+
+    List<AnalyticsScatterPointRow> actual = sut.findScatterPoints(USER_ID, condition, THRESHOLD, 500);
+
+    assertThat(actual).extracting(AnalyticsScatterPointRow::getTaskId).containsExactly(tagged);
   }
 
   @Test
@@ -289,6 +480,27 @@ class AnalyticsRepositoryTest {
         sut.findSizeBuckets(USER_ID, conditionFor(projectId), THRESHOLD);
 
     assertThat(actual).extracting(AnalyticsSizeBucketRow::getBucketCode).containsExactly("M15");
+  }
+
+  @Test
+  void findSizeBuckets_tagId指定時は指定タグのタスクのみ集計されること() {
+    int projectId = insertProject(USER_ID, "サイズ帯タグ絞り込み検証");
+    int tag = insertTag(USER_ID, "サイズ帯タグ");
+    // insertFinishedTaskForTimelineのestimated_minutesは固定60分 → M60帯
+    int tagged = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 60, 0.0);
+    insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 2, 0, 0), 60, 0.0); // タグなし
+    linkTag(tagged, tag);
+
+    AnalyticsQueryCondition condition = conditionFor(projectId);
+    condition.setTagId(tag);
+
+    List<AnalyticsSizeBucketRow> actual = sut.findSizeBuckets(USER_ID, condition, THRESHOLD);
+
+    assertThat(actual).hasSize(1);
+    assertThat(actual.get(0).getBucketCode()).isEqualTo("M60");
+    assertThat(actual.get(0).getTaskCount()).isEqualTo(1);
   }
 
   @Test
@@ -430,6 +642,36 @@ class AnalyticsRepositoryTest {
   }
 
   @Test
+  void タイムライン_tagId指定時は指定タグの振り返りのみ一覧件数カテゴリのすべてで一致すること() {
+    int projectId = insertProject(USER_ID, "タイムラインタグ絞り込み検証");
+    int tag = insertTag(USER_ID, "タイムラインタグ");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int tagged = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int untagged = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 5.0);
+    int taggedReflectionId = insertReflection(tagged, "タグあり", null);
+    insertReflection(untagged, "タグなし", null);
+    linkCategory(taggedReflectionId, "TASK_BREAKDOWN");
+    linkTag(tagged, tag);
+
+    ReflectionTimelineQueryCondition condition = timelineConditionFor(projectId);
+    condition.setTagId(tag);
+
+    List<ReflectionTimelineRow> items =
+        sut.findReflectionTimelineItems(USER_ID, condition, THRESHOLD);
+    int totalCount = sut.countReflectionTimeline(USER_ID, condition, THRESHOLD);
+    List<ReflectionCauseCategoryLinkRow> categories =
+        sut.findReflectionTimelineCategories(USER_ID, condition, THRESHOLD);
+
+    // findReflectionTimelineItems・countReflectionTimeline・findReflectionTimelineCategoriesの
+    // 3クエリすべてにタグ述語が正しく入っていることを1テストで確認する（10本目の漏れがないことの確認）。
+    assertThat(items).extracting(ReflectionTimelineRow::getTaskId).containsExactly(tagged);
+    assertThat(totalCount).isEqualTo(1);
+    assertThat(categories)
+        .extracting(ReflectionCauseCategoryLinkRow::getCauseCategoryCode)
+        .containsExactly("TASK_BREAKDOWN");
+  }
+
+  @Test
   void タイムラインカテゴリ取得_ページに含まれる振り返りの原因カテゴリのみ表示順で返ること() {
     int projectId = insertProject(USER_ID, "タイムラインカテゴリ取得検証");
     LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
@@ -482,6 +724,66 @@ class AnalyticsRepositoryTest {
   }
 
   @Test
+  void タイムラインタグ取得_ページに含まれるタスクのタグのみ名前昇順で返ること() {
+    int projectId = insertProject(USER_ID, "タイムラインタグ取得検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int taskWithTags = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int taskWithoutTags = insertFinishedTaskForTimeline(projectId, base.minusDays(1), 100, 5.0);
+    insertReflection(taskWithTags, "タグあり", null);
+    insertReflection(taskWithoutTags, "タグなし", null);
+    int tagZ = insertTag(USER_ID, "ゼータタグ");
+    int tagA = insertTag(USER_ID, "アルファタグ");
+    linkTag(taskWithTags, tagZ);
+    linkTag(taskWithTags, tagA);
+
+    ReflectionTimelineQueryCondition condition = timelineConditionFor(projectId);
+
+    List<TaskTagRow> actual = sut.findReflectionTimelineTags(USER_ID, condition, THRESHOLD);
+
+    assertThat(actual)
+        .extracting(TaskTagRow::getTaskId, TaskTagRow::getTagId)
+        .containsExactly(tuple(taskWithTags, tagA), tuple(taskWithTags, tagZ));
+  }
+
+  @Test
+  void タイムラインタグ取得_アーカイブ済みタグも含めて返すこと() {
+    int projectId = insertProject(USER_ID, "タイムラインアーカイブ済みタグ検証");
+    int taskId = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    insertReflection(taskId, "アーカイブ済みタグ付き", null);
+    int archivedTag = insertTag(USER_ID, "旧タグ");
+    linkTag(taskId, archivedTag);
+    jdbcTemplate.update("UPDATE tags SET is_archived = TRUE WHERE id = ?", archivedTag);
+
+    List<TaskTagRow> actual = sut.findReflectionTimelineTags(
+        USER_ID, timelineConditionFor(projectId), THRESHOLD);
+
+    assertThat(actual).extracting(TaskTagRow::getTagId).containsExactly(archivedTag);
+  }
+
+  @Test
+  void タイムラインタグ取得_2ページ目には1ページ目のタグが含まれないこと() {
+    int projectId = insertProject(USER_ID, "タイムラインタグページ境界検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int task1 = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int task2 = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 5.0);
+    insertReflection(task1, "1件目", null);
+    insertReflection(task2, "2件目", null);
+    int tag1 = insertTag(USER_ID, "タグ1件目");
+    int tag2 = insertTag(USER_ID, "タグ2件目");
+    linkTag(task1, tag1);
+    linkTag(task2, tag2);
+
+    ReflectionTimelineQueryCondition page1 = timelineConditionFor(projectId);
+    page1.setSize(1);
+    page1.setPage(1); // 完了日時降順の2件目 = task1
+
+    List<TaskTagRow> actual = sut.findReflectionTimelineTags(USER_ID, page1, THRESHOLD);
+
+    assertThat(actual).extracting(TaskTagRow::getTagId).containsOnly(tag1);
+  }
+
+  @Test
   void findAccuracyTrend_窓幅ごとの移動中央値が手計算した期待値と一致すること() {
     int projectId = insertProject(USER_ID, "精度推移検証");
     LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
@@ -524,6 +826,29 @@ class AnalyticsRepositoryTest {
     List<AnalyticsTrendRow> actual = sut.findAccuracyTrend(USER_ID, conditionFor(projectId), 3);
 
     assertThat(actual).isEmpty();
+  }
+
+  @Test
+  void findAccuracyTrend_tagId指定時は指定タグのタスクのみが移動窓の対象になること() {
+    int projectId = insertProject(USER_ID, "推移タグ絞り込み検証");
+    int tag = insertTag(USER_ID, "推移タグ");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    // タグなしタスクを10件（絞り込みなしなら窓幅10が埋まる件数）
+    for (int i = 0; i < 10; i++) {
+      insertFinishedTaskForTimeline(projectId, base.plusDays(i), 100, 5.0);
+    }
+    // タグ付きタスクは3件のみ（絞り込むと窓幅10が埋まらない）
+    for (int i = 10; i < 13; i++) {
+      int taskId = insertFinishedTaskForTimeline(projectId, base.plusDays(i), 100, 5.0);
+      linkTag(taskId, tag);
+    }
+
+    AnalyticsQueryCondition unfiltered = conditionFor(projectId);
+    AnalyticsQueryCondition tagged = conditionFor(projectId);
+    tagged.setTagId(tag);
+
+    assertThat(sut.findAccuracyTrend(USER_ID, unfiltered, 10)).isNotEmpty();
+    assertThat(sut.findAccuracyTrend(USER_ID, tagged, 10)).isEmpty();
   }
 
   @Test
@@ -585,6 +910,27 @@ class AnalyticsRepositoryTest {
     assertThat(actual).isEmpty();
   }
 
+  @Test
+  void findGapCauses_tagId指定時は指定タグの振り返りのみ集計されること() {
+    int projectId = insertProject(USER_ID, "原因カテゴリタグ絞り込み検証");
+    int tag = insertTag(USER_ID, "原因カテゴリタグ");
+    int tagged = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    int untagged = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 2, 0, 0), 100, 5.0);
+    insertReflection(tagged, "タグあり", null);
+    insertReflection(untagged, "タグなし", null);
+    linkTag(tagged, tag);
+
+    AnalyticsQueryCondition condition = conditionFor(projectId);
+    condition.setTagId(tag);
+
+    List<GapCauseRow> actual = sut.findGapCauses(USER_ID, condition);
+
+    int totalTaskCount = actual.stream().mapToInt(GapCauseRow::getTaskCount).sum();
+    assertThat(totalTaskCount).isEqualTo(1);
+  }
+
   private static GapCauseRow rowFor(List<GapCauseRow> rows, String causeCategoryCode) {
     return rows.stream()
         .filter(row -> causeCategoryCode.equals(row.getCauseCategoryCode()))
@@ -602,6 +948,19 @@ class AnalyticsRepositoryTest {
     ReflectionTimelineQueryCondition condition = new ReflectionTimelineQueryCondition();
     condition.setProjectId(projectId);
     return condition;
+  }
+
+  private int insertTag(int userId, String name) {
+    jdbcTemplate.update(
+        "INSERT INTO tags(user_id, name, name_normalized, is_archived, created_at) "
+            + "VALUES (?, ?, ?, FALSE, NOW())",
+        userId, name, name.toLowerCase());
+    return jdbcTemplate.queryForObject(
+        "SELECT id FROM tags WHERE user_id = ? AND name = ?", Integer.class, userId, name);
+  }
+
+  private void linkTag(int taskId, int tagId) {
+    jdbcTemplate.update("INSERT INTO task_tags(task_id, tag_id) VALUES (?, ?)", taskId, tagId);
   }
 
   private int insertFinishedTaskForTimeline(

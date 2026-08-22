@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -26,5 +27,9 @@ public class TaskCreateRequest {
   @NotNull
   @Positive
   private Integer estimatedMinutes;
+
+  @Schema(description = "付与するタグのIDリスト 省略可。省略・空配列はタグなしとして扱う。件数の上限はない",
+      example = "[1, 2]")
+  private List<Integer> tagIds;
 
 }

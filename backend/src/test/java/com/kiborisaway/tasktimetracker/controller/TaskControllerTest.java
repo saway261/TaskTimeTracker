@@ -11,14 +11,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskResponse;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskTagsUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskTagsInvalidException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.TaskService;
@@ -152,7 +155,7 @@ class TaskControllerTest {
     int taskId = 1;
     Task task = new Task();
     task.setId(taskId);
-    when(service.findById(USER_ID, taskId)).thenReturn(new TaskResponse(task, List.of()));
+    when(service.findById(USER_ID, taskId)).thenReturn(new TaskResponse(task, List.of(), List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}", taskId))
@@ -197,7 +200,7 @@ class TaskControllerTest {
     response.setId(10);
     response.setProjectId(pId);
     when(service.register(eq(USER_ID), eq(pId), isNull(), any(TaskCreateRequest.class)))
-        .thenReturn(new TaskResponse(response, List.of()));
+        .thenReturn(new TaskResponse(response, List.of(), List.of()));
     String validRequest = """
         {
           "taskGroupId": 999,
@@ -216,6 +219,38 @@ class TaskControllerTest {
   }
 
   @Test
+  void プロジェクト直下タスク登録成功_tagIdsを渡すとリクエストに含めてサービスを呼び出すこと()
+      throws Exception {
+    // Arrange
+    int pId = 1;
+    Task response = new Task();
+    response.setId(10);
+    response.setProjectId(pId);
+    when(service.register(eq(USER_ID), eq(pId), isNull(), any(TaskCreateRequest.class)))
+        .thenReturn(new TaskResponse(response, List.of(), List.of()));
+    String validRequest = """
+        {
+          "title": "画面設計",
+          "description": "ワイヤーフレームを作成する",
+          "estimatedMinutes": 180,
+          "tagIds": [10, 20]
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/tasks", pId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isCreated());
+
+    org.mockito.ArgumentCaptor<TaskCreateRequest> captor =
+        org.mockito.ArgumentCaptor.forClass(TaskCreateRequest.class);
+    verify(service).register(eq(USER_ID), eq(pId), isNull(), captor.capture());
+    org.assertj.core.api.Assertions.assertThat(captor.getValue().getTagIds())
+        .containsExactly(10, 20);
+  }
+
+  @Test
   void タスクグループ内タスク登録成功_201を返しタスクグループIDだけを設定してサービスを呼び出すこと()
       throws Exception {
     // Arrange
@@ -224,7 +259,7 @@ class TaskControllerTest {
     response.setId(10);
     response.setTaskGroupId(tgId);
     when(service.register(eq(USER_ID), isNull(), eq(tgId), any(TaskCreateRequest.class)))
-        .thenReturn(new TaskResponse(response, List.of()));
+        .thenReturn(new TaskResponse(response, List.of(), List.of()));
     String validRequest = """
         {
           "projectId": 999,
@@ -281,7 +316,7 @@ class TaskControllerTest {
     Task updated = new Task(taskId, 1, null, "更新タイトル", "更新説明", 60,
         null, null, null, null, null);
     when(service.updateProperty(eq(USER_ID), eq(taskId), any(TaskUpdatePropertyRequest.class)))
-        .thenReturn(new TaskResponse(updated, List.of()));
+        .thenReturn(new TaskResponse(updated, List.of(), List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}", taskId)
@@ -329,7 +364,7 @@ class TaskControllerTest {
     Task updated = new Task(taskId, 1, null, "タスク", "説明", 120,
         null, null, null, null, null);
     when(service.updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class)))
-        .thenReturn(new TaskResponse(updated, List.of()));
+        .thenReturn(new TaskResponse(updated, List.of(), List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
@@ -458,7 +493,7 @@ class TaskControllerTest {
     Task updated = new Task(taskId, null, taskGroupId, "タスク", "説明", 60,
         null, null, null, null, null);
     when(service.updateParent(USER_ID, taskId, null, taskGroupId))
-        .thenReturn(new TaskResponse(updated, List.of()));
+        .thenReturn(new TaskResponse(updated, List.of(), List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
@@ -563,7 +598,7 @@ class TaskControllerTest {
     Task updated = new Task(taskId, projectId, null, "タスク", "説明", 60,
         null, null, null, null, null);
     when(service.updateParent(USER_ID, taskId, projectId, null))
-        .thenReturn(new TaskResponse(updated, List.of()));
+        .thenReturn(new TaskResponse(updated, List.of(), List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
@@ -658,6 +693,131 @@ class TaskControllerTest {
   }
 
   @Test
+  void タグ全置換成功_200と更新後のタグを返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String validRequest = """
+        {
+          "tagIds": [10, 20]
+        }
+        """;
+    Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
+    TaskResponse response = new TaskResponse(task, List.of(),
+        List.of(new TagSummaryResponse(10, "調査"), new TagSummaryResponse(20, "設定")));
+    when(service.updateTags(eq(USER_ID), eq(taskId), any(TaskTagsUpdateRequest.class)))
+        .thenReturn(response);
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.tags.length()").value(2))
+        .andExpect(jsonPath("$.tags[0].id").value(10))
+        .andExpect(jsonPath("$.tags[0].name").value("調査"));
+
+    verify(service).updateTags(eq(USER_ID), eq(taskId), any(TaskTagsUpdateRequest.class));
+  }
+
+  @Test
+  void タグ全置換成功_空配列でタグなしにできること() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String validRequest = """
+        {
+          "tagIds": []
+        }
+        """;
+    Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
+    when(service.updateTags(eq(USER_ID), eq(taskId), any(TaskTagsUpdateRequest.class)))
+        .thenReturn(new TaskResponse(task, List.of(), List.of()));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tags.length()").value(0));
+  }
+
+  @Test
+  void タグ全置換失敗_tagIdsがnullなら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String invalidRequest = """
+        {
+          "tagIds": null
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void タグ全置換失敗_パス変数が0以下なら400を返すこと() throws Exception {
+    // Arrange
+    String validRequest = """
+        {
+          "tagIds": []
+        }
+        """;
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/0/tags")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(service);
+  }
+
+  @Test
+  void タグ全置換失敗_タグIDが重複または無効なら400を返すこと() throws Exception {
+    // Arrange
+    int taskId = 1;
+    String validRequest = """
+        {
+          "tagIds": [10, 10]
+        }
+        """;
+    doThrow(new TaskTagsInvalidException("tagIds", "タグIDが重複しています"))
+        .when(service).updateTags(eq(USER_ID), eq(taskId), any(TaskTagsUpdateRequest.class));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("task tags invalid"));
+  }
+
+  @Test
+  void タグ全置換失敗_対象が存在しないなら404を返すこと() throws Exception {
+    // Arrange
+    int taskId = 999;
+    String validRequest = """
+        {
+          "tagIds": [10]
+        }
+        """;
+    doThrow(new TargetNotFoundException("task.id", "task not found"))
+        .when(service).updateTags(eq(USER_ID), eq(taskId), any(TaskTagsUpdateRequest.class));
+
+    // Act & Assert
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(validRequest))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
   void 完了状態更新成功_isFinishedにtrueを指定すると200とメッセージを返すこと() throws Exception {
     // Arrange
     int taskId = 1;
@@ -669,7 +829,7 @@ class TaskControllerTest {
     Task finished = new Task(taskId, 1, null, "タスク", "説明", 60,
         null, java.time.LocalDateTime.of(2026, 1, 1, 10, 0), 70, 10, 16.666);
     when(service.updateFinished(USER_ID, taskId, true))
-        .thenReturn(new TaskResponse(finished, List.of()));
+        .thenReturn(new TaskResponse(finished, List.of(), List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
@@ -695,7 +855,7 @@ class TaskControllerTest {
     Task unfinished = new Task(taskId, 1, null, "タスク", "説明", 60,
         null, null, null, null, null);
     when(service.updateFinished(USER_ID, taskId, false))
-        .thenReturn(new TaskResponse(unfinished, List.of()));
+        .thenReturn(new TaskResponse(unfinished, List.of(), List.of()));
 
     // Act & Assert
     mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)

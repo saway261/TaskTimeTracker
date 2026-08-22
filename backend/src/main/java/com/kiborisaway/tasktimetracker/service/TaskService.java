@@ -1,8 +1,10 @@
 package com.kiborisaway.tasktimetracker.service;
 
 import com.kiborisaway.tasktimetracker.data.dto.memo.MemoResponse;
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskCreateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskResponse;
+import com.kiborisaway.tasktimetracker.data.dto.task.TaskTagsUpdateRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateEstimatedMinutesRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
@@ -11,16 +13,21 @@ import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
+import com.kiborisaway.tasktimetracker.exception.TaskTagsInvalidException;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionRepository;
+import com.kiborisaway.tasktimetracker.repository.TagRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskTagRow;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -35,6 +42,7 @@ public class TaskService {
   private ProjectRepository pjRepository;
   private MemoRepository memoRepository;
   private ReflectionRepository reflectionRepository;
+  private TagRepository tagRepository;
   private ProjectItemOrderRepository pjItemOrderRepository;
   private TaskGroupItemOrderRepository tgItemOrderRepository;
 
@@ -46,6 +54,7 @@ public class TaskService {
       ProjectRepository pjRepository,
       MemoRepository memoRepository,
       ReflectionRepository reflectionRepository,
+      TagRepository tagRepository,
       ProjectItemOrderRepository pjItemOrderRepository,
       TaskGroupItemOrderRepository tgItemOrderRepository
   ) {
@@ -55,6 +64,7 @@ public class TaskService {
     this.pjRepository = pjRepository;
     this.memoRepository = memoRepository;
     this.reflectionRepository = reflectionRepository;
+    this.tagRepository = tagRepository;
     this.pjItemOrderRepository = pjItemOrderRepository;
     this.tgItemOrderRepository = tgItemOrderRepository;
   }
@@ -127,6 +137,7 @@ public class TaskService {
   @Transactional
   public TaskResponse register(int userId, Integer projectId, Integer taskGroupId,
       TaskCreateRequest request) {
+    validateTags(userId, request.getTagIds());
     Task task = toEntity(projectId, taskGroupId, request);
 
     String parentField = "";
@@ -152,8 +163,9 @@ public class TaskService {
     } else {
       pjItemOrderRepository.insertAppendForTask(task.getProjectId(), task.getId());
     }
+    linkTags(task.getId(), request.getTagIds());
     Task registeredTask = findTaskById(userId, task.getId());
-    return new TaskResponse(registeredTask, List.of());
+    return toResponse(registeredTask);
   }
 
   /**
@@ -243,6 +255,26 @@ public class TaskService {
   }
 
   /**
+   * タスクに付与するタグを全置換します。件数の上限はなく、アーカイブ済みタグの付与可否も検証しません
+   * （タグ機能実装計画 §0-1-11）。
+   *
+   * @param userId  認証ユーザーのID
+   * @param id      タスクID
+   * @param request タグ全置換リクエスト
+   * @return 更新後のタスク
+   */
+  @Transactional
+  public TaskResponse updateTags(int userId, int id, TaskTagsUpdateRequest request) {
+    findTaskById(userId, id);
+    validateTags(userId, request.getTagIds());
+
+    tagRepository.deleteLinksByTaskId(id);
+    linkTags(id, request.getTagIds());
+
+    return findById(userId, id);
+  }
+
+  /**
    * タスクIDを指定して見積もり作業時間を更新します。 紐づく作業セッションが存在する場合、またはタスクが完了済みの場合は更新できません。
    *
    * @param userId  認証ユーザーのID
@@ -308,6 +340,7 @@ public class TaskService {
     wsRepository.deleteAllByTaskId(id);
     memoRepository.deleteAllInTask(id);
     reflectionRepository.deleteByTaskId(id);
+    tagRepository.deleteLinksByTaskId(id);
     pjItemOrderRepository.deleteByTaskId(id);
     tgItemOrderRepository.deleteByTaskId(id);
     int deleted = tsRepository.deleteById(id, userId);
@@ -330,7 +363,8 @@ public class TaskService {
     List<MemoResponse> memoResponses = (memos == null ? List.<Memo>of() : memos).stream()
         .map(MemoResponse::new)
         .toList();
-    return new TaskResponse(task, memoResponses);
+    List<TagSummaryResponse> tags = tagRepository.findTagsByTaskId(task.getId());
+    return new TaskResponse(task, memoResponses, tags);
   }
 
   private Task findTaskById(int userId, int id) {
@@ -352,11 +386,55 @@ public class TaskService {
         .collect(Collectors.groupingBy(
             Memo::getTaskId,
             Collectors.mapping(MemoResponse::new, Collectors.toList())));
+    Map<Integer, List<TagSummaryResponse>> tagsByTaskId =
+        tagRepository.findTagsInTasks(taskIds).stream()
+            .collect(Collectors.groupingBy(
+                TaskTagRow::getTaskId,
+                Collectors.mapping(
+                    row -> new TagSummaryResponse(row.getTagId(), row.getName()),
+                    Collectors.toList())));
 
     return tasks.stream()
         .map(task -> new TaskResponse(
             task,
-            memosByTaskId.getOrDefault(task.getId(), List.of())))
+            memosByTaskId.getOrDefault(task.getId(), List.of()),
+            tagsByTaskId.getOrDefault(task.getId(), List.of())))
         .toList();
+  }
+
+  /**
+   * タグIDの重複、および所有者と存在を検証します。件数の上限は検証しません
+   * （タグ機能実装計画 §0-1-11／要件 §3.4）。
+   *
+   * @param userId 認証ユーザーのID
+   * @param tagIds 検証するタグID一覧。null・空リストは検証をスキップする
+   */
+  private void validateTags(int userId, List<Integer> tagIds) {
+    if (tagIds == null || tagIds.isEmpty()) {
+      return;
+    }
+    Set<Integer> distinct = new HashSet<>(tagIds);
+    if (distinct.size() != tagIds.size()) {
+      throw new TaskTagsInvalidException("tagIds", "タグIDが重複しています");
+    }
+    if (tagRepository.countOwnedByIds(userId, tagIds) != tagIds.size()) {
+      throw new TaskTagsInvalidException("tagIds",
+          "存在しない、または他ユーザーのタグIDが含まれています");
+    }
+  }
+
+  /**
+   * タスクへタグを付与します。呼び出し前に {@link #validateTags} による検証が済んでいる前提です。
+   *
+   * @param taskId タスクID
+   * @param tagIds 付与するタグID一覧。null・空リストの場合は何もしない
+   */
+  private void linkTags(int taskId, List<Integer> tagIds) {
+    if (tagIds == null) {
+      return;
+    }
+    for (int tagId : tagIds) {
+      tagRepository.insertLink(taskId, tagId);
+    }
   }
 }

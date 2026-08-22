@@ -1,10 +1,12 @@
 package com.kiborisaway.tasktimetracker.data.dto.analytics;
 
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
-@Schema(description = "散布図の1点（B6で実装。B4時点ではレスポンスの配列は常に空）")
+@Schema(description = "散布図の1点")
 @Getter
 @EqualsAndHashCode
 public class ScatterPointResponse {
@@ -27,14 +29,18 @@ public class ScatterPointResponse {
   @Schema(description = "判定区分", example = "LATE", allowableValues = {"LATE", "ON_TIME", "EARLY"})
   private final String outcome;
 
+  @Schema(description = "付与されたタグ 名前の昇順。アーカイブ済みのタグも含む。未付与の場合は空配列")
+  private final List<TagSummaryResponse> tags;
+
   public ScatterPointResponse(
       int taskId, String taskTitle, int estimatedMinutes, int actualMinutes, double gapRate,
-      String outcome) {
+      String outcome, List<TagSummaryResponse> tags) {
     this.taskId = taskId;
     this.taskTitle = taskTitle;
     this.estimatedMinutes = estimatedMinutes;
     this.actualMinutes = actualMinutes;
     this.gapRate = gapRate;
     this.outcome = outcome;
+    this.tags = tags;
   }
 }

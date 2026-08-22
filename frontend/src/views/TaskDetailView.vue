@@ -12,6 +12,7 @@ import { toReflectionTask } from '@/utils/reflectionTask'
 import * as reflectionsApi from '@/api/reflectionsApi'
 import type { ApiError } from '@/types/apiError'
 import type { TaskUpdateEstimatedMinutesRequest, TaskUpdatePropertyRequest } from '@/types/task'
+import type { TagSummary } from '@/types/tag'
 import type { MemoRequest } from '@/types/memo'
 import type { ReflectionRequest } from '@/types/reflection'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
@@ -29,6 +30,8 @@ import WorkSessionList from '@/components/workSession/WorkSessionList.vue'
 import ManualWorkSessionForm from '@/components/workSession/ManualWorkSessionForm.vue'
 import WorkTimer from '@/components/workSession/WorkTimer.vue'
 import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
+import TagBadgeList from '@/components/tag/TagBadgeList.vue'
+import TagSelect from '@/components/tag/TagSelect.vue'
 
 const props = defineProps<{
   projectId: string
@@ -72,7 +75,7 @@ const breadcrumbItems = computed(() => {
       ? projectStore.currentProject.title
       : `プロジェクト #${props.projectId}`
   const items: { label: string; to?: string }[] = [
-    { label: 'プロジェクト一覧', to: '/projects' },
+    { label: 'タスク管理', to: '/projects' },
     { label: projectLabel, to: `/projects/${props.projectId}` },
   ]
   if (numericTaskGroupId.value !== null) {
@@ -93,6 +96,8 @@ async function load() {
     return
   }
   invalidId.value = false
+  addingTags.value = false
+  tagsError.value = null
   await taskStore.fetchTask(id).catch(() => {})
 
   // パンくず表示用のベストエフォート取得。失敗しても "#id" 表示にフォールバックする。
@@ -138,6 +143,47 @@ async function handleUpdate(payload: { title: string; description: string | null
   } finally {
     updating.value = false
   }
+}
+
+// --- タグ追加・削除（完了済みタスクでも許可） ---
+const addingTags = ref(false)
+const tagsUpdating = ref(false)
+const tagsError = ref<ApiError | null>(null)
+
+function openTagAdder() {
+  tagsError.value = null
+  addingTags.value = true
+}
+
+function closeTagAdder() {
+  addingTags.value = false
+  tagsError.value = null
+}
+
+async function replaceTaskTags(tags: TagSummary[], successMessage: string) {
+  const id = numericTaskId.value
+  if (id === null || tagsUpdating.value) return
+  tagsUpdating.value = true
+  tagsError.value = null
+  try {
+    await taskStore.updateTaskTags(id, {
+      tagIds: tags.map((tag) => tag.id),
+    })
+    notification.success(successMessage)
+  } catch (e) {
+    tagsError.value = e as ApiError
+  } finally {
+    tagsUpdating.value = false
+  }
+}
+
+function addTaskTag(tags: TagSummary[]) {
+  return replaceTaskTags(tags, 'タグを追加しました。')
+}
+
+function removeTaskTag(tagId: number) {
+  const tags = taskStore.currentTask?.tags.filter((tag) => tag.id !== tagId) ?? []
+  return replaceTaskTags(tags, 'タグを外しました。')
 }
 
 // --- 見積時間の編集（B5対策：完了済みでは出さない。セッションが1件でもあれば無効化） ---
@@ -314,6 +360,46 @@ function handleMemoCreate(req: MemoRequest) {
 
       <p v-if="taskStore.currentTask.description">{{ taskStore.currentTask.description }}</p>
 
+      <section class="tag-section" aria-label="タグ">
+        <div class="tag-toolbar">
+          <BaseButton
+            class="tag-add-button"
+            variant="secondary"
+            :disabled="tagsUpdating"
+            :aria-expanded="addingTags"
+            @click="openTagAdder"
+          >
+            <svg class="tag-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 13 13 20 4 11V4h7l9 9Z" />
+              <circle cx="8.5" cy="8.5" r="1.25" />
+            </svg>
+            タグを追加
+          </BaseButton>
+          <TagBadgeList
+            :tags="taskStore.currentTask.tags"
+            :limit="null"
+            removable
+            :disabled="tagsUpdating"
+            @remove="removeTaskTag"
+          />
+        </div>
+
+        <ErrorMessage v-if="tagsError" :error="tagsError" />
+        <div v-if="addingTags" class="tag-add-panel">
+          <TagSelect
+            :model-value="taskStore.currentTask.tags"
+            :disabled="tagsUpdating"
+            :error="tagsError?.fieldErrors.tagIds"
+            :show-selected="false"
+            label="追加するタグ"
+            @update:model-value="addTaskTag"
+          />
+          <BaseButton variant="secondary" :disabled="tagsUpdating" @click="closeTagAdder">
+            閉じる
+          </BaseButton>
+        </div>
+      </section>
+
       <MemoList
         :memos="taskStore.currentTask.memos"
         :on-create="handleMemoCreate"
@@ -448,6 +534,7 @@ function handleMemoCreate(req: MemoRequest) {
   flex-wrap: wrap;
 }
 
+.tag-section,
 .estimation-section,
 .work-section {
   display: flex;
@@ -459,6 +546,39 @@ function handleMemoCreate(req: MemoRequest) {
 .work-section h2 {
   margin: 0;
   font-size: 1.05rem;
+}
+
+.tag-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.tag-add-button {
+  flex-shrink: 0;
+}
+
+.tag-icon {
+  width: 1.1em;
+  height: 1.1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.tag-add-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1em;
+  max-width: 32em;
+}
+
+.tag-add-panel :deep(.tag-select) {
+  width: 100%;
 }
 
 .estimate-form {

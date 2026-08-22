@@ -21,6 +21,10 @@ const item: ReflectionTimelineItemResponse = {
     { code: 'SCOPE', label: '想定外の作業' },
     { code: 'RESEARCH', label: '調査不足' },
   ],
+  tags: [
+    { id: 1, name: '調査' },
+    { id: 2, name: '実装' },
+  ],
   cause: 'API仕様の確認に時間がかかった。\n事前調査が足りなかった。',
   nextAction: '実装前にレスポンス例を確認する。',
 }
@@ -46,6 +50,12 @@ describe('ReflectionTimelineItem', () => {
       '想定外の作業',
       '調査不足',
     ])
+    expect(wrapper.findAll('.tag-badge').map((badge) => badge.text())).toEqual([
+      'タグ 調査',
+      'タグ 実装',
+    ])
+    expect(wrapper.get('.category-badge').classes()).toContain('category-badge')
+    expect(wrapper.get('.tag-badge').classes()).toContain('tag-badge')
     expect(wrapper.text()).toContain(item.cause)
     expect(wrapper.text()).toContain(item.nextAction)
   })

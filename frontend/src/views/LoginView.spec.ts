@@ -29,7 +29,7 @@ describe('LoginView', () => {
     await router.push('/login')
   })
 
-  it('通常ログイン後は未完了プロジェクト一覧を開く', async () => {
+  it('通常ログイン後はタスク管理を開く', async () => {
     const wrapper = mount(LoginView, {
       global: { plugins: [pinia, router] },
     })
@@ -42,7 +42,6 @@ describe('LoginView', () => {
     expect(authApi.login).toHaveBeenCalledWith({ email: user.email, password: 'password' })
     await expect.poll(() => router.currentRoute.value.path).toBe('/projects')
     expect(router.currentRoute.value.path).toBe('/projects')
-    expect(router.currentRoute.value.query.isFinished).toBe('false')
     wrapper.unmount()
   })
 })

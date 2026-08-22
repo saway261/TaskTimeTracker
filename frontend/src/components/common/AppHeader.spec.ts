@@ -50,18 +50,19 @@ describe('AppHeader user menu', () => {
 
     expect(trigger.attributes('aria-expanded')).toBe('true')
     expect(wrapper.get('[role="menu"]').text()).toContain(user.email)
+    expect(wrapper.get('a[href="/tags"]').text()).toBe('タグ管理')
     expect(wrapper.get('a[href="/email-change"]').text()).toBe('メールアドレス変更')
     expect(wrapper.get('a[href="/password-change"]').text()).toBe('パスワード変更')
     expect(wrapper.get('.logout-button').text()).toBe('ログアウト')
     wrapper.unmount()
   })
 
-  it('タスク管理リンクは未完了プロジェクト一覧を開く', () => {
+  it('タスク管理リンクはタスク管理トップを開く', () => {
     const wrapper = mount(AppHeader, {
       global: { plugins: [pinia, router] },
     })
 
-    expect(wrapper.get('.main-nav a').attributes('href')).toBe('/projects?isFinished=false')
+    expect(wrapper.get('.main-nav a').attributes('href')).toBe('/projects')
     wrapper.unmount()
   })
 
@@ -80,7 +81,7 @@ describe('AppHeader user menu', () => {
     expect(trigger.attributes('aria-expanded')).toBe('true')
     expect(links).toHaveLength(3)
     expect(links[0].text()).toBe('タスク管理')
-    expect(links[0].attributes('href')).toBe('/projects?isFinished=false')
+    expect(links[0].attributes('href')).toBe('/projects')
     expect(links[1].text()).toBe('振り返り')
     expect(links[1].attributes('href')).toBe('/reflections')
     expect(links[2].text()).toBe('分析')

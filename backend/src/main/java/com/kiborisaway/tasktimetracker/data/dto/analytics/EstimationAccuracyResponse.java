@@ -40,6 +40,10 @@ public class EstimationAccuracyResponse {
   @Schema(description = "精度推移を表示できるか（20件以上、B7で追加）")
   private final MetricAvailabilityResponse trendAvailability;
 
+  @Schema(description = "分析対象タスクのプロジェクト別件数 件数降順。フィルタ条件によらず常に返す。"
+      + "タグ絞り込み時のみ表示に用いる（タグ機能実装計画フェーズB4で追加）")
+  private final List<ProjectBreakdownItemResponse> projectBreakdown;
+
   public EstimationAccuracyResponse(
       double onTimeThresholdPercent,
       int analyzedTaskCount,
@@ -50,7 +54,8 @@ public class EstimationAccuracyResponse {
       boolean scatterTruncated,
       List<SizeBucketResponse> sizeBuckets,
       List<AccuracyTrendPointResponse> trend,
-      MetricAvailabilityResponse trendAvailability) {
+      MetricAvailabilityResponse trendAvailability,
+      List<ProjectBreakdownItemResponse> projectBreakdown) {
     this.onTimeThresholdPercent = onTimeThresholdPercent;
     this.analyzedTaskCount = analyzedTaskCount;
     this.excluded = excluded;
@@ -61,5 +66,6 @@ public class EstimationAccuracyResponse {
     this.sizeBuckets = sizeBuckets;
     this.trend = trend;
     this.trendAvailability = trendAvailability;
+    this.projectBreakdown = projectBreakdown;
   }
 }

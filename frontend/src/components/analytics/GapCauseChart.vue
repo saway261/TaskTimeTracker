@@ -276,9 +276,9 @@ function selectItem(item: GapCauseItemResponse) {
 
 .cause-group {
   padding: 0.7em;
-  border-left: 4px solid var(--color-accent);
+  border-left: 4px solid var(--color-danger);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface));
 }
 
 .cause-group.under {
@@ -336,7 +336,7 @@ svg {
 }
 
 .count-bar {
-  fill: var(--color-accent);
+  fill: var(--color-danger);
 }
 
 .under .count-bar {
