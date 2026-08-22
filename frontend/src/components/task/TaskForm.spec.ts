@@ -2,7 +2,7 @@
 
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { useTagStore } from '@/stores/tagStore'
 import type { TaskGroupResponse } from '@/types/taskGroup'
 import TaskForm from './TaskForm.vue'
@@ -32,6 +32,7 @@ describe('TaskForm', () => {
     const tagStore = useTagStore(pinia)
     tagStore.tags = [{ id: 5, name: '設計', isArchived: false, assignedTaskCount: 3 }]
     tagStore.initialized = true
+    vi.spyOn(tagStore, 'fetchTags').mockResolvedValue()
     const wrapper = mount(TaskForm, {
       props: {
         taskGroups,
@@ -46,11 +47,15 @@ describe('TaskForm', () => {
       '開発',
       'テスト',
     ])
+    expect(wrapper.get('.selected-task-tags-empty').text()).toBe('なし')
 
     await wrapper.get('input[type="text"]').setValue('新しいタスク')
     await wrapper.get('input[type="number"]').setValue('30')
     await wrapper.get('.tag-select input').trigger('focus')
     await wrapper.get('.suggestion').trigger('click')
+    const selectedTag = wrapper.get('.selected-task-tags .tag-badge')
+    expect(selectedTag.text()).toContain('設計')
+    expect(selectedTag.get('button').attributes('aria-label')).toBe('設計を外す')
     await wrapper.get('form').trigger('submit')
 
     expect(wrapper.emitted('submit')?.[0]).toEqual([

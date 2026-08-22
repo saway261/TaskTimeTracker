@@ -4,22 +4,45 @@ import { defineComponent, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as tagsApi from '@/api/tagsApi'
 import { useTagStore } from '@/stores/tagStore'
 import type { ApiError } from '@/types/apiError'
 import BaseModal from '@/components/common/BaseModal.vue'
 import TagSelect from './TagSelect.vue'
 
+vi.mock('@/api/tagsApi')
+
 function prepareStore() {
   const store = useTagStore()
   store.initialized = true
   store.loadedForUserId = null
+  vi.spyOn(store, 'fetchTags').mockResolvedValue()
   return store
 }
 
 describe('TagSelect', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.resetAllMocks()
     setActivePinia(createPinia())
     document.body.innerHTML = ''
+  })
+
+  it('サジェストを開いたときに最新の付与件数を取得して候補へ反映する', async () => {
+    const store = useTagStore()
+    store.tags = [{ id: 1, name: '調査', isArchived: false, assignedTaskCount: 0 }]
+    store.initialized = true
+    store.loadedForUserId = null
+    vi.mocked(tagsApi.fetchAll).mockResolvedValue({
+      data: [{ id: 1, name: '調査', isArchived: false, assignedTaskCount: 7 }],
+    } as never)
+    const wrapper = mount(TagSelect, { props: { modelValue: [] } })
+
+    await wrapper.get('input').trigger('focus')
+    await flushPromises()
+
+    expect(tagsApi.fetchAll).toHaveBeenCalledWith(true)
+    expect(wrapper.get('.suggestion .assigned-count').text()).toBe('7件')
   })
 
   it('NFKC正規化で候補を絞り、完全一致を先頭にして新規作成を出さない', async () => {

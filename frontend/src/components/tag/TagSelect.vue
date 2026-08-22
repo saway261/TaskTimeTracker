@@ -32,6 +32,7 @@ const root = ref<HTMLElement | null>(null)
 const input = ref<HTMLInputElement | null>(null)
 const query = ref('')
 const suggestionsOpen = ref(false)
+const refreshingSuggestions = ref(false)
 const activeIndex = ref(-1)
 const creating = ref(false)
 const createError = ref<ApiError | null>(null)
@@ -125,9 +126,25 @@ async function handleCreate() {
   }
 }
 
+async function refreshSuggestions() {
+  if (refreshingSuggestions.value) return
+  refreshingSuggestions.value = true
+  try {
+    await tagStore.fetchTags(true)
+  } catch {
+    // 取得済みの候補はそのまま利用し、タグ作成・タスク入力を妨げない。
+  } finally {
+    refreshingSuggestions.value = false
+  }
+}
+
 function openSuggestions() {
   if (props.disabled || limitResolverOpen.value) return
+  const shouldRefresh = !suggestionsOpen.value
   suggestionsOpen.value = true
+  if (shouldRefresh) {
+    void refreshSuggestions()
+  }
 }
 
 function handleInput() {

@@ -5,6 +5,7 @@ import BaseTextarea from '@/components/common/BaseTextarea.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import TagSelect from '@/components/tag/TagSelect.vue'
+import TagBadgeList from '@/components/tag/TagBadgeList.vue'
 import type { ApiError } from '@/types/apiError'
 import type { TaskResponse } from '@/types/task'
 import type { TaskGroupResponse } from '@/types/taskGroup'
@@ -83,6 +84,10 @@ function handleSubmit() {
       : {}),
   })
 }
+
+function removeSelectedTag(tagId: number) {
+  selectedTags.value = selectedTags.value.filter((tag) => tag.id !== tagId)
+}
 </script>
 
 <template>
@@ -109,12 +114,27 @@ function handleSubmit() {
       type="number"
       :error="error?.fieldErrors.estimatedMinutes"
     />
-    <TagSelect
-      v-if="!task"
-      v-model="selectedTags"
-      :disabled="submitting"
-      :error="error?.fieldErrors.tagIds"
-    />
+    <template v-if="!task">
+      <div class="selected-task-tags" aria-live="polite">
+        <span class="selected-task-tags-label">選択中のタグ</span>
+        <TagBadgeList
+          v-if="selectedTags.length > 0"
+          :tags="selectedTags"
+          :limit="null"
+          removable
+          :disabled="submitting"
+          @remove="removeSelectedTag"
+        />
+        <span v-else class="selected-task-tags-empty">なし</span>
+      </div>
+      <TagSelect
+        v-model="selectedTags"
+        :disabled="submitting"
+        :error="error?.fieldErrors.tagIds"
+        :show-selected="false"
+        label="タグを追加"
+      />
+    </template>
     <div v-if="!task && showTaskGroupSelector" class="select-field">
       <label :for="taskGroupSelectId">作成先</label>
       <select :id="taskGroupSelectId" v-model="selectedTaskGroupId" :disabled="submitting">
@@ -146,6 +166,30 @@ function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 0.3em;
+}
+
+.selected-task-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  min-height: 2em;
+  padding: 0.55em 0.65em;
+  border: 1px solid var(--color-surface-muted);
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+
+.selected-task-tags-label {
+  flex-shrink: 0;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.selected-task-tags-empty {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
 }
 
 .select-field label {
