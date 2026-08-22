@@ -1,6 +1,7 @@
 package com.kiborisaway.tasktimetracker.data.dto.analytics;
 
 import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import lombok.EqualsAndHashCode;
@@ -11,8 +12,8 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class ScatterPointResponse {
 
-  @Schema(description = "タスクID", example = "1")
-  private final int taskId;
+  @Schema(description = "タスクID", example = "Xr9mQ2vKp3")
+  private final TaskId taskId;
 
   @Schema(description = "タスク名", example = "画面設計")
   private final String taskTitle;
@@ -35,7 +36,7 @@ public class ScatterPointResponse {
   public ScatterPointResponse(
       int taskId, String taskTitle, int estimatedMinutes, int actualMinutes, double gapRate,
       String outcome, List<TagSummaryResponse> tags) {
-    this.taskId = taskId;
+    this.taskId = new TaskId(taskId);
     this.taskTitle = taskTitle;
     this.estimatedMinutes = estimatedMinutes;
     this.actualMinutes = actualMinutes;

@@ -12,19 +12,19 @@ vi.mock('@/api/workSessionsApi')
 const now = new Date('2026-08-18T15:00:00+09:00')
 const timers: ActiveTimer[] = [
   {
-    sessionId: 1,
-    taskId: 10,
+    sessionId: 'ws1',
+    taskId: 'task10',
     taskTitle: '通常のタイマー',
-    projectId: 2,
+    projectId: 'p2',
     taskGroupId: null,
     startedAt: '2026-08-18T14:00:00+09:00',
   },
   {
-    sessionId: 2,
-    taskId: 20,
+    sessionId: 'ws2',
+    taskId: 'task20',
     taskTitle: '停止忘れのタイマー',
-    projectId: 3,
-    taskGroupId: 4,
+    projectId: 'p3',
+    taskGroupId: 'tg4',
     startedAt: '2026-08-18T09:30:00+09:00',
   },
 ]
@@ -103,8 +103,8 @@ describe('ActiveTimerMenu', () => {
 
     const modal = wrapper.get('.quick-modal-stub')
     expect(modal.text()).toBe('停止忘れのタイマー')
-    expect(modal.attributes('data-task-id')).toBe('20')
-    expect(modal.attributes('data-detail-to')).toBe('/projects/3/task-groups/4/tasks/20')
+    expect(modal.attributes('data-task-id')).toBe('task20')
+    expect(modal.attributes('data-detail-to')).toBe('/projects/p3/task-groups/tg4/tasks/task20')
     expect(wrapper.find('.timer-panel').exists()).toBe(false)
     wrapper.unmount()
   })

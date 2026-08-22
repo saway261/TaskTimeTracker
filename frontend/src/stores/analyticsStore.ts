@@ -130,7 +130,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       }
     },
 
-    setProject(projectId: number | null) {
+    setProject(projectId: string | null) {
       this.filter.projectId = projectId
       return this.refresh()
     },
@@ -140,7 +140,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       return this.refresh()
     },
 
-    setTag(tagId: number | null) {
+    setTag(tagId: string | null) {
       this.filter.tagId = tagId
       return this.refresh()
     },

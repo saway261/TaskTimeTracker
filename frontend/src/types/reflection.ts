@@ -15,7 +15,7 @@ export interface ReflectionCauseCategorySummary {
 
 export interface ReflectionResponse {
   id: number
-  taskId: number
+  taskId: string
   causeCategories: ReflectionCauseCategorySummary[] // 表示順。未設定の場合は空配列
   cause: string | null // 任意項目のため未入力の場合はnull
   nextAction: string | null
@@ -24,7 +24,7 @@ export interface ReflectionResponse {
 }
 
 export interface ReflectionTaskResponse {
-  id: number
+  id: string
   title: string
   finishedAt: string
   actualMinutesCached: number | null // 過去データ不整合時など、確定していない場合はnull
@@ -34,13 +34,13 @@ export interface ReflectionTaskResponse {
 }
 
 export interface ReflectionTaskGroupResponse {
-  id: number
+  id: string
   title: string
   tasks: ReflectionTaskResponse[]
 }
 
 export interface ProjectReflectionOverviewResponse {
-  projectId: number
+  projectId: string
   projectTitle: string
   tasks: ReflectionTaskResponse[] // プロジェクト直下の完了タスク
   taskGroups: ReflectionTaskGroupResponse[] // 完了タスクを1件以上含むタスクグループのみ

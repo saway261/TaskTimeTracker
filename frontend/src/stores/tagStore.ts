@@ -15,12 +15,11 @@ function currentUserId() {
   return useAuthStore().currentUser?.id ?? null
 }
 
+// 付与件数の降順 → タグ名の昇順。名前は (user_id, name_normalized) が一意なため、
+// この2キーで順序が確定する。
 function sortTags(tags: TagResponse[]) {
   return [...tags].sort(
-    (a, b) =>
-      b.assignedTaskCount - a.assignedTaskCount ||
-      a.name.localeCompare(b.name, 'ja') ||
-      a.id - b.id,
+    (a, b) => b.assignedTaskCount - a.assignedTaskCount || a.name.localeCompare(b.name, 'ja'),
   )
 }
 
@@ -97,7 +96,7 @@ export const useTagStore = defineStore('tag', {
       }
     },
 
-    async renameTag(id: number, name: string) {
+    async renameTag(id: string, name: string) {
       const userId = currentUserId()
       this.error = null
       try {
@@ -112,7 +111,7 @@ export const useTagStore = defineStore('tag', {
       }
     },
 
-    async setArchived(id: number, isArchived: boolean) {
+    async setArchived(id: string, isArchived: boolean) {
       const userId = currentUserId()
       this.error = null
       try {

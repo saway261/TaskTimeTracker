@@ -18,7 +18,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   created: [memo: MemoResponse]
   updated: [memo: MemoResponse]
-  deleted: [id: number]
+  deleted: [id: string]
 }>()
 
 const notification = useNotificationStore()

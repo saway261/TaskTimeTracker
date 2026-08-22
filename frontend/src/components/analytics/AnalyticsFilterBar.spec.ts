@@ -22,11 +22,11 @@ describe('AnalyticsFilterBar', () => {
           outcome: 'ALL',
         },
         projects: [
-          { id: 3, title: 'プロジェクトA', description: null, isFinished: false, memos: [] },
+          { id: 'p3', title: 'プロジェクトA', description: null, isFinished: false, memos: [] },
         ],
         tags: [
-          { id: 5, name: '調査' },
-          { id: 6, name: '設計' },
+          { id: 't5', name: '調査' },
+          { id: 't6', name: '設計' },
         ],
         accuracy,
       },
@@ -38,13 +38,13 @@ describe('AnalyticsFilterBar', () => {
     expect(wrapper.text()).toContain('誤差率を算出できない: 2件')
     expect(wrapper.text()).toContain('実績時間が記録されていない: 1件')
 
-    await selects[0].setValue('3')
+    await selects[0].setValue('p3')
     await selects[1].setValue('LAST_90_DAYS')
-    await selects[2].setValue('5')
+    await selects[2].setValue('t5')
 
-    expect(wrapper.emitted('projectChange')?.[0]).toEqual([3])
+    expect(wrapper.emitted('projectChange')?.[0]).toEqual(['p3'])
     expect(wrapper.emitted('periodChange')?.[0]).toEqual(['LAST_90_DAYS'])
-    expect(wrapper.emitted('tagChange')?.[0]).toEqual([5])
+    expect(wrapper.emitted('tagChange')?.[0]).toEqual(['t5'])
     expect(selects[2].findAll('option').map((option) => option.text())).toEqual([
       'すべてのタグ',
       '調査',
@@ -56,7 +56,7 @@ describe('AnalyticsFilterBar', () => {
   it('タグ絞り込み時だけ上位3プロジェクトと残りの合計・注記を表示する', async () => {
     const filter = {
       projectId: null,
-      tagId: 5,
+      tagId: 't5',
       period: 'ALL' as const,
       causeCategory: null,
       outcome: 'ALL' as const,
@@ -64,18 +64,18 @@ describe('AnalyticsFilterBar', () => {
     const filteredAccuracy = {
       ...accuracy,
       projectBreakdown: [
-        { projectId: 4, projectTitle: '改善', count: 2 },
-        { projectId: 1, projectTitle: '開発基盤', count: 18 },
-        { projectId: 5, projectTitle: '運用', count: 1 },
-        { projectId: 3, projectTitle: '学習', count: 3 },
-        { projectId: 2, projectTitle: '社内ツール', count: 4 },
+        { projectId: 'p4', projectTitle: '改善', count: 2 },
+        { projectId: 'p1', projectTitle: '開発基盤', count: 18 },
+        { projectId: 'p5', projectTitle: '運用', count: 1 },
+        { projectId: 'p3', projectTitle: '学習', count: 3 },
+        { projectId: 'p2', projectTitle: '社内ツール', count: 4 },
       ],
     } as EstimationAccuracyResponse
     const wrapper = mount(AnalyticsFilterBar, {
       props: {
         filter,
         projects: [],
-        tags: [{ id: 5, name: '調査' }],
+        tags: [{ id: 't5', name: '調査' }],
         accuracy: filteredAccuracy,
       },
     })
@@ -92,7 +92,7 @@ describe('AnalyticsFilterBar', () => {
       '特定プロジェクトの傾向を強く反映している場合があります',
     )
 
-    await wrapper.setProps({ filter: { ...filter, projectId: 1 } })
+    await wrapper.setProps({ filter: { ...filter, projectId: 'p1' } })
     expect(wrapper.find('.project-breakdown').exists()).toBe(false)
 
     await wrapper.setProps({ filter: { ...filter, tagId: null } })
@@ -104,13 +104,13 @@ describe('AnalyticsFilterBar', () => {
       props: {
         filter: {
           projectId: null,
-          tagId: 5,
+          tagId: 't5',
           period: 'ALL',
           causeCategory: null,
           outcome: 'ALL',
         },
         projects: [],
-        tags: [{ id: 5, name: '調査' }],
+        tags: [{ id: 't5', name: '調査' }],
         accuracy: { ...accuracy, analyzedTaskCount: 0, projectBreakdown: [] },
       },
     })

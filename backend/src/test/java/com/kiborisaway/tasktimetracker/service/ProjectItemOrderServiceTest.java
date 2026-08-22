@@ -17,10 +17,11 @@ import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -35,8 +36,16 @@ class ProjectItemOrderServiceTest {
   @Mock
   private ProjectRepository projectRepository;
 
-  @InjectMocks
+  // PublicIdCodec は実物を使う。encode/decodeの結果を検証する必要があるため、
+  // モックにして戻り値を都度スタブするより実物を使うほうが素直で壊れにくい。
+  // そのため @InjectMocks（コンストラクタ引数を @Mock フィールドから解決する）は使わず、
+  // ここで手動で組み立てる。
   private ProjectItemOrderService sut;
+
+  @BeforeEach
+  void setUp() {
+    sut = new ProjectItemOrderService(orderRepository, projectRepository, TestPublicIds.codec());
+  }
 
   @Test
   void 一覧取得成功_position昇順の並び順一覧を返すこと() {
@@ -56,8 +65,8 @@ class ProjectItemOrderServiceTest {
         .extracting(ProjectItemOrderResponse::getType, ProjectItemOrderResponse::getId,
             ProjectItemOrderResponse::getPosition)
         .containsExactly(
-            tuple(ItemType.TASK, 4, 0),
-            tuple(ItemType.TASK_GROUP, 1, 1)
+            tuple(ItemType.TASK, TestPublicIds.task(4), 0),
+            tuple(ItemType.TASK_GROUP, TestPublicIds.taskGroup(1), 1)
         );
   }
 
@@ -88,8 +97,8 @@ class ProjectItemOrderServiceTest {
             new ProjectItemOrder(1, pId, 4, null, 1)));
 
     List<ProjectItemOrderItemRequest> items = List.of(
-        new ProjectItemOrderItemRequest(ItemType.TASK_GROUP, 1),
-        new ProjectItemOrderItemRequest(ItemType.TASK, 4));
+        new ProjectItemOrderItemRequest(ItemType.TASK_GROUP, TestPublicIds.taskGroup(1)),
+        new ProjectItemOrderItemRequest(ItemType.TASK, TestPublicIds.task(4)));
 
     // Act
     List<ProjectItemOrderResponse> actual = sut.replaceOrder(USER_ID, pId, items);
@@ -97,7 +106,7 @@ class ProjectItemOrderServiceTest {
     // Assert
     assertThat(actual)
         .extracting(ProjectItemOrderResponse::getId, ProjectItemOrderResponse::getPosition)
-        .containsExactly(tuple(1, 0), tuple(4, 1));
+        .containsExactly(tuple(TestPublicIds.taskGroup(1), 0), tuple(TestPublicIds.task(4), 1));
     // 一時オフセット退避 → 最終値 の2段階で更新されること
     verify(orderRepository, times(1)).updatePositionByTaskGroupId(1, 1_000_000, USER_ID);
     verify(orderRepository, times(1)).updatePositionByTaskId(4, 1_000_001, USER_ID);
@@ -113,7 +122,7 @@ class ProjectItemOrderServiceTest {
 
     // Act & Assert
     assertThatThrownBy(() -> sut.replaceOrder(USER_ID, pId,
-        List.of(new ProjectItemOrderItemRequest(ItemType.TASK, 1))))
+        List.of(new ProjectItemOrderItemRequest(ItemType.TASK, TestPublicIds.task(1)))))
         .isInstanceOf(TargetNotFoundException.class);
     verify(orderRepository, never()).findAllInProjectOrdered(anyInt(), anyInt());
   }
@@ -127,8 +136,8 @@ class ProjectItemOrderServiceTest {
         new ProjectItemOrder(1, pId, 4, null, 0)));
 
     List<ProjectItemOrderItemRequest> items = List.of(
-        new ProjectItemOrderItemRequest(ItemType.TASK, 4),
-        new ProjectItemOrderItemRequest(ItemType.TASK, 4));
+        new ProjectItemOrderItemRequest(ItemType.TASK, TestPublicIds.task(4)),
+        new ProjectItemOrderItemRequest(ItemType.TASK, TestPublicIds.task(4)));
 
     // Act & Assert
     assertThatThrownBy(() -> sut.replaceOrder(USER_ID, pId, items))
@@ -146,7 +155,7 @@ class ProjectItemOrderServiceTest {
         new ProjectItemOrder(2, pId, null, 1, 1)));
 
     List<ProjectItemOrderItemRequest> items =
-        List.of(new ProjectItemOrderItemRequest(ItemType.TASK, 4)); // タスクグループ1が不足
+        List.of(new ProjectItemOrderItemRequest(ItemType.TASK, TestPublicIds.task(4))); // タスクグループ1が不足
 
     // Act & Assert
     assertThatThrownBy(() -> sut.replaceOrder(USER_ID, pId, items))

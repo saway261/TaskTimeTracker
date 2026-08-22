@@ -25,7 +25,7 @@ const otherCategory = {
 }
 
 const baseTask: ReflectionTaskResponse = {
-  id: 10,
+  id: 'task10',
   title: '画面実装',
   finishedAt: '2026-08-16T00:00:00',
   actualMinutesCached: 90,

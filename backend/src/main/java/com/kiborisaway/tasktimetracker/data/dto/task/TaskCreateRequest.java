@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.data.dto.task;
 
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -29,7 +30,7 @@ public class TaskCreateRequest {
   private Integer estimatedMinutes;
 
   @Schema(description = "付与するタグのIDリスト 省略可。省略・空配列はタグなしとして扱う。件数の上限はない",
-      example = "[1, 2]")
-  private List<Integer> tagIds;
+      example = "[\"Xr9mQ2vKp3\", \"bN4tLp7WqZ\"]")
+  private List<TagId> tagIds;
 
 }

@@ -53,12 +53,12 @@ class OwnershipIsolationIntegrationTest {
   private Cookie userA;
   private Cookie userB;
 
-  private int projectBId;
-  private int taskGroupBId;
-  private int taskB1Id; // プロジェクト直下タスク
-  private int taskB2Id; // タスクグループ配下タスク
-  private int workSessionBId;
-  private int memoProjectBId;
+  private String projectBId;
+  private String taskGroupBId;
+  private String taskB1Id; // プロジェクト直下タスク
+  private String taskB2Id; // タスクグループ配下タスク
+  private String workSessionBId;
+  private String memoProjectBId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -150,8 +150,8 @@ class OwnershipIsolationIntegrationTest {
     expectNotFound(patch("/tasks/" + taskB1Id + "/parent")
         .contentType(MediaType.APPLICATION_JSON)
         .content("""
-            {"taskGroupId":1}
-            """));
+            {"taskGroupId":"%s"}
+            """.formatted(taskGroupBId)));
     expectNotFound(patch("/tasks/" + taskB1Id + "/finished")
         .contentType(MediaType.APPLICATION_JSON)
         .content("""
@@ -214,14 +214,14 @@ class OwnershipIsolationIntegrationTest {
     expectNotFound(put("/projects/" + projectBId + "/item-order")
         .contentType(MediaType.APPLICATION_JSON)
         .content("""
-            {"items":[{"type":"TASK","id":1}]}
-            """));
+            {"items":[{"type":"TASK","id":"%s"}]}
+            """.formatted(taskB1Id)));
     expectNotFound(get("/task-groups/" + taskGroupBId + "/item-order"));
     expectNotFound(put("/task-groups/" + taskGroupBId + "/item-order")
         .contentType(MediaType.APPLICATION_JSON)
         .content("""
-            {"items":[{"id":1}]}
-            """));
+            {"items":[{"id":"%s"}]}
+            """.formatted(taskB2Id)));
   }
 
   private void expectNotFound(MockHttpServletRequestBuilder request) throws Exception {
@@ -253,7 +253,7 @@ class OwnershipIsolationIntegrationTest {
     return result.getResponse().getCookie("JSESSIONID");
   }
 
-  private int createAndGetId(String url, Cookie cookie, String body) throws Exception {
+  private String createAndGetId(String url, Cookie cookie, String body) throws Exception {
     MvcResult result = mockMvc.perform(post(url)
             .cookie(cookie)
             .with(csrf())
@@ -264,7 +264,7 @@ class OwnershipIsolationIntegrationTest {
     return JsonPath.read(result.getResponse().getContentAsString(), "$.id");
   }
 
-  private int createWorkSessionAndGetId(String url, Cookie cookie, String body) throws Exception {
+  private String createWorkSessionAndGetId(String url, Cookie cookie, String body) throws Exception {
     MvcResult result = mockMvc.perform(post(url)
             .cookie(cookie)
             .with(csrf())

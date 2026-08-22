@@ -6,8 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import MemoList from './MemoList.vue'
 
 function mountMemoList(
-  onCreate = vi.fn().mockResolvedValue({ id: 2, comment: '追加したメモ' }),
-  memos = [{ id: 1, comment: '登録済みのメモ' }],
+  onCreate = vi.fn().mockResolvedValue({ id: 'memo2', comment: '追加したメモ' }),
+  memos = [{ id: 'memo1', comment: '登録済みのメモ' }],
 ) {
   return {
     onCreate,
@@ -42,9 +42,9 @@ describe('MemoList', () => {
 
   it('2行目以降のメモを折りたたみ、追加ボタンは常に表示する', async () => {
     const memos = [
-      { id: 1, comment: '1件目' },
-      { id: 2, comment: '2件目' },
-      { id: 3, comment: '3件目' },
+      { id: 'memo1', comment: '1件目' },
+      { id: 'memo2', comment: '2件目' },
+      { id: 'memo3', comment: '3件目' },
     ]
     const { wrapper } = mountMemoList(undefined, memos)
     const notes = wrapper.findAll<HTMLElement>('.memo-note')
@@ -75,7 +75,7 @@ describe('MemoList', () => {
     await flushPromises()
 
     expect(onCreate).toHaveBeenCalledWith({ comment: '追加したメモ' })
-    expect(wrapper.emitted('created')).toEqual([[{ id: 2, comment: '追加したメモ' }]])
+    expect(wrapper.emitted('created')).toEqual([[{ id: 'memo2', comment: '追加したメモ' }]])
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   })
 })

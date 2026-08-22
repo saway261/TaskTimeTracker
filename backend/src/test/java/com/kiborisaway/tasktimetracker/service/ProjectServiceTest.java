@@ -19,6 +19,7 @@ import com.kiborisaway.tasktimetracker.data.entity.Project;
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.exception.ProjectFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
@@ -69,8 +70,8 @@ class ProjectServiceTest {
         .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getDescription,
             ProjectResponse::getIsFinished)
         .containsExactly(
-            org.assertj.core.api.Assertions.tuple(1, "タスク管理アプリ開発", "A社から受託した開発", false),
-            org.assertj.core.api.Assertions.tuple(2, "Java Silver勉強", null, true)
+            org.assertj.core.api.Assertions.tuple(new ProjectId(1), "タスク管理アプリ開発", "A社から受託した開発", false),
+            org.assertj.core.api.Assertions.tuple(new ProjectId(2), "Java Silver勉強", null, true)
         );
     verify(repository, times(1)).findAllByUserId(USER_ID);
     verify(memoRepository, times(1)).findAllInProjects(List.of(1, 2));
@@ -93,7 +94,7 @@ class ProjectServiceTest {
     // Assert
     assertThat(actual)
         .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getIsFinished)
-        .containsExactly(org.assertj.core.api.Assertions.tuple(2, "Java Silver勉強", true));
+        .containsExactly(org.assertj.core.api.Assertions.tuple(new ProjectId(2), "Java Silver勉強", true));
     verify(repository, times(1)).findAllByIsFinishedAndUserId(true, USER_ID);
   }
 
@@ -122,7 +123,7 @@ class ProjectServiceTest {
     // Assert
     assertThat(actual)
         .extracting(ProjectResponse::getId, ProjectResponse::getTitle, ProjectResponse::getIsFinished)
-        .containsExactly(org.assertj.core.api.Assertions.tuple(1, "タスク管理アプリ開発", false));
+        .containsExactly(org.assertj.core.api.Assertions.tuple(new ProjectId(1), "タスク管理アプリ開発", false));
     verify(repository, times(1)).findAllByIsFinishedAndUserId(false, USER_ID);
   }
 
@@ -138,7 +139,7 @@ class ProjectServiceTest {
     ProjectResponse actual = sut.findById(USER_ID, id);
 
     // Assert
-    assertThat(actual.getId()).isEqualTo(expected.getId());
+    assertThat(actual.getId()).isEqualTo(new ProjectId(expected.getId()));
     assertThat(actual.getTitle()).isEqualTo(expected.getTitle());
     assertThat(actual.getDescription()).isEqualTo(expected.getDescription());
     assertThat(actual.getIsFinished()).isEqualTo(expected.getIsFinished());

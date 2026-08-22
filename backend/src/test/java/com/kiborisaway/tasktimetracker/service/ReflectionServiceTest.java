@@ -27,6 +27,9 @@ import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidE
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseRequiredException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionOperationNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
@@ -83,7 +86,7 @@ class ReflectionServiceTest {
 
     ProjectReflectionOverviewResponse actual = sut.getOverview(USER_ID, projectId);
 
-    assertThat(actual.getProjectId()).isEqualTo(projectId);
+    assertThat(actual.getProjectId()).isEqualTo(new ProjectId(projectId));
     assertThat(actual.getProjectTitle()).isEqualTo("プロジェクトX");
     assertThat(actual.getTasks())
         .extracting(
@@ -91,24 +94,24 @@ class ReflectionServiceTest {
             ReflectionTaskResponse::getTitle,
             ReflectionTaskResponse::getGapRateCached)
         .containsExactly(
-            tuple(7, "直下B", -16.6666666667),
-            tuple(6, "直下A", 50.0));
+            tuple(new TaskId(7), "直下B", -16.6666666667),
+            tuple(new TaskId(6), "直下A", 50.0));
     assertThat(actual.getTasks().get(0).getReflection()).isNull();
     assertThat(actual.getTasks().get(1).getReflection().getCause()).isEqualTo("原因A");
-    assertThat(actual.getTasks().get(1).getReflection().getTaskId()).isEqualTo(6);
+    assertThat(actual.getTasks().get(1).getReflection().getTaskId()).isEqualTo(new TaskId(6));
     assertThat(actual.getTasks().get(1).getReflection().getCauseCategories()).isEmpty();
 
     assertThat(actual.getTaskGroups())
         .extracting(ReflectionTaskGroupResponse::getId, ReflectionTaskGroupResponse::getTitle)
         .containsExactly(
-            tuple(5, "グループB"),
-            tuple(4, "グループA"));
+            tuple(new TaskGroupId(5), "グループB"),
+            tuple(new TaskGroupId(4), "グループA"));
     assertThat(actual.getTaskGroups().get(0).getTasks())
         .extracting(ReflectionTaskResponse::getId)
-        .containsExactly(12);
+        .containsExactly(new TaskId(12));
     assertThat(actual.getTaskGroups().get(1).getTasks())
         .extracting(ReflectionTaskResponse::getId)
-        .containsExactly(10, 9);
+        .containsExactly(new TaskId(10), new TaskId(9));
     assertThat(actual.getTaskGroups().get(1).getTasks().get(1).getActualMinutesCached())
         .isNull();
 

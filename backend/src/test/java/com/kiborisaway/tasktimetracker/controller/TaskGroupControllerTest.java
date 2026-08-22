@@ -21,6 +21,7 @@ import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedExcept
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.TaskGroupService;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
 import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.util.List;
@@ -53,7 +54,7 @@ class TaskGroupControllerTest {
   void タスクグループ一覧検索成功_条件未指定でサービスを呼び出し200を返すこと() throws Exception {
     // Act & Assert
     int pId = 1;
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", TestPublicIds.project(pId)))
         .andExpect(status().isOk());
 
     verify(service).findAllByCondition(USER_ID, pId, null);
@@ -64,7 +65,7 @@ class TaskGroupControllerTest {
       throws Exception {
     // Act & Assert
     int pId = 1;
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId)
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", TestPublicIds.project(pId))
             .param("isFinished", "false"))
         .andExpect(status().isOk());
 
@@ -76,7 +77,7 @@ class TaskGroupControllerTest {
       throws Exception {
     // Act & Assert
     int pId = 1;
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId)
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", TestPublicIds.project(pId))
             .param("isFinished", "true"))
         .andExpect(status().isOk());
 
@@ -87,7 +88,7 @@ class TaskGroupControllerTest {
   void タスクグループ一覧検索失敗_isFinishedが真偽値でなければ400を返すこと() throws Exception {
     // Act & Assert
     int pId = 1;
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId)
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", TestPublicIds.project(pId))
             .param("isFinished", "invalid"))
         .andExpect(status().isBadRequest());
 
@@ -104,7 +105,7 @@ class TaskGroupControllerTest {
             "指定したIDのプロジェクトは見つかりませんでした"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", pId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/task-groups", TestPublicIds.project(pId)))
         .andExpect(status().isNotFound());
 
   }
@@ -115,20 +116,21 @@ class TaskGroupControllerTest {
     int tgId = 1;
     TaskGroup tg = new TaskGroup();
     tg.setId(tgId);
+    tg.setProjectId(1);
     when(service.findById(USER_ID, tgId)).thenReturn(new TaskGroupResponse(tg, List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}", tgId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}", TestPublicIds.taskGroup(tgId)))
         .andExpect(status().isOk());
 
     verify(service).findById(USER_ID, tgId);
   }
 
   @Test
-  void タスクグループ単体取得失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void タスクグループ単体取得失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/0"))
-        .andExpect(status().isBadRequest());
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/invalid-id"))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -138,17 +140,10 @@ class TaskGroupControllerTest {
         new TargetNotFoundException("id", "project not found"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/999"))
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}", TestPublicIds.taskGroup(999)))
         .andExpect(status().isNotFound());
 
     verify(service).findById(USER_ID, 999);
-  }
-
-  @Test
-  void タスクグループ単体取得失敗_パス変数の型が不正なら400を返すこと() throws Exception {
-    // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/abc"))
-        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -170,7 +165,7 @@ class TaskGroupControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/task-groups", pId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/task-groups", TestPublicIds.project(pId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isCreated());
@@ -193,7 +188,7 @@ class TaskGroupControllerTest {
             "指定したIDのプロジェクトは見つかりませんでした"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/task-groups", pId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/task-groups", TestPublicIds.project(pId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -213,7 +208,7 @@ class TaskGroupControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/task-groups", pId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/task-groups", TestPublicIds.project(pId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -235,13 +230,13 @@ class TaskGroupControllerTest {
         .thenReturn(new TaskGroupResponse(updated, List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}", TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.id").value(tgId))
-        .andExpect(jsonPath("$.projectId").value(1))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.taskGroup(tgId)))
+        .andExpect(jsonPath("$.projectId").value(TestPublicIds.project(1)))
         .andExpect(jsonPath("$.isFinished").value(true));
 
     verify(service).update(eq(USER_ID), eq(tgId), any(TaskGroupUpdateRequest.class));
@@ -255,10 +250,10 @@ class TaskGroupControllerTest {
   }
 
   @Test
-  void タスクグループ更新失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void タスクグループ更新失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/0"))
-        .andExpect(status().isBadRequest());
+    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/invalid-id"))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -275,19 +270,12 @@ class TaskGroupControllerTest {
         .when(service).update(eq(USER_ID), eq(tgId), any(TaskGroupUpdateRequest.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/" + tgId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/" + TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
 
     verify(service).update(eq(USER_ID), eq(tgId), any(TaskGroupUpdateRequest.class));
-  }
-
-  @Test
-  void タスクグループ更新失敗_パス変数の型が不正なら400を返すこと() throws Exception {
-    // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/abc"))
-        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -301,7 +289,7 @@ class TaskGroupControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/" + tgId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/" + TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -321,11 +309,11 @@ class TaskGroupControllerTest {
         .thenReturn(new TaskGroupResponse(updated, List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(tgId))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.taskGroup(tgId)))
         .andExpect(jsonPath("$.isFinished").value(true));
 
     verify(service).updateFinished(USER_ID, tgId, true);
@@ -344,7 +332,7 @@ class TaskGroupControllerTest {
         .when(service).updateFinished(USER_ID, tgId, true);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isBadRequest());
@@ -363,7 +351,7 @@ class TaskGroupControllerTest {
         .when(service).updateFinished(USER_ID, tgId, true);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -376,7 +364,7 @@ class TaskGroupControllerTest {
     String invalidRequest = "{}";
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/task-groups/{tgId}/finished", TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());

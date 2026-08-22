@@ -39,6 +39,16 @@ class TaskGroupRepositoryTest {
   }
 
   @Test
+  void 全件検索_ID昇順で取得できること() {
+    // Act
+    List<TaskGroup> actual = sut.findAllInProject(1, USER_A);
+
+    // Assert
+    // 並び順テーブルにレコードが無い既存データのフォールバック順序を確定させる。
+    assertThat(actual).extracting(TaskGroup::getId).isSorted();
+  }
+
+  @Test
   void 全件検索_所有者が一致しない場合は取得できないこと() {
     // Act
     List<TaskGroup> actual = sut.findAllInProject(1, USER_B);

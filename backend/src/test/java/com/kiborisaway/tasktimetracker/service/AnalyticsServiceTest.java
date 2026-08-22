@@ -25,6 +25,9 @@ import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRecentVarianceRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsRepository;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsScatterPointRow;
@@ -198,7 +201,7 @@ class AnalyticsServiceTest {
             ProjectBreakdownItemResponse::getProjectId,
             ProjectBreakdownItemResponse::getProjectTitle,
             ProjectBreakdownItemResponse::getCount)
-        .containsExactly(tuple(1, "開発基盤", 18), tuple(2, "社内ツール", 4));
+        .containsExactly(tuple(new ProjectId(1), "開発基盤", 18), tuple(new ProjectId(2), "社内ツール", 4));
   }
 
   @Test
@@ -217,7 +220,7 @@ class AnalyticsServiceTest {
     assertThat(actual.getScatter()).hasSize(1);
     assertThat(actual.getScatter().get(0).getTags())
         .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
-        .containsExactly(tuple(100, "調査"));
+        .containsExactly(tuple(new TagId(100), "調査"));
   }
 
   @Test
@@ -272,8 +275,8 @@ class AnalyticsServiceTest {
     assertThat(actual.isScatterTruncated()).isTrue();
     assertThat(actual.getScatter()).hasSize(500);
     // 最古の1件（taskId=0）が切り詰めで落ち、残り500件が昇順で返る。
-    assertThat(actual.getScatter().get(0).getTaskId()).isEqualTo(1);
-    assertThat(actual.getScatter().get(499).getTaskId()).isEqualTo(500);
+    assertThat(actual.getScatter().get(0).getTaskId()).isEqualTo(new TaskId(1));
+    assertThat(actual.getScatter().get(499).getTaskId()).isEqualTo(new TaskId(500));
   }
 
   @Test
@@ -293,7 +296,7 @@ class AnalyticsServiceTest {
     assertThat(actual.isScatterTruncated()).isFalse();
     assertThat(actual.getScatter())
         .extracting(ScatterPointResponse::getTaskId)
-        .containsExactly(1, 2);
+        .containsExactly(new TaskId(1), new TaskId(2));
   }
 
   @Test
@@ -860,11 +863,11 @@ class AnalyticsServiceTest {
 
     ReflectionTimelineResponse actual = sut.getReflectionTimeline(USER_ID, condition);
 
-    assertThat(actual.getItems().get(0).getTaskId()).isEqualTo(1);
+    assertThat(actual.getItems().get(0).getTaskId()).isEqualTo(new TaskId(1));
     assertThat(actual.getItems().get(0).getTags())
         .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
-        .containsExactly(tuple(100, "調査"));
-    assertThat(actual.getItems().get(1).getTaskId()).isEqualTo(2);
+        .containsExactly(tuple(new TagId(100), "調査"));
+    assertThat(actual.getItems().get(1).getTaskId()).isEqualTo(new TaskId(2));
     assertThat(actual.getItems().get(1).getTags()).isEmpty();
   }
 

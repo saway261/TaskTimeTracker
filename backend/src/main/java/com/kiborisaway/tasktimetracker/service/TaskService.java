@@ -14,6 +14,7 @@ import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowed
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskTagsInvalidException;
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
@@ -137,7 +138,7 @@ public class TaskService {
   @Transactional
   public TaskResponse register(int userId, Integer projectId, Integer taskGroupId,
       TaskCreateRequest request) {
-    validateTags(userId, request.getTagIds());
+    validateTags(userId, toIntTagIds(request.getTagIds()));
     Task task = toEntity(projectId, taskGroupId, request);
 
     String parentField = "";
@@ -163,7 +164,7 @@ public class TaskService {
     } else {
       pjItemOrderRepository.insertAppendForTask(task.getProjectId(), task.getId());
     }
-    linkTags(task.getId(), request.getTagIds());
+    linkTags(task.getId(), toIntTagIds(request.getTagIds()));
     Task registeredTask = findTaskById(userId, task.getId());
     return toResponse(registeredTask);
   }
@@ -266,10 +267,11 @@ public class TaskService {
   @Transactional
   public TaskResponse updateTags(int userId, int id, TaskTagsUpdateRequest request) {
     findTaskById(userId, id);
-    validateTags(userId, request.getTagIds());
+    List<Integer> tagIds = toIntTagIds(request.getTagIds());
+    validateTags(userId, tagIds);
 
     tagRepository.deleteLinksByTaskId(id);
-    linkTags(id, request.getTagIds());
+    linkTags(id, tagIds);
 
     return findById(userId, id);
   }
@@ -363,7 +365,9 @@ public class TaskService {
     List<MemoResponse> memoResponses = (memos == null ? List.<Memo>of() : memos).stream()
         .map(MemoResponse::new)
         .toList();
-    List<TagSummaryResponse> tags = tagRepository.findTagsByTaskId(task.getId());
+    List<TagSummaryResponse> tags = tagRepository.findTagsByTaskId(task.getId()).stream()
+        .map(row -> new TagSummaryResponse(new TagId(row.getId()), row.getName()))
+        .toList();
     return new TaskResponse(task, memoResponses, tags);
   }
 
@@ -391,7 +395,7 @@ public class TaskService {
             .collect(Collectors.groupingBy(
                 TaskTagRow::getTaskId,
                 Collectors.mapping(
-                    row -> new TagSummaryResponse(row.getTagId(), row.getName()),
+                    row -> new TagSummaryResponse(new TagId(row.getTagId()), row.getName()),
                     Collectors.toList())));
 
     return tasks.stream()
@@ -409,6 +413,14 @@ public class TaskService {
    * @param userId 認証ユーザーのID
    * @param tagIds 検証するタグID一覧。null・空リストは検証をスキップする
    */
+  /**
+   * 型付きのタグ公開IDリストを内部IDのリストへ変換します。null は null のまま返します
+   * （タグ未指定と空配列を区別する既存の呼び出し規約を維持するため）。
+   */
+  private static List<Integer> toIntTagIds(List<TagId> tagIds) {
+    return tagIds == null ? null : tagIds.stream().map(TagId::value).toList();
+  }
+
   private void validateTags(int userId, List<Integer> tagIds) {
     if (tagIds == null || tagIds.isEmpty()) {
       return;

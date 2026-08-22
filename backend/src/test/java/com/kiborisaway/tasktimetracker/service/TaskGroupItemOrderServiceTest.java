@@ -14,6 +14,7 @@ import com.kiborisaway.tasktimetracker.data.dto.item_order.TaskGroupItemOrderRes
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroupItemOrder;
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.TaskGroupRepository;
 import java.util.List;
@@ -52,7 +53,7 @@ class TaskGroupItemOrderServiceTest {
     // Assert
     assertThat(actual)
         .extracting(TaskGroupItemOrderResponse::getId, TaskGroupItemOrderResponse::getPosition)
-        .containsExactly(tuple(1, 0), tuple(2, 1));
+        .containsExactly(tuple(new TaskId(1), 0), tuple(new TaskId(2), 1));
   }
 
   @Test
@@ -81,8 +82,8 @@ class TaskGroupItemOrderServiceTest {
             new TaskGroupItemOrder(1, tgId, 1, 1)));
 
     List<TaskGroupItemOrderItemRequest> items = List.of(
-        new TaskGroupItemOrderItemRequest(2),
-        new TaskGroupItemOrderItemRequest(1));
+        new TaskGroupItemOrderItemRequest(new TaskId(2)),
+        new TaskGroupItemOrderItemRequest(new TaskId(1)));
 
     // Act
     List<TaskGroupItemOrderResponse> actual = sut.replaceOrder(USER_ID, tgId,items);
@@ -90,7 +91,7 @@ class TaskGroupItemOrderServiceTest {
     // Assert
     assertThat(actual)
         .extracting(TaskGroupItemOrderResponse::getId, TaskGroupItemOrderResponse::getPosition)
-        .containsExactly(tuple(2, 0), tuple(1, 1));
+        .containsExactly(tuple(new TaskId(2), 0), tuple(new TaskId(1), 1));
     verify(orderRepository, times(1)).updatePositionByTaskId(2, 1_000_000, USER_ID);
     verify(orderRepository, times(1)).updatePositionByTaskId(1, 1_000_001, USER_ID);
     verify(orderRepository, times(1)).updatePositionByTaskId(2, 0, USER_ID);
@@ -105,7 +106,7 @@ class TaskGroupItemOrderServiceTest {
 
     // Act & Assert
     assertThatThrownBy(
-        () -> sut.replaceOrder(USER_ID, tgId,List.of(new TaskGroupItemOrderItemRequest(1))))
+        () -> sut.replaceOrder(USER_ID, tgId,List.of(new TaskGroupItemOrderItemRequest(new TaskId(1)))))
         .isInstanceOf(TargetNotFoundException.class);
     verify(orderRepository, never()).findAllInTaskGroupOrdered(anyInt(), anyInt());
   }
@@ -119,8 +120,8 @@ class TaskGroupItemOrderServiceTest {
         new TaskGroupItemOrder(1, tgId, 1, 0)));
 
     List<TaskGroupItemOrderItemRequest> items = List.of(
-        new TaskGroupItemOrderItemRequest(1),
-        new TaskGroupItemOrderItemRequest(1));
+        new TaskGroupItemOrderItemRequest(new TaskId(1)),
+        new TaskGroupItemOrderItemRequest(new TaskId(1)));
 
     // Act & Assert
     assertThatThrownBy(() -> sut.replaceOrder(USER_ID, tgId,items))
@@ -138,7 +139,7 @@ class TaskGroupItemOrderServiceTest {
         new TaskGroupItemOrder(2, tgId, 2, 1)));
 
     List<TaskGroupItemOrderItemRequest> items =
-        List.of(new TaskGroupItemOrderItemRequest(1)); // タスク2が不足
+        List.of(new TaskGroupItemOrderItemRequest(new TaskId(1))); // タスク2が不足
 
     // Act & Assert
     assertThatThrownBy(() -> sut.replaceOrder(USER_ID, tgId,items))

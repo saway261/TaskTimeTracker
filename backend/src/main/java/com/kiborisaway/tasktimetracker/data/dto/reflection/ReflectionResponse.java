@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.data.dto.reflection;
 
 import com.kiborisaway.tasktimetracker.data.entity.Reflection;
 import com.kiborisaway.tasktimetracker.data.entity.ReflectionCauseCategory;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,11 +14,13 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class ReflectionResponse {
 
+  // 振り返り自体には専用のURL・パスパラメータが無く（/tasks/{taskId}/reflection 経由でのみ操作する）、
+  // 公開ID対応の対象6種（Project/TaskGroup/Task/Memo/WorkSession/Tag）にも含まれないため、内部IDのまま返す。
   @Schema(description = "振り返りID", example = "1")
   private final int id;
 
-  @Schema(description = "対象タスクID", example = "1")
-  private final int taskId;
+  @Schema(description = "対象タスクID", example = "Xr9mQ2vKp3")
+  private final TaskId taskId;
 
   @Schema(description = "原因カテゴリ 表示順に並ぶ。未設定の場合は空配列")
   private final List<ReflectionCauseCategorySummaryResponse> causeCategories;
@@ -55,7 +58,7 @@ public class ReflectionResponse {
       LocalDateTime createdAt,
       LocalDateTime updatedAt) {
     this.id = id;
-    this.taskId = taskId;
+    this.taskId = new TaskId(taskId);
     this.causeCategories = causeCategories;
     this.cause = cause;
     this.nextAction = nextAction;

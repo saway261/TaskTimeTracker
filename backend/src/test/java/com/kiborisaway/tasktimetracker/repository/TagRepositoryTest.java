@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
-import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -341,7 +340,7 @@ class TagRepositoryTest {
     sut.insertLink(taskId, tagId);
 
     assertThat(sut.findTagsByTaskId(taskId))
-        .extracting(TagSummaryResponse::getId)
+        .extracting(TagSummaryRow::getId)
         .containsExactly(tagId);
   }
 
@@ -367,7 +366,7 @@ class TagRepositoryTest {
 
     assertThat(deleted).isEqualTo(1);
     assertThat(sut.findTagsByTaskId(taskA)).isEmpty();
-    assertThat(sut.findTagsByTaskId(taskB)).extracting(TagSummaryResponse::getId)
+    assertThat(sut.findTagsByTaskId(taskB)).extracting(TagSummaryRow::getId)
         .containsExactly(tagId);
   }
 
@@ -386,9 +385,9 @@ class TagRepositoryTest {
     sut.insertLink(taskId, tagZ);
     sut.insertLink(taskId, tagA);
 
-    List<TagSummaryResponse> actual = sut.findTagsByTaskId(taskId);
+    List<TagSummaryRow> actual = sut.findTagsByTaskId(taskId);
 
-    assertThat(actual).extracting(TagSummaryResponse::getId).containsExactly(tagA, tagZ);
+    assertThat(actual).extracting(TagSummaryRow::getId).containsExactly(tagA, tagZ);
   }
 
   @Test
@@ -398,7 +397,7 @@ class TagRepositoryTest {
     sut.insertLink(taskId, archivedTagId);
 
     assertThat(sut.findTagsByTaskId(taskId))
-        .extracting(TagSummaryResponse::getId)
+        .extracting(TagSummaryRow::getId)
         .containsExactly(archivedTagId);
   }
 
@@ -496,7 +495,7 @@ class TagRepositoryTest {
     sut.insertLink(taskId, archivedTag);
 
     assertThat(sut.findTagsByTaskId(taskId))
-        .extracting(TagSummaryResponse::getId)
+        .extracting(TagSummaryRow::getId)
         .containsExactlyInAnyOrder(activeTag, archivedTag);
 
     // 全置換その2: アーカイブ済みタグを含めずに置換 → 外れる
@@ -504,7 +503,7 @@ class TagRepositoryTest {
     sut.insertLink(taskId, activeTag);
 
     assertThat(sut.findTagsByTaskId(taskId))
-        .extracting(TagSummaryResponse::getId)
+        .extracting(TagSummaryRow::getId)
         .containsExactly(activeTag);
   }
 

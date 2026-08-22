@@ -18,17 +18,17 @@ const emit = defineEmits<{
 const CANDIDATE_LIMIT = 5
 const tagStore = useTagStore()
 const headingId = useId()
-const selectedTagId = ref<number | null>(null)
+const selectedTagId = ref<string | null>(null)
 const resolving = ref(false)
 const error = ref<ApiError | null>(null)
 
+// 付与件数の昇順 → タグ名の昇順。名前は (user_id, name_normalized) が一意なため、
+// この2キーで順序が確定する。
 const candidates = computed(() =>
   [...tagStore.activeTags]
     .sort(
       (a, b) =>
-        a.assignedTaskCount - b.assignedTaskCount ||
-        a.name.localeCompare(b.name, 'ja') ||
-        a.id - b.id,
+        a.assignedTaskCount - b.assignedTaskCount || a.name.localeCompare(b.name, 'ja'),
     )
     .slice(0, CANDIDATE_LIMIT),
 )

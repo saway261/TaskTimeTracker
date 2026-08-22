@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.data.dto.reflection;
 
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.EqualsAndHashCode;
@@ -10,8 +11,8 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class ReflectionTaskResponse {
 
-  @Schema(description = "タスクID", example = "1")
-  private final int id;
+  @Schema(description = "タスクID", example = "Xr9mQ2vKp3")
+  private final TaskId id;
 
   @Schema(description = "タスク名", example = "API設計")
   private final String title;
@@ -39,7 +40,7 @@ public class ReflectionTaskResponse {
       Integer gapMinutesCached,
       Double gapRateCached,
       ReflectionResponse reflection) {
-    this.id = id;
+    this.id = new TaskId(id);
     this.title = title;
     this.finishedAt = finishedAt;
     this.actualMinutesCached = actualMinutesCached;

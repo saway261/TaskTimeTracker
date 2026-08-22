@@ -29,9 +29,9 @@ import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
 
 const props = defineProps<{
   modelValue: boolean
-  taskId: number
+  taskId: string
   taskTitle: string
-  projectId: number
+  projectId: string
   detailTo: string
 }>()
 

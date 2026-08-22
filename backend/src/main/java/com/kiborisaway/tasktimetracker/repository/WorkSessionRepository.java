@@ -1,6 +1,5 @@
 package com.kiborisaway.tasktimetracker.repository;
 
-import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import java.util.List;
 import org.apache.ibatis.annotations.Delete;
@@ -33,7 +32,7 @@ public interface WorkSessionRepository {
         AND p.user_id = #{userId}
       ORDER BY ws.started_at, ws.id
       """)
-  List<ActiveTimerResponse> findAllActiveByUserId(int userId);
+  List<ActiveTimerRow> findAllActiveByUserId(int userId);
 
   /**
    * 指定したタスクに紐づく作業セッションの作業時間合計を取得します。所有者が一致するプロジェクトのみを対象とします。

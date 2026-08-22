@@ -20,10 +20,11 @@ public class WorkSession {
 
   @Schema(
       description = """
-          タスクID
+          作業セッションID
           登録時は自動採番を行うため不要、更新時にはパスパラメータで指定するため不要なので、リクエストボディとしては常に不要
           """,
-      example = "1")
+      type = "string",
+      example = "Xr9mQ2vKp3")
   private Integer id;
 
   @Schema(
@@ -31,7 +32,8 @@ public class WorkSession {
           作業セッションが紐づくタスクID
           登録時はパスパラメータで指定し、更新不可なので、リクエストボディとしては常に不要
           """,
-      example = "1")
+      type = "string",
+      example = "Xr9mQ2vKp3")
   private Integer taskId;
 
   @Schema(description = """

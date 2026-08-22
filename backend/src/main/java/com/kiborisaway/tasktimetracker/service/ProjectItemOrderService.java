@@ -6,6 +6,8 @@ import com.kiborisaway.tasktimetracker.data.dto.item_order.ProjectItemOrderRespo
 import com.kiborisaway.tasktimetracker.data.entity.ProjectItemOrder;
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.publicid.PublicIdCodec;
+import com.kiborisaway.tasktimetracker.publicid.PublicIdType;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import java.util.List;
@@ -24,15 +26,27 @@ public class ProjectItemOrderService {
    */
   private static final int TEMP_POSITION_OFFSET = 1_000_000;
 
+  /**
+   * {@code ProjectItemOrderItemRequest} の公開ID文字列を内部IDへ解決した結果。
+   * type によってタスク用アルファベットとタスクグループ用アルファベットのどちらでデコードするかが
+   * 決まるため、Controller/Jacksonでの自動変換ではなくここで解決する。
+   */
+  private record ResolvedItem(ItemType type, int id) {
+
+  }
+
   private ProjectItemOrderRepository orderRepository;
   private ProjectRepository projectRepository;
+  private PublicIdCodec codec;
 
   @Autowired
   public ProjectItemOrderService(
       ProjectItemOrderRepository orderRepository,
-      ProjectRepository projectRepository) {
+      ProjectRepository projectRepository,
+      PublicIdCodec codec) {
     this.orderRepository = orderRepository;
     this.projectRepository = projectRepository;
+    this.codec = codec;
   }
 
   /**
@@ -68,20 +82,28 @@ public class ProjectItemOrderService {
     }
 
     List<ProjectItemOrder> current = orderRepository.findAllInProjectOrdered(projectId, userId);
-    validateSameItemSet(current, items);
+    // 公開ID文字列の解決（decode）はここで一度だけ行う。type によってタスク用・タスクグループ用の
+    // どちらのアルファベットでデコードするかが変わるため、Controller側の自動変換には委ねられない。
+    List<ResolvedItem> resolvedItems = items.stream().map(this::resolve).toList();
+    validateSameItemSet(current, resolvedItems);
 
     // 一意制約(project_id, position)に一時的にも違反しないよう、大きなオフセット値へ退避してから最終値を書き込む
-    for (int i = 0; i < items.size(); i++) {
-      updatePosition(items.get(i), TEMP_POSITION_OFFSET + i, userId);
+    for (int i = 0; i < resolvedItems.size(); i++) {
+      updatePosition(resolvedItems.get(i), TEMP_POSITION_OFFSET + i, userId);
     }
-    for (int i = 0; i < items.size(); i++) {
-      updatePosition(items.get(i), i, userId);
+    for (int i = 0; i < resolvedItems.size(); i++) {
+      updatePosition(resolvedItems.get(i), i, userId);
     }
 
     return toResponses(orderRepository.findAllInProjectOrdered(projectId, userId));
   }
 
-  private void updatePosition(ProjectItemOrderItemRequest item, int position, int userId) {
+  private ResolvedItem resolve(ProjectItemOrderItemRequest item) {
+    PublicIdType type = item.type() == ItemType.TASK ? PublicIdType.TASK : PublicIdType.TASK_GROUP;
+    return new ResolvedItem(item.type(), codec.decode(type, item.id()));
+  }
+
+  private void updatePosition(ResolvedItem item, int position, int userId) {
     if (item.type() == ItemType.TASK) {
       orderRepository.updatePositionByTaskId(item.id(), position, userId);
     } else {
@@ -90,7 +112,7 @@ public class ProjectItemOrderService {
   }
 
   private void validateSameItemSet(List<ProjectItemOrder> current,
-      List<ProjectItemOrderItemRequest> items) {
+      List<ResolvedItem> items) {
     Set<String> currentKeys = current.stream()
         .map(order -> order.getTaskId() != null
             ? ItemType.TASK + ":" + order.getTaskId()
@@ -110,6 +132,6 @@ public class ProjectItemOrderService {
   }
 
   private List<ProjectItemOrderResponse> toResponses(List<ProjectItemOrder> orders) {
-    return orders.stream().map(ProjectItemOrderResponse::new).toList();
+    return orders.stream().map(order -> new ProjectItemOrderResponse(order, codec)).toList();
   }
 }

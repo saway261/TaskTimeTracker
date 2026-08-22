@@ -20,6 +20,8 @@ import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
 import com.kiborisaway.tasktimetracker.data.entity.Memo;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedException;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
@@ -83,8 +85,8 @@ class TaskGroupServiceTest {
             TaskGroupResponse::getTitle, TaskGroupResponse::getDescription,
             TaskGroupResponse::getIsFinished)
         .containsExactly(
-            org.assertj.core.api.Assertions.tuple(1, pId, "タスクグループ１", "説明", false),
-            org.assertj.core.api.Assertions.tuple(2, pId, "タスクグループ２", null, true)
+            org.assertj.core.api.Assertions.tuple(new TaskGroupId(1), new ProjectId(pId), "タスクグループ１", "説明", false),
+            org.assertj.core.api.Assertions.tuple(new TaskGroupId(2), new ProjectId(pId), "タスクグループ２", null, true)
         );
     verify(prRepository, times(1)).existsByIdAndUserId(pId, USER_ID);
     verify(tgRepository, times(1)).findAllInProject(pId, USER_ID);
@@ -114,7 +116,7 @@ class TaskGroupServiceTest {
     assertThat(actual)
         .extracting(TaskGroupResponse::getId, TaskGroupResponse::getProjectId,
             TaskGroupResponse::getTitle)
-        .containsExactly(org.assertj.core.api.Assertions.tuple(2, pId, "タスクグループ２"));
+        .containsExactly(org.assertj.core.api.Assertions.tuple(new TaskGroupId(2), new ProjectId(pId), "タスクグループ２"));
     verify(prRepository, times(1)).existsByIdAndUserId(pId, USER_ID);
     verify(tgRepository, times(1)).findAllInProjectByIsFinished(pId, flg, USER_ID);
     verify(tgRepository, never()).findAllInProject(anyInt(), anyInt());
@@ -158,8 +160,8 @@ class TaskGroupServiceTest {
     TaskGroupResponse actual = sut.findById(USER_ID, id);
 
     // Assert
-    assertThat(actual.getId()).isEqualTo(expected.getId());
-    assertThat(actual.getProjectId()).isEqualTo(expected.getProjectId());
+    assertThat(actual.getId()).isEqualTo(new TaskGroupId(expected.getId()));
+    assertThat(actual.getProjectId()).isEqualTo(new ProjectId(expected.getProjectId()));
     assertThat(actual.getTitle()).isEqualTo(expected.getTitle());
     assertThat(actual.getDescription()).isEqualTo(expected.getDescription());
     assertThat(actual.getIsFinished()).isEqualTo(expected.getIsFinished());
@@ -199,7 +201,7 @@ class TaskGroupServiceTest {
     TaskGroupResponse actual = sut.register(USER_ID, pId, request);
 
     // Assert
-    assertThat(actual.getProjectId()).isEqualTo(pId);
+    assertThat(actual.getProjectId()).isEqualTo(new ProjectId(pId));
     assertThat(actual.getTitle()).isEqualTo("タスクグループ２");
     assertThat(actual.getMemos()).isEmpty();
     verify(prRepository, times(1)).existsByIdAndUserId(pId, USER_ID);

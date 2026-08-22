@@ -9,7 +9,6 @@ import type {
 } from '@/types/project'
 import type { MemoRequest, MemoResponse } from '@/types/memo'
 import type { ApiError } from '@/types/apiError'
-import { sortById } from '@/utils/sort'
 
 export const useProjectStore = defineStore('project', {
   state: () => ({
@@ -24,7 +23,7 @@ export const useProjectStore = defineStore('project', {
       this.error = null
       try {
         const res = await projectsApi.fetchAll(isFinished)
-        this.projects = sortById(res.data)
+        this.projects = res.data
       } catch (e) {
         this.error = e as ApiError
         throw e
@@ -33,7 +32,7 @@ export const useProjectStore = defineStore('project', {
       }
     },
 
-    async fetchProject(id: number) {
+    async fetchProject(id: string) {
       this.loading = true
       this.error = null
       try {
@@ -50,12 +49,12 @@ export const useProjectStore = defineStore('project', {
     // 登録後オブジェクトをそのまま反映するため、再取得は不要。
     async createProject(req: ProjectCreateRequest) {
       const res = await projectsApi.create(req)
-      this.projects = sortById([...this.projects, res.data])
+      this.projects = [...this.projects, res.data]
       return res.data
     },
 
     // 更新後オブジェクトをそのまま反映するため、再取得は不要。
-    async updateProject(id: number, req: ProjectUpdateRequest) {
+    async updateProject(id: string, req: ProjectUpdateRequest) {
       const res = await projectsApi.update(id, req)
       if (this.currentProject?.id === id) {
         this.currentProject = res.data
@@ -68,7 +67,7 @@ export const useProjectStore = defineStore('project', {
     },
 
     // 更新後オブジェクトをそのまま反映するため、再取得は不要。
-    async updateFinished(id: number, req: ProjectUpdateFinishedRequest) {
+    async updateFinished(id: string, req: ProjectUpdateFinishedRequest) {
       const res = await projectsApi.updateFinished(id, req)
       if (this.currentProject?.id === id) {
         this.currentProject = res.data
@@ -81,7 +80,7 @@ export const useProjectStore = defineStore('project', {
     },
 
     // メモCRUDはMemoResponseしか返らないため、currentProject.memos は自前で更新する。
-    async createProjectMemo(projectId: number, req: MemoRequest) {
+    async createProjectMemo(projectId: string, req: MemoRequest) {
       const res = await memosApi.createMemoInProject(projectId, req)
       if (this.currentProject?.id === projectId) {
         this.currentProject.memos.push(res.data)
@@ -97,7 +96,7 @@ export const useProjectStore = defineStore('project', {
       }
     },
 
-    syncMemoRemoved(id: number) {
+    syncMemoRemoved(id: string) {
       if (!this.currentProject) return
       this.currentProject.memos = this.currentProject.memos.filter((m) => m.id !== id)
     },

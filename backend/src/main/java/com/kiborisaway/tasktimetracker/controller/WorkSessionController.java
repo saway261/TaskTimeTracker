@@ -5,6 +5,10 @@ import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRe
 import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
+import com.kiborisaway.tasktimetracker.publicid.id.WorkSessionId;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +18,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -46,7 +49,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -56,12 +59,7 @@ public class WorkSessionController {
                   schema = @Schema(type = "integer", format = "int32", example = "120"))
           ),
           @ApiResponse(
-              responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定されたタスクIDが存在しないときのエラー",
+              responseCode = "404", description = "タスクIDが不正、または指定されたタスクが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -70,8 +68,8 @@ public class WorkSessionController {
   @GetMapping("/tasks/{taskId}/work-sessions/total-minutes")
   public int getTaskActualTotalTime(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId) {
-    return service.getTaskActualTotalTime(user.getUserId(), taskId);
+      @PathVariable TaskId taskId) {
+    return service.getTaskActualTotalTime(user.getUserId(), taskId.value());
   }
 
   @Operation(
@@ -81,7 +79,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "tgId", required = true,
               description = "タスクグループID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -91,12 +89,8 @@ public class WorkSessionController {
                   schema = @Schema(type = "integer", format = "int32", example = "300"))
           ),
           @ApiResponse(
-              responseCode = "400", description = "タスクグループIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定されたタスクグループIDが存在しないときのエラー",
+              responseCode = "404",
+              description = "タスクグループIDが不正、または指定されたタスクグループが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -105,8 +99,8 @@ public class WorkSessionController {
   @GetMapping("/task-groups/{tgId}/work-sessions/total-minutes")
   public int getTaskGroupActualTotalTime(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tgId) {
-    return service.getTaskGroupActualTotalTime(user.getUserId(), tgId);
+      @PathVariable TaskGroupId tgId) {
+    return service.getTaskGroupActualTotalTime(user.getUserId(), tgId.value());
   }
 
   @Operation(
@@ -116,7 +110,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "pId", required = true,
               description = "プロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -126,12 +120,7 @@ public class WorkSessionController {
                   schema = @Schema(type = "integer", format = "int32", example = "900"))
           ),
           @ApiResponse(
-              responseCode = "400", description = "プロジェクトIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定されたプロジェクトIDが存在しないときのエラー",
+              responseCode = "404", description = "プロジェクトIDが不正、または指定されたプロジェクトが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -140,8 +129,8 @@ public class WorkSessionController {
   @GetMapping("/projects/{pId}/work-sessions/total-minutes")
   public int getProjectActualTotalTime(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int pId) {
-    return service.getProjectActualTotalTime(user.getUserId(), pId);
+      @PathVariable ProjectId pId) {
+    return service.getProjectActualTotalTime(user.getUserId(), pId.value());
   }
 
   @Operation(
@@ -151,7 +140,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -161,7 +150,7 @@ public class WorkSessionController {
                   array = @ArraySchema(schema = @Schema(implementation = WorkSession.class)))
           ),
           @ApiResponse(
-              responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",
+              responseCode = "404", description = "タスクIDが不正、または指定されたタスクが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -170,8 +159,8 @@ public class WorkSessionController {
   @GetMapping("/tasks/{taskId}/work-sessions")
   public List<WorkSession> getAllInTask(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId) {
-    return service.getAllInTask(user.getUserId(), taskId);
+      @PathVariable TaskId taskId) {
+    return service.getAllInTask(user.getUserId(), taskId.value());
   }
 
   @Operation(
@@ -198,7 +187,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "wsId", required = true,
               description = "作業セッションID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -208,12 +197,8 @@ public class WorkSessionController {
                   schema = @Schema(implementation = WorkSession.class))
           ),
           @ApiResponse(
-              responseCode = "400", description = "作業セッションIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定された作業セッションIDが存在しないときのエラー",
+              responseCode = "404",
+              description = "作業セッションIDが不正、または指定された作業セッションが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -222,8 +207,8 @@ public class WorkSessionController {
   @GetMapping("/work-sessions/{wsId}")
   public WorkSession get(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int wsId) {
-    return service.get(user.getUserId(), wsId);
+      @PathVariable WorkSessionId wsId) {
+    return service.get(user.getUserId(), wsId.value());
   }
 
   @Operation(
@@ -237,7 +222,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -261,9 +246,9 @@ public class WorkSessionController {
   @PostMapping("/tasks/{taskId}/work-sessions")
   public ResponseEntity<WorkSession> create(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId,
+      @PathVariable TaskId taskId,
       @RequestBody @Validated WorkSessionCreateRequest request) {
-    return ResponseEntity.ok(service.create(user.getUserId(), taskId, request));
+    return ResponseEntity.ok(service.create(user.getUserId(), taskId.value(), request));
   }
 
   @Operation(
@@ -276,7 +261,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "wsId", required = true,
               description = "作業セッションID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -286,12 +271,13 @@ public class WorkSessionController {
                   schema = @Schema(implementation = WorkSession.class))
           ),
           @ApiResponse(
-              responseCode = "400", description = "作業セッションIDの形式が不正、またはTIMER以外のセッションへの操作など",
+              responseCode = "400", description = "TIMER以外のセッションへの操作など、終了条件を満たさないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           ),
           @ApiResponse(
-              responseCode = "404", description = "指定された作業セッションIDが存在しないときのエラー",
+              responseCode = "404",
+              description = "作業セッションIDが不正、または指定された作業セッションが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -300,8 +286,8 @@ public class WorkSessionController {
   @PostMapping("/work-sessions/{wsId}/end")
   public ResponseEntity<WorkSession> setEnd(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int wsId) {
-    return ResponseEntity.ok(service.setEnd(user.getUserId(), wsId));
+      @PathVariable WorkSessionId wsId) {
+    return ResponseEntity.ok(service.setEnd(user.getUserId(), wsId.value()));
   }
 
   @Operation(
@@ -315,7 +301,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "wsId", required = true,
               description = "作業セッションID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -344,10 +330,10 @@ public class WorkSessionController {
   @PatchMapping("/work-sessions/{wsId}")
   public ResponseEntity<WorkSession> update(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int wsId,
+      @PathVariable WorkSessionId wsId,
       @RequestBody @Validated WorkSessionUpdateRequest request
   ) {
-    return ResponseEntity.ok(service.update(user.getUserId(), wsId, request));
+    return ResponseEntity.ok(service.update(user.getUserId(), wsId.value(), request));
   }
 
   @Operation(
@@ -357,7 +343,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "workSessionId", required = true,
               description = "作業セッションID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -365,12 +351,8 @@ public class WorkSessionController {
               responseCode = "204", description = "削除成功"
           ),
           @ApiResponse(
-              responseCode = "400", description = "作業セッションIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "404", description = "指定された作業セッションIDが存在しないときのエラー",
+              responseCode = "404",
+              description = "作業セッションIDが不正、または指定された作業セッションが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -379,8 +361,8 @@ public class WorkSessionController {
   @DeleteMapping("/work-sessions/{workSessionId}")
   public ResponseEntity<Void> delete(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable("workSessionId") @Positive int wsId) {
-    service.delete(user.getUserId(), wsId);
+      @PathVariable("workSessionId") WorkSessionId wsId) {
+    service.delete(user.getUserId(), wsId.value());
     return ResponseEntity.noContent().build();
   }
 }

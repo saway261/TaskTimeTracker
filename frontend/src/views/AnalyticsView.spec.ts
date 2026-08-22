@@ -57,11 +57,11 @@ describe('AnalyticsView', () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     const analyticsStore = useAnalyticsStore()
-    analyticsStore.filter.tagId = 5
+    analyticsStore.filter.tagId = 't5'
     vi.mocked(projectsApi.fetchAll).mockResolvedValue({ data: [] } as never)
     vi.mocked(reflectionsApi.fetchCauseCategories).mockResolvedValue({ data: [] } as never)
     vi.mocked(tagsApi.fetchAll).mockResolvedValue({
-      data: [{ id: 5, name: '調査', isArchived: true, assignedTaskCount: 4 }],
+      data: [{ id: 't5', name: '調査', isArchived: true, assignedTaskCount: 4 }],
     } as never)
     vi.mocked(analyticsApi.fetchEstimationAccuracy)
       .mockRejectedValueOnce(archivedTagError)
@@ -80,7 +80,7 @@ describe('AnalyticsView', () => {
     expect(wrapper.findComponent(AnalyticsFilterBar).props('tags')).toEqual([])
     expect(analyticsApi.fetchEstimationAccuracy).toHaveBeenNthCalledWith(1, {
       projectId: undefined,
-      tagId: 5,
+      tagId: 't5',
       from: undefined,
     })
     expect(analyticsApi.fetchEstimationAccuracy).toHaveBeenNthCalledWith(2, {

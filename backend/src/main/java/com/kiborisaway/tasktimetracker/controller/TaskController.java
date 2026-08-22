@@ -8,6 +8,9 @@ import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateFinishedRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdateParentRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task.TaskUpdatePropertyRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,7 +20,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -49,14 +51,14 @@ public class TaskController {
       summary = "プロジェクト内タスク全件取得（完了フラグ指定可）",
       description = """
           完了フラグを指定して、指定プロジェクト内の完了済み・未完了のタスクをリストで取得します。
-          例: /api/projects/1/tasks?isFinished=false
+          例: /api/projects/PwGV1OpDZQ/tasks?isFinished=false
           クエリパラメータを省略した場合は、プロジェクト内のタスクを全件取得します。
           """,
       parameters = {
           @Parameter(in = ParameterIn.PATH,
               name = "pId", required = true,
               description = "プロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -70,7 +72,15 @@ public class TaskController {
           ),
           @ApiResponse(
               responseCode = "400",
-              description = "パスパラメータまたはクエリパラメータの形式が不正であったときのエラー",
+              description = "クエリパラメータの形式が不正であったときのエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          ),
+          @ApiResponse(
+              responseCode = "404",
+              description = "プロジェクトIDが不正、または指定されたプロジェクトが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)
@@ -81,24 +91,24 @@ public class TaskController {
   @GetMapping("/projects/{pId}/tasks")
   public List<TaskResponse> getAllInProject(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int pId,
+      @PathVariable ProjectId pId,
       @RequestParam(required = false) Boolean isFinished
   ) {
-    return service.findAllInProjectByCondition(user.getUserId(), pId, isFinished);
+    return service.findAllInProjectByCondition(user.getUserId(), pId.value(), isFinished);
   }
 
   @Operation(
       summary = "タスクグループ内タスク全件取得（完了フラグ指定可）",
       description = """
           完了フラグを指定して、指定タスクグループ内の完了済み・未完了のタスクをリストで取得します。
-          例: /api/task-groups/1/tasks?isFinished=true
+          例: /api/task-groups/DyLb0hrJEZ/tasks?isFinished=true
           クエリパラメータを省略した場合は、タスクグループ内のタスクを全件取得します。
           """,
       parameters = {
           @Parameter(in = ParameterIn.PATH,
               name = "tgId", required = true,
               description = "タスクグループID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -112,7 +122,15 @@ public class TaskController {
           ),
           @ApiResponse(
               responseCode = "400",
-              description = "パスパラメータまたはクエリパラメータの形式が不正であったときのエラー",
+              description = "クエリパラメータの形式が不正であったときのエラー",
+              content = @Content(
+                  mediaType = "application/json",
+                  schema = @Schema(implementation = ErrorResponse.class)
+              )
+          ),
+          @ApiResponse(
+              responseCode = "404",
+              description = "タスクグループIDが不正、または指定されたタスクグループが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)
@@ -123,10 +141,10 @@ public class TaskController {
   @GetMapping("/task-groups/{tgId}/tasks")
   public List<TaskResponse> getAllInTaskGroup(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tgId,
+      @PathVariable TaskGroupId tgId,
       @RequestParam(required = false) Boolean isFinished
   ) {
-    return service.findAllInTaskGroupByCondition(user.getUserId(), tgId, isFinished);
+    return service.findAllInTaskGroupByCondition(user.getUserId(), tgId.value(), isFinished);
   }
 
   @Operation(
@@ -136,7 +154,7 @@ public class TaskController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -148,14 +166,7 @@ public class TaskController {
               )
           ),
           @ApiResponse(
-              responseCode = "404", description = "指定されたタスクIDが存在しなかったときのエラー",
-              content = @Content(
-                  mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class)
-              )
-          ),
-          @ApiResponse(
-              responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",
+              responseCode = "404", description = "タスクIDが不正、または指定されたタスクが存在しないときのエラー",
               content = @Content(
                   mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class)
@@ -166,8 +177,8 @@ public class TaskController {
   @GetMapping("/tasks/{taskId}")
   public TaskResponse getById(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId) {
-    return service.findById(user.getUserId(), taskId);
+      @PathVariable TaskId taskId) {
+    return service.findById(user.getUserId(), taskId.value());
   }
 
   @Operation(
@@ -177,7 +188,7 @@ public class TaskController {
           @Parameter(in = ParameterIn.PATH,
               name = "pId", required = true,
               description = "親となるプロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -205,9 +216,9 @@ public class TaskController {
   @PostMapping("/projects/{pId}/tasks")
   public ResponseEntity<TaskResponse> createInProject(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int pId,
+      @PathVariable ProjectId pId,
       @RequestBody @Validated TaskCreateRequest request) {
-    TaskResponse response = service.register(user.getUserId(), pId, null, request);
+    TaskResponse response = service.register(user.getUserId(), pId.value(), null, request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -218,7 +229,7 @@ public class TaskController {
           @Parameter(in = ParameterIn.PATH,
               name = "tgId", required = true,
               description = "親となるタスクグループID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -246,9 +257,9 @@ public class TaskController {
   @PostMapping("/task-groups/{tgId}/tasks")
   public ResponseEntity<TaskResponse> createInTaskGroup(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tgId,
+      @PathVariable TaskGroupId tgId,
       @RequestBody @Validated TaskCreateRequest request) {
-    TaskResponse response = service.register(user.getUserId(), null, tgId, request);
+    TaskResponse response = service.register(user.getUserId(), null, tgId.value(), request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -259,7 +270,7 @@ public class TaskController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -285,9 +296,9 @@ public class TaskController {
   @PatchMapping("/tasks/{taskId}")
   public ResponseEntity<TaskResponse> updateProperty(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId,
+      @PathVariable TaskId taskId,
       @RequestBody @Validated TaskUpdatePropertyRequest request) {
-    return ResponseEntity.ok(service.updateProperty(user.getUserId(), taskId, request));
+    return ResponseEntity.ok(service.updateProperty(user.getUserId(), taskId.value(), request));
   }
 
   @Operation(
@@ -300,7 +311,7 @@ public class TaskController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -327,9 +338,10 @@ public class TaskController {
   @PatchMapping("/tasks/{taskId}/estimated-minutes")
   public ResponseEntity<TaskResponse> updateEstimatedMinutes(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId,
+      @PathVariable TaskId taskId,
       @RequestBody @Validated TaskUpdateEstimatedMinutesRequest request) {
-    return ResponseEntity.ok(service.updateEstimateMinutes(user.getUserId(), taskId, request));
+    return ResponseEntity.ok(
+        service.updateEstimateMinutes(user.getUserId(), taskId.value(), request));
   }
 
   @Operation(
@@ -343,7 +355,7 @@ public class TaskController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -369,11 +381,12 @@ public class TaskController {
   @PatchMapping("/tasks/{taskId}/parent")
   public ResponseEntity<TaskResponse> updateParent(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId,
+      @PathVariable TaskId taskId,
       @RequestBody @Validated TaskUpdateParentRequest request) {
+    Integer projectId = request.projectId() == null ? null : request.projectId().value();
+    Integer taskGroupId = request.taskGroupId() == null ? null : request.taskGroupId().value();
     return ResponseEntity.ok(
-        service.updateParent(user.getUserId(), taskId, request.projectId(),
-            request.taskGroupId()));
+        service.updateParent(user.getUserId(), taskId.value(), projectId, taskGroupId));
   }
 
   @Operation(
@@ -387,7 +400,7 @@ public class TaskController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -415,9 +428,9 @@ public class TaskController {
   @PutMapping("/tasks/{taskId}/tags")
   public ResponseEntity<TaskResponse> updateTags(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId,
+      @PathVariable TaskId taskId,
       @RequestBody @Validated TaskTagsUpdateRequest request) {
-    return ResponseEntity.ok(service.updateTags(user.getUserId(), taskId, request));
+    return ResponseEntity.ok(service.updateTags(user.getUserId(), taskId.value(), request));
   }
 
   @Operation(
@@ -427,7 +440,7 @@ public class TaskController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -453,10 +466,10 @@ public class TaskController {
   @PatchMapping("/tasks/{taskId}/finished")
   public ResponseEntity<TaskResponse> updateFinished(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId,
+      @PathVariable TaskId taskId,
       @RequestBody @Validated TaskUpdateFinishedRequest request) {
     return ResponseEntity.ok(
-        service.updateFinished(user.getUserId(), taskId, request.isFinished()));
+        service.updateFinished(user.getUserId(), taskId.value(), request.isFinished()));
   }
 
   @Operation(
@@ -466,16 +479,13 @@ public class TaskController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
           @ApiResponse(responseCode = "204", description = "削除成功"),
-          @ApiResponse(responseCode = "400", description = "タスクIDの形式が不正であったときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(responseCode = "404", description = "指定されたタスクIDが存在しないときのエラー",
+          @ApiResponse(responseCode = "404",
+              description = "タスクIDが不正、または指定されたタスクが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -484,8 +494,8 @@ public class TaskController {
   @DeleteMapping("/tasks/{taskId}")
   public ResponseEntity<Void> delete(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId) {
-    service.deleteById(user.getUserId(), taskId);
+      @PathVariable TaskId taskId) {
+    service.deleteById(user.getUserId(), taskId.value());
     return ResponseEntity.noContent().build();
   }
 }

@@ -16,6 +16,7 @@ import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.MemoService;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
 import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import org.junit.jupiter.api.Test;
@@ -59,12 +60,12 @@ class MemoControllerTest {
         .thenReturn(response);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/memo", projectId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/memo", TestPublicIds.project(projectId))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.id").value(10))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.memo(10)))
         .andExpect(jsonPath("$.comment").value("メモコメント"))
         .andExpect(jsonPath("$.projectId").doesNotExist());
 
@@ -81,12 +82,12 @@ class MemoControllerTest {
         .thenReturn(response);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/task-groups/{tgId}/memo", taskGroupId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/task-groups/{tgId}/memo", TestPublicIds.taskGroup(taskGroupId))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.id").value(10))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.memo(10)))
         .andExpect(jsonPath("$.comment").value("メモコメント"))
         .andExpect(jsonPath("$.taskGroupId").doesNotExist());
 
@@ -103,12 +104,12 @@ class MemoControllerTest {
         .thenReturn(response);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/memo", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/memo", TestPublicIds.task(taskId))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.id").value(10))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.memo(10)))
         .andExpect(jsonPath("$.comment").value("メモコメント"))
         .andExpect(jsonPath("$.taskId").doesNotExist());
 
@@ -125,7 +126,7 @@ class MemoControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/projects/1/memo")
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/" + TestPublicIds.project(1) + "/memo")
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
@@ -141,7 +142,7 @@ class MemoControllerTest {
         .thenThrow(new TargetNotFoundException("project.id", "project not found"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/memo", projectId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/memo", TestPublicIds.project(projectId))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
@@ -158,13 +159,13 @@ class MemoControllerTest {
         .thenReturn(new Memo(id, null, null, 1, "メモ"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/memo/{id}", id)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/memo/{id}", TestPublicIds.memo(id))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.memo(id)))
         .andExpect(jsonPath("$.comment").value("メモ"));
 
     verify(service).update(eq(USER_ID), eq(id), any(MemoRequest.class));
@@ -178,7 +179,7 @@ class MemoControllerTest {
         .when(service).update(eq(USER_ID), eq(id), any(MemoRequest.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/memo/{id}", id)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/memo/{id}", TestPublicIds.memo(id))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
@@ -194,7 +195,7 @@ class MemoControllerTest {
     doNothing().when(service).delete(USER_ID, id);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.delete("/memo/{id}", id).with(csrf()))
+    mockMvc.perform(MockMvcRequestBuilders.delete("/memo/{id}", TestPublicIds.memo(id)).with(csrf()))
         .andExpect(status().isNoContent())
         .andExpect(content().string(""));
 
@@ -209,7 +210,7 @@ class MemoControllerTest {
         .when(service).delete(USER_ID, id);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.delete("/memo/{id}", id).with(csrf()))
+    mockMvc.perform(MockMvcRequestBuilders.delete("/memo/{id}", TestPublicIds.memo(id)).with(csrf()))
         .andExpect(status().isNotFound());
 
     verify(service).delete(USER_ID, id);

@@ -8,7 +8,7 @@ import EstimateActualScatter from './EstimateActualScatter.vue'
 
 const points: ScatterPointResponse[] = [
   {
-    taskId: 1,
+    taskId: 'task1',
     taskTitle: '見積どおりのタスク',
     estimatedMinutes: 10,
     actualMinutes: 10,
@@ -17,19 +17,19 @@ const points: ScatterPointResponse[] = [
     tags: [],
   },
   {
-    taskId: 2,
+    taskId: 'task2',
     taskTitle: '超過したタスク',
     estimatedMinutes: 60,
     actualMinutes: 120,
     gapRate: 100,
     outcome: 'LATE',
     tags: [
-      { id: 1, name: '調査' },
-      { id: 2, name: 'API' },
+      { id: 'tag1', name: '調査' },
+      { id: 'tag2', name: 'API' },
     ],
   },
   {
-    taskId: 3,
+    taskId: 'task3',
     taskTitle: '短縮したタスク',
     estimatedMinutes: 100,
     actualMinutes: 50,

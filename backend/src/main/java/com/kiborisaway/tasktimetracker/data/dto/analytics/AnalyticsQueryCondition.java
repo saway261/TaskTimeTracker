@@ -13,7 +13,8 @@ import lombok.Setter;
 @Setter
 public class AnalyticsQueryCondition implements AnalyticsPeriod {
 
-  @Schema(description = "絞り込み対象プロジェクトID 未指定で全プロジェクト横断", example = "1")
+  @Schema(description = "絞り込み対象プロジェクトID 未指定で全プロジェクト横断",
+      type = "string", example = "Xr9mQ2vKp3")
   @Positive
   private Integer projectId;
 
@@ -25,7 +26,8 @@ public class AnalyticsQueryCondition implements AnalyticsPeriod {
       example = "2026-02-01T00:00:00+09:00")
   private LocalDateTime to;
 
-  @Schema(description = "絞り込み対象タグID 未指定でタグの有無を問わず全タスクが対象", example = "1")
+  @Schema(description = "絞り込み対象タグID 未指定でタグの有無を問わず全タスクが対象",
+      type = "string", example = "Xr9mQ2vKp3")
   @Positive
   private Integer tagId;
 }

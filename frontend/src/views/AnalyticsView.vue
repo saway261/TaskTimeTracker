@@ -60,7 +60,7 @@ async function runAnalyticsRequest(action: () => Promise<void>) {
   await analyticsStore.setTag(null)
 }
 
-function changeProject(projectId: number | null) {
+function changeProject(projectId: string | null) {
   void runAnalyticsRequest(() => analyticsStore.setProject(projectId))
 }
 
@@ -68,7 +68,7 @@ function changePeriod(period: AnalyticsPeriod) {
   void runAnalyticsRequest(() => analyticsStore.setPeriod(period))
 }
 
-function changeTag(tagId: number | null) {
+function changeTag(tagId: string | null) {
   void runAnalyticsRequest(() => analyticsStore.setTag(tagId))
 }
 

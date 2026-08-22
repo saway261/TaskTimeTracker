@@ -12,8 +12,8 @@ import TaskGroupListItem from './TaskGroupListItem.vue'
 vi.mock('@/api/itemOrderApi')
 
 const taskGroup: TaskGroupResponse = {
-  id: 10,
-  projectId: 1,
+  id: 'tg10',
+  projectId: 'p1',
   title: '完了タスクだけのグループ',
   description: null,
   isFinished: false,
@@ -21,9 +21,9 @@ const taskGroup: TaskGroupResponse = {
 }
 
 const finishedTask: TaskResponse = {
-  id: 20,
+  id: 'task20',
   projectId: null,
-  taskGroupId: 10,
+  taskGroupId: 'tg10',
   title: '完了したタスク',
   description: null,
   estimatedMinutes: 30,

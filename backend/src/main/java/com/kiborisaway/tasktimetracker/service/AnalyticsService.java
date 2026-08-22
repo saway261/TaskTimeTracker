@@ -21,6 +21,7 @@ import com.kiborisaway.tasktimetracker.data.dto.analytics.ScatterPointResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.SizeBucketResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
 import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
 import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
@@ -261,7 +262,7 @@ public class AnalyticsService {
         .collect(Collectors.groupingBy(
             TaskTagRow::getTaskId,
             Collectors.mapping(
-                row -> new TagSummaryResponse(row.getTagId(), row.getName()),
+                row -> new TagSummaryResponse(new TagId(row.getTagId()), row.getName()),
                 Collectors.toList())));
   }
 
@@ -354,7 +355,7 @@ public class AnalyticsService {
             TaskTagRow::getTaskId,
             LinkedHashMap::new,
             Collectors.mapping(
-                row -> new TagSummaryResponse(row.getTagId(), row.getName()),
+                row -> new TagSummaryResponse(new TagId(row.getTagId()), row.getName()),
                 Collectors.toList())));
 
     List<ReflectionTimelineItemResponse> items = rows.stream()

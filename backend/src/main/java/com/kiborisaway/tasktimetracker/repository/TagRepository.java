@@ -1,6 +1,5 @@
 package com.kiborisaway.tasktimetracker.repository;
 
-import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import java.util.List;
 import org.apache.ibatis.annotations.Delete;
@@ -145,7 +144,7 @@ public interface TagRepository {
       WHERE tt.task_id = #{taskId}
       ORDER BY t.name
       """)
-  List<TagSummaryResponse> findTagsByTaskId(int taskId);
+  List<TagSummaryRow> findTagsByTaskId(int taskId);
 
   /**
    * 指定したタグIDのうち、認証ユーザーが所有するものの件数を取得します。

@@ -13,7 +13,7 @@ import WorkSessionListItem from './WorkSessionListItem.vue'
 import WorkSessionForm from './WorkSessionForm.vue'
 
 const props = defineProps<{
-  taskId: number
+  taskId: string
   // 完了済みタスクではセッション操作UIを表示しない（読み取り専用の一覧のみ、Q5-A）。
   taskFinished: boolean
   // 操作モーダルでは、稼働中タイマーを「過去の記録」から除外する。

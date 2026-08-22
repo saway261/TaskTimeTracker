@@ -9,7 +9,6 @@ import type {
 } from '@/types/taskGroup'
 import type { MemoRequest, MemoResponse } from '@/types/memo'
 import type { ApiError } from '@/types/apiError'
-import { sortById } from '@/utils/sort'
 
 export const useTaskGroupStore = defineStore('taskGroup', {
   state: () => ({
@@ -19,12 +18,12 @@ export const useTaskGroupStore = defineStore('taskGroup', {
     error: null as ApiError | null,
   }),
   actions: {
-    async fetchTaskGroups(projectId: number, isFinished?: boolean) {
+    async fetchTaskGroups(projectId: string, isFinished?: boolean) {
       this.loading = true
       this.error = null
       try {
         const res = await taskGroupsApi.fetchAllInProject(projectId, isFinished)
-        this.taskGroups = sortById(res.data)
+        this.taskGroups = res.data
       } catch (e) {
         this.error = e as ApiError
         throw e
@@ -33,7 +32,7 @@ export const useTaskGroupStore = defineStore('taskGroup', {
       }
     },
 
-    async fetchTaskGroup(id: number) {
+    async fetchTaskGroup(id: string) {
       this.loading = true
       this.error = null
       try {
@@ -48,14 +47,14 @@ export const useTaskGroupStore = defineStore('taskGroup', {
     },
 
     // 登録後オブジェクトをそのまま反映するため、再取得は不要。
-    async createTaskGroup(projectId: number, req: TaskGroupCreateRequest) {
+    async createTaskGroup(projectId: string, req: TaskGroupCreateRequest) {
       const res = await taskGroupsApi.create(projectId, req)
-      this.taskGroups = sortById([...this.taskGroups, res.data])
+      this.taskGroups = [...this.taskGroups, res.data]
       return res.data
     },
 
     // 更新後オブジェクトをそのまま反映するため、再取得は不要。
-    async updateTaskGroup(id: number, req: TaskGroupUpdateRequest) {
+    async updateTaskGroup(id: string, req: TaskGroupUpdateRequest) {
       const res = await taskGroupsApi.update(id, req)
       if (this.currentTaskGroup?.id === id) {
         this.currentTaskGroup = res.data
@@ -68,7 +67,7 @@ export const useTaskGroupStore = defineStore('taskGroup', {
     },
 
     // 更新後オブジェクトをそのまま反映するため、再取得は不要。
-    async updateFinished(id: number, req: TaskGroupUpdateFinishedRequest) {
+    async updateFinished(id: string, req: TaskGroupUpdateFinishedRequest) {
       const res = await taskGroupsApi.updateFinished(id, req)
       if (this.currentTaskGroup?.id === id) {
         this.currentTaskGroup = res.data
@@ -81,7 +80,7 @@ export const useTaskGroupStore = defineStore('taskGroup', {
     },
 
     // メモCRUDはMemoResponseしか返らないため、currentTaskGroup.memos は自前で更新する。
-    async createTaskGroupMemo(taskGroupId: number, req: MemoRequest) {
+    async createTaskGroupMemo(taskGroupId: string, req: MemoRequest) {
       const res = await memosApi.createMemoInTaskGroup(taskGroupId, req)
       if (this.currentTaskGroup?.id === taskGroupId) {
         this.currentTaskGroup.memos.push(res.data)
@@ -97,7 +96,7 @@ export const useTaskGroupStore = defineStore('taskGroup', {
       }
     },
 
-    syncMemoRemoved(id: number) {
+    syncMemoRemoved(id: string) {
       if (!this.currentTaskGroup) return
       this.currentTaskGroup.memos = this.currentTaskGroup.memos.filter((m) => m.id !== id)
     },

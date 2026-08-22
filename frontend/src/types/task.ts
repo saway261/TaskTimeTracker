@@ -2,9 +2,9 @@ import type { MemoResponse } from './memo'
 import type { TagSummary } from './tag'
 
 export interface TaskResponse {
-  id: number
-  projectId: number | null
-  taskGroupId: number | null
+  id: string
+  projectId: string | null
+  taskGroupId: string | null
   title: string
   description: string | null
   estimatedMinutes: number | null
@@ -21,7 +21,7 @@ export interface TaskCreateRequest {
   title: string
   description: string | null
   estimatedMinutes: number
-  tagIds: number[]
+  tagIds: string[]
 }
 
 export interface TaskUpdatePropertyRequest {
@@ -38,10 +38,10 @@ export interface TaskUpdateFinishedRequest {
 }
 
 export interface TaskUpdateParentRequest {
-  projectId: number | null
-  taskGroupId: number | null
+  projectId: string | null
+  taskGroupId: string | null
 }
 
 export interface TaskTagsUpdateRequest {
-  tagIds: number[]
+  tagIds: string[]
 }

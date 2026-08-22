@@ -3,6 +3,7 @@ package com.kiborisaway.tasktimetracker.controller;
 import com.kiborisaway.tasktimetracker.data.dto.item_order.ProjectItemOrderReplaceRequest;
 import com.kiborisaway.tasktimetracker.data.dto.item_order.ProjectItemOrderResponse;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.ProjectItemOrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,7 +13,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,7 +41,7 @@ public class ProjectItemOrderController {
           @Parameter(in = ParameterIn.PATH,
               name = "pId", required = true,
               description = "プロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -54,12 +54,7 @@ public class ProjectItemOrderController {
               )
           ),
           @ApiResponse(
-              responseCode = "404", description = "指定されたプロジェクトIDが存在しないときのエラー",
-              content = @Content(mediaType = "application/json",
-                  schema = @Schema(implementation = ErrorResponse.class))
-          ),
-          @ApiResponse(
-              responseCode = "400", description = "プロジェクトIDの形式が不正であったときのエラー",
+              responseCode = "404", description = "プロジェクトIDが不正、または指定されたプロジェクトが存在しないときのエラー",
               content = @Content(mediaType = "application/json",
                   schema = @Schema(implementation = ErrorResponse.class))
           )
@@ -68,8 +63,8 @@ public class ProjectItemOrderController {
   @GetMapping("/projects/{pId}/item-order")
   public List<ProjectItemOrderResponse> getAll(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int pId) {
-    return service.findAllInProject(user.getUserId(), pId);
+      @PathVariable ProjectId pId) {
+    return service.findAllInProject(user.getUserId(), pId.value());
   }
 
   @Operation(
@@ -82,7 +77,7 @@ public class ProjectItemOrderController {
           @Parameter(in = ParameterIn.PATH,
               name = "pId", required = true,
               description = "プロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -110,8 +105,8 @@ public class ProjectItemOrderController {
   @PutMapping("/projects/{pId}/item-order")
   public List<ProjectItemOrderResponse> replace(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int pId,
+      @PathVariable ProjectId pId,
       @RequestBody @Validated ProjectItemOrderReplaceRequest request) {
-    return service.replaceOrder(user.getUserId(), pId, request.getItems());
+    return service.replaceOrder(user.getUserId(), pId.value(), request.getItems());
   }
 }

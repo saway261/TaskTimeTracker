@@ -44,7 +44,7 @@ export const useActiveTimerStore = defineStore('activeTimer', {
       this.hasActiveTimers = true
     },
 
-    markTimerStopped(sessionId: number) {
+    markTimerStopped(sessionId: string) {
       const contained = this.activeTimers.some((timer) => timer.sessionId === sessionId)
       this.activeTimers = this.activeTimers.filter((timer) => timer.sessionId !== sessionId)
       if (contained) this.hasActiveTimers = this.activeTimers.length > 0

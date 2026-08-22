@@ -39,6 +39,16 @@ class ProjectRepositoryTest {
   }
 
   @Test
+  void ユーザー指定全件検索_ID昇順で取得できること() {
+    // Act
+    List<Project> actual = sut.findAllByUserId(USER_A);
+
+    // Assert
+    // プロジェクトには並び順テーブルもcreated_atも無く、この順序が一覧の表示順そのものになる。
+    assertThat(actual).extracting(Project::getId).isSorted();
+  }
+
+  @Test
   void ユーザー指定全件検索_ユーザーBを指定するとユーザーBのプロジェクトのみを取得できること() {
     // Act
     List<Project> actual = sut.findAllByUserId(USER_B);

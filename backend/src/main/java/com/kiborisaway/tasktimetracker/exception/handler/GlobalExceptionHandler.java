@@ -23,6 +23,7 @@ import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedExcept
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
+import com.kiborisaway.tasktimetracker.publicid.PublicIdInvalidException;
 import jakarta.validation.ConstraintViolationException;
 import java.sql.SQLException;
 import java.util.List;
@@ -73,12 +74,19 @@ public class GlobalExceptionHandler {
   /**
    * JSONリクエストボディをDTOへ変換できなかったことをクライアントに返します。
    *
+   * <p>リクエストボディ中の公開ID（{@code TaskUpdateParentRequest.projectId} 等）のデコード失敗が
+   * Jacksonによってこの例外へラップされて届いた場合も、404統一の方針（0-2）に従う。
+   *
    * @param ex HttpMessageNotReadableException
-   * @return HTTPステータス(BAD REQUEST), エラー詳細
+   * @return HTTPステータス(BAD REQUEST または NOT_FOUND), エラー詳細
    */
   @org.springframework.web.bind.annotation.ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
       HttpMessageNotReadableException ex) {
+    PublicIdInvalidException publicIdCause = findCause(ex, PublicIdInvalidException.class);
+    if (publicIdCause != null) {
+      return handlePublicIdInvalidException(publicIdCause);
+    }
     String field = findUnreadableField(ex);
     Map<String, String> error = Map.of(
         "field", field,
@@ -91,17 +99,60 @@ public class GlobalExceptionHandler {
   /**
    * バリデーションエラー(引数の型不一致)の発生をクライアントに返します。
    *
+   * <p>公開ID（{@code @PathVariable} の {@code ProjectId} 等）のデコード失敗は、Converterが投げた
+   * {@link PublicIdInvalidException} がSpringによってこの例外へラップされて届く。その場合は
+   * 「形式不正」と「存在しない」を区別しない方針（0-2）に従い404として扱う。それ以外の型不一致
+   * （{@code isFinished} や {@code page} 等）は既存どおり400のままにする。
+   *
    * @param ex MethodArgumentTypeMismatchException
-   * @return HTTPステータス(BAD REQUEST), エラー詳細
+   * @return HTTPステータス(BAD REQUEST または NOT_FOUND), エラー詳細
    */
   @org.springframework.web.bind.annotation.ExceptionHandler(MethodArgumentTypeMismatchException.class)
   public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatchException(
       MethodArgumentTypeMismatchException ex) {
 
+    PublicIdInvalidException publicIdCause = findCause(ex, PublicIdInvalidException.class);
+    if (publicIdCause != null) {
+      return handlePublicIdInvalidException(publicIdCause);
+    }
+
     ErrorResponse errorResponse =
         new ErrorResponse(HttpStatus.BAD_REQUEST, "type mismatch error",
             errorDetailsBuilder.buildErrorDetails(ex));
     return ResponseEntity.badRequest().body(errorResponse);
+  }
+
+  /**
+   * 公開ID文字列のデコードに失敗したことをクライアントに返します。
+   *
+   * <p>{@code @PathVariable}・{@code @RequestParam} 経由の失敗は上の
+   * {@link #handleMethodArgumentTypeMismatchException} 経由でここへ委譲される。
+   * リクエストボディ（Jacksonのデシリアライズ）から直接投げられた場合はこのハンドラが直接受ける。
+   *
+   * @param ex PublicIdInvalidException
+   * @return HTTPステータス(NOT_FOUND), エラー詳細
+   */
+  @org.springframework.web.bind.annotation.ExceptionHandler(PublicIdInvalidException.class)
+  public ResponseEntity<ErrorResponse> handlePublicIdInvalidException(
+      PublicIdInvalidException ex) {
+
+    ErrorResponse errorResponse = new ErrorResponse(HttpStatus.NOT_FOUND,
+        "target not found", errorDetailsBuilder.buildErrorDetails(ex));
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+  }
+
+  /**
+   * 例外の原因チェーンを辿り、指定した型の例外を探します。
+   */
+  private static <T extends Throwable> T findCause(Throwable ex, Class<T> type) {
+    Throwable current = ex;
+    while (current != null) {
+      if (type.isInstance(current)) {
+        return type.cast(current);
+      }
+      current = current.getCause();
+    }
+    return null;
   }
 
   /**

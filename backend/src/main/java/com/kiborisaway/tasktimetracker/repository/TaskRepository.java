@@ -15,20 +15,21 @@ public interface TaskRepository {
   /**
    * タスクグループ内のタスクの全件検索を行います。所有者が一致するプロジェクトのみを対象とします。
    *
-   * @return タスク一覧
+   * @return タスク一覧（ID昇順）
    */
   @Select("""
       SELECT t.* FROM tasks t
       JOIN task_groups tg ON tg.id = t.task_group_id
       JOIN projects p ON p.id = tg.project_id
       WHERE t.task_group_id=#{taskGroupId} AND p.user_id=#{userId}
+      ORDER BY t.id
       """)
   List<Task> findAllInTaskGroup(int taskGroupId, int userId);
 
   /**
    * 完了フラグを指定してタスクグループ内のタスクの全件検索を行います。所有者が一致するプロジェクトのみを対象とします。
    *
-   * @return タスク一覧
+   * @return タスク一覧（ID昇順）
    */
   @Select("""
       SELECT t.* FROM tasks t
@@ -37,13 +38,14 @@ public interface TaskRepository {
       WHERE t.task_group_id=#{taskGroupId}
         AND (t.finished_at IS NOT NULL) = #{isFinished}
         AND p.user_id=#{userId}
+      ORDER BY t.id
       """)
   List<Task> findAllInTaskGroupByCondition(int taskGroupId, boolean isFinished, int userId);
 
   /**
    * プロジェクト内のタスクの全件検索を行います。所有者が一致するプロジェクトのみを対象とします。
    *
-   * @return タスク一覧
+   * @return タスク一覧（ID昇順）
    */
   @Select("""
       SELECT t.* FROM tasks t
@@ -57,6 +59,7 @@ public interface TaskRepository {
           )
         )
         AND p.user_id=#{userId}
+      ORDER BY t.id
       """)
   List<Task> findAllInProject(int projectId, int userId);
 
@@ -64,7 +67,7 @@ public interface TaskRepository {
    * 完了フラグを指定してプロジェクト内のタスクを検索します。所有者が一致するプロジェクトのみを対象とします。
    *
    * @param isFinished 完了フラグ
-   * @return 指定した完了状態のタスク一覧
+   * @return 指定した完了状態のタスク一覧（ID昇順）
    */
   @Select("""
       SELECT t.* FROM tasks t
@@ -79,6 +82,7 @@ public interface TaskRepository {
         )
         AND (t.finished_at IS NOT NULL) = #{isFinished}
         AND p.user_id=#{userId}
+      ORDER BY t.id
       """)
   List<Task> findAllInProjectByCondition(int projectId, boolean isFinished, int userId);
 

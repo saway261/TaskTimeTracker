@@ -1,5 +1,5 @@
 export interface MemoResponse {
-  id: number
+  id: string
   comment: string
 }
 

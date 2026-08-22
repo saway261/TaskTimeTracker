@@ -30,11 +30,11 @@ describe('TagSelect', () => {
 
   it('サジェストを開いたときに最新の付与件数を取得して候補へ反映する', async () => {
     const store = useTagStore()
-    store.tags = [{ id: 1, name: '調査', isArchived: false, assignedTaskCount: 0 }]
+    store.tags = [{ id: 'tag1', name: '調査', isArchived: false, assignedTaskCount: 0 }]
     store.initialized = true
     store.loadedForUserId = null
     vi.mocked(tagsApi.fetchAll).mockResolvedValue({
-      data: [{ id: 1, name: '調査', isArchived: false, assignedTaskCount: 7 }],
+      data: [{ id: 'tag1', name: '調査', isArchived: false, assignedTaskCount: 7 }],
     } as never)
     const wrapper = mount(TagSelect, { props: { modelValue: [] } })
 
@@ -48,9 +48,9 @@ describe('TagSelect', () => {
   it('NFKC正規化で候補を絞り、完全一致を先頭にして新規作成を出さない', async () => {
     const store = prepareStore()
     store.tags = [
-      { id: 1, name: 'API連携', isArchived: false, assignedTaskCount: 12 },
-      { id: 2, name: 'ＡＰＩ', isArchived: false, assignedTaskCount: 2 },
-      { id: 3, name: '旧API', isArchived: true, assignedTaskCount: 20 },
+      { id: 'tag1', name: 'API連携', isArchived: false, assignedTaskCount: 12 },
+      { id: 'tag2', name: 'ＡＰＩ', isArchived: false, assignedTaskCount: 2 },
+      { id: 'tag3', name: '旧API', isArchived: true, assignedTaskCount: 20 },
     ]
     const wrapper = mount(TagSelect, { props: { modelValue: [] } })
 
@@ -70,8 +70,8 @@ describe('TagSelect', () => {
   it('キーボードで候補を選べる', async () => {
     const store = prepareStore()
     store.tags = [
-      { id: 1, name: '設計', isArchived: false, assignedTaskCount: 8 },
-      { id: 2, name: '設定', isArchived: false, assignedTaskCount: 5 },
+      { id: 'tag1', name: '設計', isArchived: false, assignedTaskCount: 8 },
+      { id: 'tag2', name: '設定', isArchived: false, assignedTaskCount: 5 },
     ]
     const wrapper = mount(TagSelect, { props: { modelValue: [] } })
     const input = wrapper.get('input')
@@ -81,19 +81,19 @@ describe('TagSelect', () => {
     expect(input.attributes('aria-activedescendant')).toContain('option-0')
     await input.trigger('keydown', { key: 'Enter' })
 
-    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([[{ id: 1, name: '設計' }]])
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([[{ id: 'tag1', name: '設計' }]])
   })
 
   it('入力欄からタグを作成し、6件を超えても選択できる', async () => {
     const store = prepareStore()
     const createTag = vi.spyOn(store, 'createTag').mockResolvedValue({
-      id: 7,
+      id: 'tag7',
       name: '新規',
       isArchived: false,
       assignedTaskCount: 0,
     })
     const selected = Array.from({ length: 6 }, (_, index) => ({
-      id: index + 1,
+      id: `tag${index + 1}`,
       name: `タグ${index + 1}`,
     }))
     const wrapper = mount(TagSelect, { props: { modelValue: selected } })
@@ -110,7 +110,7 @@ describe('TagSelect', () => {
     prepareStore()
     const wrapper = mount(TagSelect, {
       props: {
-        modelValue: [{ id: 1, name: '調査' }],
+        modelValue: [{ id: 'tag1', name: '調査' }],
         showSelected: false,
       },
     })
@@ -121,7 +121,7 @@ describe('TagSelect', () => {
 
   it('上限を解決した後に作成を再実行して選択する', async () => {
     const store = prepareStore()
-    store.tags = [{ id: 1, name: '未使用', isArchived: false, assignedTaskCount: 0 }]
+    store.tags = [{ id: 'tag1', name: '未使用', isArchived: false, assignedTaskCount: 0 }]
     const limitError: ApiError = {
       status: 400,
       kind: 'validation',
@@ -130,13 +130,13 @@ describe('TagSelect', () => {
       formErrors: [],
     }
     vi.spyOn(store, 'createTag').mockRejectedValueOnce(limitError).mockResolvedValueOnce({
-      id: 2,
+      id: 'tag2',
       name: '新規',
       isArchived: false,
       assignedTaskCount: 0,
     })
     const setArchived = vi.spyOn(store, 'setArchived').mockResolvedValue({
-      id: 1,
+      id: 'tag1',
       name: '未使用',
       isArchived: true,
       assignedTaskCount: 0,
@@ -152,13 +152,13 @@ describe('TagSelect', () => {
     await wrapper.get('.tag-limit-resolver .primary').trigger('click')
     await flushPromises()
 
-    expect(setArchived).toHaveBeenCalledWith(1, true)
-    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([[{ id: 2, name: '新規' }]])
+    expect(setArchived).toHaveBeenCalledWith('tag1', true)
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([[{ id: 'tag2', name: '新規' }]])
   })
 
   it('上限解決パネルでEscを押しても親モーダルを閉じず、入力を保持する', async () => {
     const store = prepareStore()
-    store.tags = [{ id: 1, name: '未使用', isArchived: false, assignedTaskCount: 0 }]
+    store.tags = [{ id: 'tag1', name: '未使用', isArchived: false, assignedTaskCount: 0 }]
     const limitError: ApiError = {
       status: 400,
       kind: 'validation',

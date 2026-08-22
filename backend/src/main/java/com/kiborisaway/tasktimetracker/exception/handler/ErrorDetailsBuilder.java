@@ -16,6 +16,7 @@ import com.kiborisaway.tasktimetracker.exception.TaskGroupFinishNotAllowedExcept
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
+import com.kiborisaway.tasktimetracker.publicid.PublicIdInvalidException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -106,6 +107,37 @@ public class ErrorDetailsBuilder {
     errors.add(error);
 
     return errors;
+  }
+
+  /**
+   * PublicIdInvalidExceptionを受け取り、エラー発生個所とエラーメッセージをリストで返します。
+   *
+   * <p>公開IDは利用者にとって不透明な文字列であり、「形式が不正」と「存在しない」を区別する意味が
+   * ないため、TargetNotFoundExceptionと同じ404・同じメッセージ文言で返す（0-2で確定）。
+   *
+   * @param ex PublicIdInvalidException
+   * @return エラー発生個所とエラーメッセージ
+   */
+  public List<Map<String, String>> buildErrorDetails(PublicIdInvalidException ex) {
+    List<Map<String, String>> errors = new ArrayList<>();
+
+    Map<String, String> error = new HashMap<>();
+    error.put("field", publicIdFieldName(ex));
+    error.put("message", "指定したIDは見つかりませんでした");
+    errors.add(error);
+
+    return errors;
+  }
+
+  private String publicIdFieldName(PublicIdInvalidException ex) {
+    return switch (ex.getType()) {
+      case PROJECT -> "project.id";
+      case TASK_GROUP -> "taskGroup.id";
+      case TASK -> "task.id";
+      case MEMO -> "memo.id";
+      case WORK_SESSION -> "workSession.id";
+      case TAG -> "tag.id";
+    };
   }
 
   /**

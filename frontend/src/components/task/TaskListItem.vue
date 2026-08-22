@@ -13,7 +13,7 @@ const props = defineProps<{
   task: TaskResponse
   to: string
   // 並べ替え・移動に必要な文脈（§7.4）。
-  projectId: number
+  projectId: string
   containerKey: string // 'project:{pId}' | 'taskGroup:{tgId}'
   taskGroups: TaskGroupResponse[]
   canMoveUp: boolean

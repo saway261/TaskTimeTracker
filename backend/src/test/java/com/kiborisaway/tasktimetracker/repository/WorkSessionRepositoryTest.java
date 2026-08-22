@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
-import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSessionType;
 import java.time.Duration;
@@ -33,15 +32,15 @@ class WorkSessionRepositoryTest {
     sut.insert(another);
 
     // Act
-    List<ActiveTimerResponse> actual = sut.findAllActiveByUserId(USER_A);
+    List<ActiveTimerRow> actual = sut.findAllActiveByUserId(USER_A);
 
     // Assert
     assertThat(actual)
         .extracting(
-            ActiveTimerResponse::getTaskId,
-            ActiveTimerResponse::getTaskTitle,
-            ActiveTimerResponse::getProjectId,
-            ActiveTimerResponse::getTaskGroupId)
+            ActiveTimerRow::getTaskId,
+            ActiveTimerRow::getTaskTitle,
+            ActiveTimerRow::getProjectId,
+            ActiveTimerRow::getTaskGroupId)
         .containsExactly(
             tuple(1, "カスタム例外作成", 1, 1),
             tuple(4, "画面設計", 1, null));

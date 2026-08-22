@@ -1,7 +1,7 @@
 import type { MemoResponse } from './memo'
 
 export interface ProjectResponse {
-  id: number
+  id: string
   title: string
   description: string | null
   isFinished: boolean

@@ -9,8 +9,8 @@ import { useTaskStore } from './taskStore'
 vi.mock('@/api/tasksApi')
 
 const task: TaskResponse = {
-  id: 10,
-  projectId: 1,
+  id: 'task10',
+  projectId: 'p1',
   taskGroupId: null,
   title: '実装する',
   description: null,
@@ -34,12 +34,12 @@ describe('taskStore', () => {
     const store = useTaskStore()
     store.currentTask = task
     store.tasks = [task]
-    const updated = { ...task, tags: [{ id: 2, name: '設計' }] }
+    const updated = { ...task, tags: [{ id: 'tag2', name: '設計' }] }
     vi.mocked(tasksApi.updateTags).mockResolvedValue({ data: updated } as never)
 
-    await store.updateTaskTags(task.id, { tagIds: [2] })
+    await store.updateTaskTags(task.id, { tagIds: ['tag2'] })
 
-    expect(tasksApi.updateTags).toHaveBeenCalledWith(task.id, { tagIds: [2] })
+    expect(tasksApi.updateTags).toHaveBeenCalledWith(task.id, { tagIds: ['tag2'] })
     expect(store.currentTask?.tags).toEqual(updated.tags)
     expect(store.tasks[0].tags).toEqual(updated.tags)
   })

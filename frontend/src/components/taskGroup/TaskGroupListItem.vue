@@ -108,7 +108,7 @@ async function handleChildDrop() {
   const draggedStub = { key: `TASK:${dragged.id}` }
   const currentStubs = orderedChildTasks.value.map((t) => ({ key: `TASK:${t.id}` }))
   const newStubs = insertStubAt(currentStubs, draggedStub, target.beforeKey)
-  const items = newStubs.map((s) => ({ id: Number(s.key.split(':')[1]) }))
+  const items = newStubs.map((s) => ({ id: s.key.split(':')[1] }))
 
   if (dragged.sourceContainer === containerKey.value) {
     try {
@@ -222,7 +222,7 @@ async function handleCreateTask(payload: {
   title: string
   description: string | null
   estimatedMinutes?: number
-  tagIds?: number[]
+  tagIds?: string[]
 }) {
   creatingTask.value = true
   createTaskError.value = null

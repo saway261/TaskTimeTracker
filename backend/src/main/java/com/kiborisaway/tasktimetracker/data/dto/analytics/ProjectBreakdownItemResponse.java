@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.data.dto.analytics;
 
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -10,8 +11,8 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class ProjectBreakdownItemResponse {
 
-  @Schema(description = "プロジェクトID", example = "1")
-  private final int projectId;
+  @Schema(description = "プロジェクトID", example = "Xr9mQ2vKp3")
+  private final ProjectId projectId;
 
   @Schema(description = "プロジェクト名", example = "タスク管理アプリ開発")
   private final String projectTitle;
@@ -20,7 +21,7 @@ public class ProjectBreakdownItemResponse {
   private final int count;
 
   public ProjectBreakdownItemResponse(int projectId, String projectTitle, int count) {
-    this.projectId = projectId;
+    this.projectId = new ProjectId(projectId);
     this.projectTitle = projectTitle;
     this.count = count;
   }

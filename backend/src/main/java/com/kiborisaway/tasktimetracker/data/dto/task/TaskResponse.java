@@ -3,6 +3,9 @@ package com.kiborisaway.tasktimetracker.data.dto.task;
 import com.kiborisaway.tasktimetracker.data.dto.memo.MemoResponse;
 import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Task;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,14 +17,14 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class TaskResponse {
 
-  @Schema(description = "プロジェクトID", example = "1")
-  private final Integer id;
+  @Schema(description = "タスクID", example = "Xr9mQ2vKp3")
+  private final TaskId id;
 
-  @Schema(description = "親となるプロジェクトID", example = "1")
-  private final Integer projectId;//taskGroupIdを持つならここは持たない
+  @Schema(description = "親となるプロジェクトID", example = "Xr9mQ2vKp3", nullable = true)
+  private final ProjectId projectId;//taskGroupIdを持つならここは持たない
 
-  @Schema(description = "親となるタスクグループID", example = "1")
-  private final Integer taskGroupId;
+  @Schema(description = "親となるタスクグループID", example = "Xr9mQ2vKp3", nullable = true)
+  private final TaskGroupId taskGroupId;
 
   @Schema(description = "タスク名", example = "docker-compose.yml作成")
   private final String title;
@@ -54,9 +57,10 @@ public class TaskResponse {
   private final List<TagSummaryResponse> tags;
 
   public TaskResponse(Task task, List<MemoResponse> memos, List<TagSummaryResponse> tags) {
-    this.id = task.getId();
-    this.projectId = task.getProjectId();
-    this.taskGroupId = task.getTaskGroupId();
+    this.id = new TaskId(task.getId());
+    this.projectId = task.getProjectId() == null ? null : new ProjectId(task.getProjectId());
+    this.taskGroupId =
+        task.getTaskGroupId() == null ? null : new TaskGroupId(task.getTaskGroupId());
     this.title = task.getTitle();
     this.description = task.getDescription();
     this.estimatedMinutes = task.getEstimatedMinutes();

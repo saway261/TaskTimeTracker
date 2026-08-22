@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useReflectionStore } from '@/stores/reflectionStore'
 import { useNotificationStore } from '@/stores/notificationStore'
-import { toPositiveInt } from '@/utils/routeParams'
 import type { ReflectionRequest, ReflectionTaskResponse } from '@/types/reflection'
 import type { ApiError } from '@/types/apiError'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
@@ -19,9 +18,6 @@ const props = defineProps<{
 
 const reflectionStore = useReflectionStore()
 const notification = useNotificationStore()
-
-const invalidId = ref(false)
-const numericId = computed(() => toPositiveInt(props.projectId))
 
 const overview = computed(() => reflectionStore.overview)
 const allTasks = computed(() => {
@@ -42,9 +38,9 @@ const breadcrumbItems = computed(() => {
   return [{ label: '振り返り', to: '/reflections' }, { label: currentOverview.projectTitle }]
 })
 
-const expandedGroupIds = ref(new Set<number>())
+const expandedGroupIds = ref(new Set<string>())
 
-function toggleGroup(id: number) {
+function toggleGroup(id: string) {
   const next = new Set(expandedGroupIds.value)
   if (next.has(id)) {
     next.delete(id)
@@ -90,15 +86,9 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
 }
 
 async function load() {
-  const id = numericId.value
-  if (id === null) {
-    invalidId.value = true
-    return
-  }
-  invalidId.value = false
   expandedGroupIds.value = new Set()
   closeReflectionModal()
-  await reflectionStore.fetchOverview(id).catch(() => {})
+  await reflectionStore.fetchOverview(props.projectId).catch(() => {})
 }
 
 onMounted(load)
@@ -109,8 +99,7 @@ watch(() => props.projectId, load)
   <div class="reflection-detail-view">
     <AppBreadcrumb v-if="breadcrumbItems.length > 0" :items="breadcrumbItems" />
 
-    <p v-if="invalidId">不正なプロジェクトIDです。</p>
-    <LoadingIndicator v-else-if="reflectionStore.loading" />
+    <LoadingIndicator v-if="reflectionStore.loading" />
     <ErrorMessage v-else-if="reflectionStore.error" :error="reflectionStore.error" />
     <template v-else-if="overview">
       <h1>{{ overview.projectTitle }}</h1>

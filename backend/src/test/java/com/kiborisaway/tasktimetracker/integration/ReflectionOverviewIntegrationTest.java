@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.support.AuthenticatedUserTestFactory;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.ibatis.executor.Executor;
@@ -56,28 +57,28 @@ class ReflectionOverviewIntegrationTest {
   void 一覧取得成功_直下とグループ配下を表示順に返し未完了タスクを除外すること() throws Exception {
     queryCounter.reset();
 
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/3/reflections")
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/" + TestPublicIds.project(3) + "/reflections")
             .with(authenticatedUser(2, "user-b@example.com")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.projectId").value(3))
+        .andExpect(jsonPath("$.projectId").value(TestPublicIds.project(3)))
         .andExpect(jsonPath("$.projectTitle").value("プロジェクトX"))
         .andExpect(jsonPath("$.tasks.length()").value(2))
-        .andExpect(jsonPath("$.tasks[0].id").value(7))
+        .andExpect(jsonPath("$.tasks[0].id").value(TestPublicIds.task(7)))
         .andExpect(jsonPath("$.tasks[0].reflection").isEmpty())
-        .andExpect(jsonPath("$.tasks[1].id").value(6))
+        .andExpect(jsonPath("$.tasks[1].id").value(TestPublicIds.task(6)))
         .andExpect(jsonPath("$.tasks[1].gapRateCached").value(50.0))
         .andExpect(jsonPath("$.tasks[1].reflection.cause")
             .value("着手前の調査が不足していた"))
         .andExpect(jsonPath("$.tasks[1].reflection.causeCategories").isEmpty())
         .andExpect(jsonPath("$.taskGroups.length()").value(2))
-        .andExpect(jsonPath("$.taskGroups[0].id").value(5))
+        .andExpect(jsonPath("$.taskGroups[0].id").value(TestPublicIds.taskGroup(5)))
         .andExpect(jsonPath("$.taskGroups[0].tasks.length()").value(1))
-        .andExpect(jsonPath("$.taskGroups[0].tasks[0].id").value(12))
-        .andExpect(jsonPath("$.taskGroups[1].id").value(4))
+        .andExpect(jsonPath("$.taskGroups[0].tasks[0].id").value(TestPublicIds.task(12)))
+        .andExpect(jsonPath("$.taskGroups[1].id").value(TestPublicIds.taskGroup(4)))
         .andExpect(jsonPath("$.taskGroups[1].tasks.length()").value(2))
-        .andExpect(jsonPath("$.taskGroups[1].tasks[0].id").value(10))
+        .andExpect(jsonPath("$.taskGroups[1].tasks[0].id").value(TestPublicIds.task(10)))
         .andExpect(jsonPath("$.taskGroups[1].tasks[0].reflection").isEmpty())
-        .andExpect(jsonPath("$.taskGroups[1].tasks[1].id").value(9))
+        .andExpect(jsonPath("$.taskGroups[1].tasks[1].id").value(TestPublicIds.task(9)))
         .andExpect(jsonPath("$.taskGroups[1].tasks[1].reflection.nextAction").isEmpty())
         .andExpect(jsonPath("$.taskGroups[1].tasks[1].reflection.causeCategories").isEmpty());
 
@@ -102,10 +103,10 @@ class ReflectionOverviewIntegrationTest {
         reflectionId, taskBreakdownId);
     queryCounter.reset();
 
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/3/reflections")
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/" + TestPublicIds.project(3) + "/reflections")
             .with(authenticatedUser(2, "user-b@example.com")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.tasks[1].id").value(6))
+        .andExpect(jsonPath("$.tasks[1].id").value(TestPublicIds.task(6)))
         .andExpect(jsonPath("$.tasks[1].reflection.causeCategories.length()").value(2))
         .andExpect(jsonPath("$.tasks[1].reflection.causeCategories[0].code")
             .value("TASK_BREAKDOWN"))
@@ -118,14 +119,14 @@ class ReflectionOverviewIntegrationTest {
   void 一覧取得成功_完了タスクを含まないグループを返さないこと() throws Exception {
     queryCounter.reset();
 
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/1/reflections")
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/" + TestPublicIds.project(1) + "/reflections")
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.tasks").isEmpty())
         .andExpect(jsonPath("$.taskGroups.length()").value(1))
-        .andExpect(jsonPath("$.taskGroups[0].id").value(2))
+        .andExpect(jsonPath("$.taskGroups[0].id").value(TestPublicIds.taskGroup(2)))
         .andExpect(jsonPath("$.taskGroups[0].tasks.length()").value(1))
-        .andExpect(jsonPath("$.taskGroups[0].tasks[0].id").value(3));
+        .andExpect(jsonPath("$.taskGroups[0].tasks[0].id").value(TestPublicIds.task(3)));
 
     assertThat(queryCounter.getCount()).isEqualTo(4);
   }
@@ -148,7 +149,7 @@ class ReflectionOverviewIntegrationTest {
     }
     queryCounter.reset();
 
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/3/reflections")
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/" + TestPublicIds.project(3) + "/reflections")
             .with(authenticatedUser(2, "user-b@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.tasks.length()").value(12))

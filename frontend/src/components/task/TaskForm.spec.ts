@@ -9,16 +9,16 @@ import TaskForm from './TaskForm.vue'
 
 const taskGroups: TaskGroupResponse[] = [
   {
-    id: 2,
-    projectId: 1,
+    id: 'tg2',
+    projectId: 'p1',
     title: '開発',
     description: null,
     isFinished: false,
     memos: [],
   },
   {
-    id: 3,
-    projectId: 1,
+    id: 'tg3',
+    projectId: 'p1',
     title: 'テスト',
     description: null,
     isFinished: false,
@@ -30,7 +30,7 @@ describe('TaskForm', () => {
   it('プロジェクト直下または既存タスクグループを作成先として選べる', async () => {
     const pinia = createPinia()
     const tagStore = useTagStore(pinia)
-    tagStore.tags = [{ id: 5, name: '設計', isArchived: false, assignedTaskCount: 3 }]
+    tagStore.tags = [{ id: 'tag5', name: '設計', isArchived: false, assignedTaskCount: 3 }]
     tagStore.initialized = true
     vi.spyOn(tagStore, 'fetchTags').mockResolvedValue()
     const wrapper = mount(TaskForm, {
@@ -63,12 +63,12 @@ describe('TaskForm', () => {
         title: '新しいタスク',
         description: null,
         estimatedMinutes: 30,
-        tagIds: [5],
+        tagIds: ['tag5'],
         taskGroupId: null,
       },
     ])
 
-    await wrapper.get('select').setValue('2')
+    await wrapper.get('select').setValue('tg2')
     await wrapper.get('form').trigger('submit')
 
     expect(wrapper.emitted('submit')?.[1]).toEqual([
@@ -76,8 +76,8 @@ describe('TaskForm', () => {
         title: '新しいタスク',
         description: null,
         estimatedMinutes: 30,
-        tagIds: [5],
-        taskGroupId: 2,
+        tagIds: ['tag5'],
+        taskGroupId: 'tg2',
       },
     ])
   })
@@ -86,8 +86,8 @@ describe('TaskForm', () => {
     const wrapper = mount(TaskForm, {
       props: {
         task: {
-          id: 10,
-          projectId: 1,
+          id: 'task10',
+          projectId: 'p1',
           taskGroupId: null,
           title: '既存タスク',
           description: null,
@@ -98,7 +98,7 @@ describe('TaskForm', () => {
           gapMinutesCached: null,
           gapRateCached: null,
           memos: [],
-          tags: [{ id: 5, name: '設計' }],
+          tags: [{ id: 'tag5', name: '設計' }],
         },
       },
     })

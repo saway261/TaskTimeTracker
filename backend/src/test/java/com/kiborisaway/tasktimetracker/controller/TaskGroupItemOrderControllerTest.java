@@ -14,8 +14,10 @@ import com.kiborisaway.tasktimetracker.data.entity.TaskGroupItemOrder;
 import com.kiborisaway.tasktimetracker.exception.InvalidItemOrderException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.TaskGroupItemOrderService;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
 import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.util.List;
@@ -53,19 +55,20 @@ class TaskGroupItemOrderControllerTest {
         new TaskGroupItemOrderResponse(new TaskGroupItemOrder(2, tgId, 2, 1))));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/item-order", tgId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/item-order",
+            TestPublicIds.taskGroup(tgId)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].id").value(1))
-        .andExpect(jsonPath("$[1].id").value(2));
+        .andExpect(jsonPath("$[0].id").value(TestPublicIds.task(1)))
+        .andExpect(jsonPath("$[1].id").value(TestPublicIds.task(2)));
 
     verify(service).findAllInTaskGroup(USER_ID, tgId);
   }
 
   @Test
-  void 並び順一覧取得失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void 並び順一覧取得失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/0/item-order"))
-        .andExpect(status().isBadRequest());
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/invalid-id/item-order"))
+        .andExpect(status().isNotFound());
     verifyNoInteractions(service);
   }
 
@@ -77,7 +80,8 @@ class TaskGroupItemOrderControllerTest {
         new TargetNotFoundException("taskGroup.id", "指定したIDのタスクグループは見つかりませんでした"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/item-order", tgId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/item-order",
+            TestPublicIds.taskGroup(tgId)))
         .andExpect(status().isNotFound());
   }
 
@@ -89,20 +93,21 @@ class TaskGroupItemOrderControllerTest {
         new TaskGroupItemOrderResponse(new TaskGroupItemOrder(2, tgId, 2, 0)),
         new TaskGroupItemOrderResponse(new TaskGroupItemOrder(1, tgId, 1, 1))));
     String validRequest = """
-        { "items": [ { "id": 2 }, { "id": 1 } ] }
-        """;
+        { "items": [ { "id": "%s" }, { "id": "%s" } ] }
+        """.formatted(TestPublicIds.task(2), TestPublicIds.task(1));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}/item-order", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}/item-order",
+            TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].id").value(2))
-        .andExpect(jsonPath("$[1].id").value(1));
+        .andExpect(jsonPath("$[0].id").value(TestPublicIds.task(2)))
+        .andExpect(jsonPath("$[1].id").value(TestPublicIds.task(1)));
 
     verify(service).replaceOrder(eq(USER_ID), eq(tgId), eq(List.of(
-        new TaskGroupItemOrderItemRequest(2),
-        new TaskGroupItemOrderItemRequest(1))));
+        new TaskGroupItemOrderItemRequest(new TaskId(2)),
+        new TaskGroupItemOrderItemRequest(new TaskId(1)))));
   }
 
   @Test
@@ -114,7 +119,8 @@ class TaskGroupItemOrderControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}/item-order", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}/item-order",
+            TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -128,11 +134,12 @@ class TaskGroupItemOrderControllerTest {
     when(service.replaceOrder(eq(USER_ID), eq(tgId), any())).thenThrow(
         new TargetNotFoundException("taskGroup.id", "指定したIDのタスクグループは見つかりませんでした"));
     String validRequest = """
-        { "items": [ { "id": 1 } ] }
-        """;
+        { "items": [ { "id": "%s" } ] }
+        """.formatted(TestPublicIds.task(1));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}/item-order", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}/item-order",
+            TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -145,11 +152,12 @@ class TaskGroupItemOrderControllerTest {
     when(service.replaceOrder(eq(USER_ID), eq(tgId), any())).thenThrow(
         new InvalidItemOrderException("items", "指定した項目がタスクグループ直下の現在の項目と一致しません"));
     String validRequest = """
-        { "items": [ { "id": 1 } ] }
-        """;
+        { "items": [ { "id": "%s" } ] }
+        """.formatted(TestPublicIds.task(1));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}/item-order", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/task-groups/{tgId}/item-order",
+            TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isBadRequest());

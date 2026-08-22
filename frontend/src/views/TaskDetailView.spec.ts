@@ -17,8 +17,8 @@ vi.mock('@/api/tasksApi')
 vi.mock('@/api/workSessionsApi')
 
 const completedTask: TaskResponse = {
-  id: 10,
-  projectId: 1,
+  id: 'task10',
+  projectId: 'p1',
   taskGroupId: null,
   title: '完了済みタスク',
   description: null,
@@ -29,7 +29,7 @@ const completedTask: TaskResponse = {
   gapMinutesCached: 0,
   gapRateCached: 0,
   memos: [],
-  tags: [{ id: 1, name: '調査' }],
+  tags: [{ id: 'tag1', name: '調査' }],
 }
 
 describe('TaskDetailView', () => {
@@ -51,22 +51,22 @@ describe('TaskDetailView', () => {
       Promise.resolve({
         data: {
           ...completedTask,
-          tags: request.tagIds.map((id) => ({ id, name: id === 1 ? '調査' : '設計' })),
+          tags: request.tagIds.map((id) => ({ id, name: id === 'tag1' ? '調査' : '設計' })),
         },
       } as never),
     )
     vi.mocked(projectsApi.fetchById).mockResolvedValue({
-      data: { id: 1, title: 'プロジェクト', description: null, isFinished: false, memos: [] },
+      data: { id: 'p1', title: 'プロジェクト', description: null, isFinished: false, memos: [] },
     } as never)
     vi.mocked(workSessionsApi.fetchAllInTask).mockResolvedValue({ data: [] } as never)
     vi.mocked(tagsApi.fetchAll).mockResolvedValue({
       data: [
-        { id: 1, name: '調査', isArchived: false, assignedTaskCount: 1 },
-        { id: 2, name: '設計', isArchived: false, assignedTaskCount: 0 },
+        { id: 'tag1', name: '調査', isArchived: false, assignedTaskCount: 1 },
+        { id: 'tag2', name: '設計', isArchived: false, assignedTaskCount: 0 },
       ],
     } as never)
     const wrapper = shallowMount(TaskDetailView, {
-      props: { projectId: '1', taskId: '10', taskGroupId: null },
+      props: { projectId: 'p1', taskId: 'task10', taskGroupId: null },
       global: {
         plugins: [pinia, router],
         stubs: {
@@ -92,14 +92,14 @@ describe('TaskDetailView', () => {
     await wrapper.get('.tag-select .suggestion').trigger('click')
     await flushPromises()
 
-    expect(tasksApi.updateTags).toHaveBeenCalledWith(10, { tagIds: [1, 2] })
+    expect(tasksApi.updateTags).toHaveBeenCalledWith('task10', { tagIds: ['tag1', 'tag2'] })
     expect(wrapper.get('.tag-section').text()).toContain('設計')
     expect(wrapper.find('.tag-select .selected-tags').exists()).toBe(false)
 
     await wrapper.get('[aria-label="調査を外す"]').trigger('click')
     await flushPromises()
 
-    expect(tasksApi.updateTags).toHaveBeenLastCalledWith(10, { tagIds: [2] })
+    expect(tasksApi.updateTags).toHaveBeenLastCalledWith('task10', { tagIds: ['tag2'] })
     expect(wrapper.find('[aria-label="調査を外す"]').exists()).toBe(false)
   })
 })

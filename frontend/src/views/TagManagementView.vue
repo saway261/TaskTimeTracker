@@ -20,11 +20,11 @@ const createName = ref('')
 const creating = ref(false)
 const createError = ref<ApiError | null>(null)
 const createResolverOpen = ref(false)
-const editingTagId = ref<number | null>(null)
+const editingTagId = ref<string | null>(null)
 const editName = ref('')
-const busyTagId = ref<number | null>(null)
-const rowErrors = ref<Record<number, ApiError | undefined>>({})
-const restoreResolverTagId = ref<number | null>(null)
+const busyTagId = ref<string | null>(null)
+const rowErrors = ref<Record<string, ApiError | undefined>>({})
+const restoreResolverTagId = ref<string | null>(null)
 
 const visibleTags = computed(() =>
   showArchived.value ? tagStore.tags : tagStore.tags.filter((tag) => !tag.isArchived),
@@ -34,13 +34,13 @@ function isTagLimitError(error: ApiError) {
   return error.status === 400 && error.fieldErrors.tagLimit !== undefined
 }
 
-function clearRowError(tagId: number) {
+function clearRowError(tagId: string) {
   const next = { ...rowErrors.value }
   delete next[tagId]
   rowErrors.value = next
 }
 
-function rowErrorFor(tagId: number): ApiError {
+function rowErrorFor(tagId: string): ApiError {
   return rowErrors.value[tagId] as ApiError
 }
 

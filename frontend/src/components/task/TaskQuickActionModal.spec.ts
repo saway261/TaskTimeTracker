@@ -15,8 +15,8 @@ vi.mock('@/api/workSessionsApi')
 vi.mock('@/api/reflectionsApi')
 
 const task: TaskResponse = {
-  id: 10,
-  projectId: 1,
+  id: 'task10',
+  projectId: 'p1',
   taskGroupId: null,
   title: '実装する',
   description: null,
@@ -31,7 +31,7 @@ const task: TaskResponse = {
 }
 
 const pastSession: WorkSession = {
-  id: 1,
+  id: 'ws1',
   taskId: task.id,
   minutes: 25,
   startedAt: null,
@@ -43,7 +43,7 @@ const pastSession: WorkSession = {
 
 const activeSession: WorkSession = {
   ...pastSession,
-  id: 2,
+  id: 'ws2',
   minutes: null,
   startedAt: '2026-08-15T01:00:00',
   type: 'TIMER',
@@ -57,8 +57,8 @@ function mountModal() {
       modelValue: true,
       taskId: task.id,
       taskTitle: task.title,
-      projectId: 1,
-      detailTo: `/projects/1/tasks/${task.id}`,
+      projectId: 'p1',
+      detailTo: `/projects/p1/tasks/${task.id}`,
     },
     global: {
       plugins: [pinia],
@@ -112,7 +112,7 @@ describe('TaskQuickActionModal', () => {
     expect(history.get('summary').text()).toContain('過去の作業記録（1件）')
 
     const detailLink = wrapper.get('.detail-link')
-    expect(detailLink.attributes('href')).toBe(`/projects/1/tasks/${task.id}`)
+    expect(detailLink.attributes('href')).toBe(`/projects/p1/tasks/${task.id}`)
   })
 
   it('モーダルからタスクを完了にでき、クイック振り返りモーダルが開く', async () => {
@@ -184,7 +184,7 @@ describe('TaskQuickActionModal', () => {
     vi.mocked(tasksApi.fetchById).mockResolvedValue({ data: finishedTask } as never)
     vi.mocked(reflectionsApi.fetchOverview).mockResolvedValue({
       data: {
-        projectId: 1,
+        projectId: 'p1',
         projectTitle: 'プロジェクト',
         tasks: [
           {
@@ -221,7 +221,7 @@ describe('TaskQuickActionModal', () => {
     await reflectionButton.trigger('click')
     await flushPromises()
 
-    expect(reflectionsApi.fetchOverview).toHaveBeenCalledWith(1)
+    expect(reflectionsApi.fetchOverview).toHaveBeenCalledWith('p1')
     expect(wrapper.text()).toContain('振り返りの詳細・変更')
   })
 })

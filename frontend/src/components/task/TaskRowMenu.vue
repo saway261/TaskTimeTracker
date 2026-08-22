@@ -12,8 +12,8 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 // ドラッグ以外の並べ替え・移動手段（§7.3・§7.4.5 rule 4）。キーボード利用者・タッチ端末向け。
 const props = defineProps<{
   modelValue: boolean
-  taskId: number
-  projectId: number
+  taskId: string
+  projectId: string
   containerKey: string // 'project:{pId}' | 'taskGroup:{tgId}'
   taskGroups: TaskGroupResponse[]
   finished: boolean
@@ -85,7 +85,7 @@ async function handleMoveTo(targetKey: string) {
   try {
     const parentReq = targetKey.startsWith('project:')
       ? { projectId: props.projectId, taskGroupId: null }
-      : { projectId: null, taskGroupId: Number(targetKey.split(':')[1]) }
+      : { projectId: null, taskGroupId: targetKey.split(':')[1] }
     await itemOrderStore.moveTaskViaMenu({
       taskId: props.taskId,
       parentReq,
