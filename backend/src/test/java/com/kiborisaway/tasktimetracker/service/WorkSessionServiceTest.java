@@ -19,6 +19,10 @@ import com.kiborisaway.tasktimetracker.data.entity.WorkSessionType;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
+import com.kiborisaway.tasktimetracker.publicid.id.WorkSessionId;
+import com.kiborisaway.tasktimetracker.repository.ActiveTimerRow;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
 import java.time.LocalDateTime;
@@ -46,13 +50,14 @@ class WorkSessionServiceTest {
 
   @Test
   void 稼働中タイマー一覧取得成功_ログインユーザーを指定してリポジトリを呼び出すこと() {
-    ActiveTimerResponse timer = new ActiveTimerResponse();
-    timer.setSessionId(1);
-    when(repository.findAllActiveByUserId(USER_ID)).thenReturn(List.of(timer));
+    LocalDateTime startedAt = LocalDateTime.of(2026, 1, 1, 9, 0);
+    ActiveTimerRow row = new ActiveTimerRow(1, 2, "タイマー確認", 3, null, startedAt);
+    when(repository.findAllActiveByUserId(USER_ID)).thenReturn(List.of(row));
 
     List<ActiveTimerResponse> actual = sut.getAllActive(USER_ID);
 
-    assertThat(actual).containsExactly(timer);
+    assertThat(actual).containsExactly(new ActiveTimerResponse(
+        new WorkSessionId(1), new TaskId(2), "タイマー確認", new ProjectId(3), null, startedAt));
     verify(repository).findAllActiveByUserId(USER_ID);
   }
 

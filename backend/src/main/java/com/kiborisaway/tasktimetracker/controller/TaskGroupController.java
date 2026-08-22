@@ -5,6 +5,8 @@ import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateFinishedRequest;
 import com.kiborisaway.tasktimetracker.data.dto.task_group.TaskGroupUpdateRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.TaskGroupService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +16,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -52,7 +53,7 @@ public class TaskGroupController {
           @Parameter(in = ParameterIn.PATH,
               name = "pId", required = true,
               description = "プロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -77,10 +78,10 @@ public class TaskGroupController {
   @GetMapping("/projects/{pId}/task-groups")
   public List<TaskGroupResponse> getAll(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int pId,
+      @PathVariable ProjectId pId,
       @RequestParam(required = false) Boolean isFinished
   ) {
-    return service.findAllByCondition(user.getUserId(), pId, isFinished);
+    return service.findAllByCondition(user.getUserId(), pId.value(), isFinished);
   }
 
   @Operation(
@@ -90,7 +91,7 @@ public class TaskGroupController {
           @Parameter(in = ParameterIn.PATH,
               name = "tgId", required = true,
               description = "タスクグループID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -120,8 +121,8 @@ public class TaskGroupController {
   @GetMapping("/task-groups/{tgId}")
   public TaskGroupResponse getById(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tgId) {
-    return service.findById(user.getUserId(), tgId);
+      @PathVariable TaskGroupId tgId) {
+    return service.findById(user.getUserId(), tgId.value());
   }
 
   @Operation(
@@ -131,7 +132,7 @@ public class TaskGroupController {
           @Parameter(in = ParameterIn.PATH,
               name = "pId", required = true,
               description = "親となるプロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -159,10 +160,10 @@ public class TaskGroupController {
   @PostMapping("/projects/{pId}/task-groups")
   public ResponseEntity<TaskGroupResponse> create(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int pId,
+      @PathVariable ProjectId pId,
       @RequestBody @Validated TaskGroupCreateRequest request
   ) {
-    TaskGroupResponse response = service.register(user.getUserId(), pId, request);
+    TaskGroupResponse response = service.register(user.getUserId(), pId.value(), request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -173,7 +174,7 @@ public class TaskGroupController {
           @Parameter(in = ParameterIn.PATH,
               name = "tgId", required = true,
               description = "タスクグループID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -208,9 +209,9 @@ public class TaskGroupController {
   @PutMapping("/task-groups/{tgId}")
   public ResponseEntity<TaskGroupResponse> update(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tgId,
+      @PathVariable TaskGroupId tgId,
       @RequestBody @Validated TaskGroupUpdateRequest request) {
-    return ResponseEntity.ok(service.update(user.getUserId(), tgId, request));
+    return ResponseEntity.ok(service.update(user.getUserId(), tgId.value(), request));
   }
 
   @Operation(
@@ -223,7 +224,7 @@ public class TaskGroupController {
           @Parameter(in = ParameterIn.PATH,
               name = "tgId", required = true,
               description = "タスクグループID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -250,9 +251,9 @@ public class TaskGroupController {
   @PatchMapping("/task-groups/{tgId}/finished")
   public ResponseEntity<TaskGroupResponse> updateFinished(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tgId,
+      @PathVariable TaskGroupId tgId,
       @RequestBody @Validated TaskGroupUpdateFinishedRequest request) {
     return ResponseEntity.ok(
-        service.updateFinished(user.getUserId(), tgId, request.isFinished()));
+        service.updateFinished(user.getUserId(), tgId.value(), request.isFinished()));
   }
 }

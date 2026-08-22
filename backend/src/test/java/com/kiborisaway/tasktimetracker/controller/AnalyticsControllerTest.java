@@ -19,7 +19,9 @@ import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidE
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
 import com.kiborisaway.tasktimetracker.service.AnalyticsService;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
 import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.util.List;
@@ -67,7 +69,7 @@ class AnalyticsControllerTest {
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.projectBreakdown.length()").value(1))
-        .andExpect(jsonPath("$.projectBreakdown[0].projectId").value(1))
+        .andExpect(jsonPath("$.projectBreakdown[0].projectId").value(TestPublicIds.project(1)))
         .andExpect(jsonPath("$.projectBreakdown[0].projectTitle").value("開発基盤"))
         .andExpect(jsonPath("$.projectBreakdown[0].count").value(18));
   }
@@ -99,7 +101,7 @@ class AnalyticsControllerTest {
     when(service.getEstimationAccuracy(eq(USER_ID), any())).thenReturn(response());
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("tagId", "7"))
+            .param("tagId", TestPublicIds.tag(7)))
         .andExpect(status().isOk());
 
     org.mockito.ArgumentCaptor<com.kiborisaway.tasktimetracker.data.dto.analytics.AnalyticsQueryCondition>
@@ -116,7 +118,7 @@ class AnalyticsControllerTest {
             "tagId", "アーカイブ済みのタグは分析の絞り込みに指定できません"));
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("tagId", "7"))
+            .param("tagId", TestPublicIds.tag(7)))
         .andExpect(status().isBadRequest());
   }
 
@@ -126,7 +128,7 @@ class AnalyticsControllerTest {
         .thenThrow(new TargetNotFoundException("tagId", "tag not found"));
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("tagId", "999"))
+            .param("tagId", TestPublicIds.tag(999)))
         .andExpect(status().isNotFound());
   }
 
@@ -150,14 +152,14 @@ class AnalyticsControllerTest {
             60, 90, 30, 50.0, "LATE",
             List.of(), "原因A", null,
             List.of(new com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse(
-                100, "調査")));
+                new TagId(100), "調査")));
     when(service.getReflectionTimeline(eq(USER_ID), any()))
         .thenReturn(new ReflectionTimelineResponse(List.of(item), 0, 20, 1, false));
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[0].tags.length()").value(1))
-        .andExpect(jsonPath("$.items[0].tags[0].id").value(100))
+        .andExpect(jsonPath("$.items[0].tags[0].id").value(TestPublicIds.tag(100)))
         .andExpect(jsonPath("$.items[0].tags[0].name").value("調査"));
   }
 
@@ -224,7 +226,7 @@ class AnalyticsControllerTest {
         .thenThrow(new TargetNotFoundException("projectId", "project not found"));
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
-            .param("projectId", "999"))
+            .param("projectId", TestPublicIds.project(999)))
         .andExpect(status().isNotFound());
   }
 
@@ -267,7 +269,7 @@ class AnalyticsControllerTest {
         .thenThrow(new TargetNotFoundException("projectId", "project not found"));
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
-            .param("projectId", "999"))
+            .param("projectId", TestPublicIds.project(999)))
         .andExpect(status().isNotFound());
   }
 

@@ -20,6 +20,7 @@ import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.ProjectService;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
 import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.util.List;
@@ -95,17 +96,17 @@ class ProjectControllerTest {
     when(service.findById(USER_ID, id)).thenReturn(new ProjectResponse(project, List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{id}", id))
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{id}", TestPublicIds.project(id)))
         .andExpect(status().isOk());
 
     verify(service).findById(USER_ID, id);
   }
 
   @Test
-  void プロジェクト単体取得失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void プロジェクト単体取得失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/0"))
-        .andExpect(status().isBadRequest());
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/invalid-id"))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -115,17 +116,10 @@ class ProjectControllerTest {
         new TargetNotFoundException("id", "project not found"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/999"))
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{id}", TestPublicIds.project(999)))
         .andExpect(status().isNotFound());
 
     verify(service).findById(USER_ID, 999);
-  }
-
-  @Test
-  void プロジェクト単体取得失敗_パス変数の型が不正なら400を返すこと() throws Exception {
-    // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/abc"))
-        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -188,13 +182,13 @@ class ProjectControllerTest {
         .thenReturn(new ProjectResponse(updated, List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + TestPublicIds.project(id))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.project(id)))
         .andExpect(jsonPath("$.description").value("説明を更新"))
         .andExpect(jsonPath("$.memos").isEmpty());
 
@@ -209,10 +203,10 @@ class ProjectControllerTest {
   }
 
   @Test
-  void プロジェクト更新失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void プロジェクト更新失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/projects/0").with(csrf()))
-        .andExpect(status().isBadRequest());
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects/invalid-id").with(csrf()))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -229,20 +223,13 @@ class ProjectControllerTest {
         .when(service).update(eq(USER_ID), eq(id), any(ProjectUpdateRequest.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + TestPublicIds.project(id))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
 
     verify(service).update(eq(USER_ID), eq(id), any(ProjectUpdateRequest.class));
-  }
-
-  @Test
-  void プロジェクト更新失敗_パス変数の型が不正なら400を返すこと() throws Exception {
-    // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/projects/abc").with(csrf()))
-        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -256,7 +243,7 @@ class ProjectControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + id)
+    mockMvc.perform(MockMvcRequestBuilders.put("/projects/" + TestPublicIds.project(id))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
@@ -277,12 +264,12 @@ class ProjectControllerTest {
         .thenReturn(new ProjectResponse(updated, List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", id)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", TestPublicIds.project(id))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.project(id)))
         .andExpect(jsonPath("$.isFinished").value(true));
 
     verify(service).updateFinished(USER_ID, id, true);
@@ -301,7 +288,7 @@ class ProjectControllerTest {
         .when(service).updateFinished(USER_ID, id, true);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", id)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", TestPublicIds.project(id))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
@@ -321,7 +308,7 @@ class ProjectControllerTest {
         .when(service).updateFinished(USER_ID, id, true);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", id)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", TestPublicIds.project(id))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
@@ -335,7 +322,7 @@ class ProjectControllerTest {
     String invalidRequest = "{}";
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", id)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/projects/{id}/finished", TestPublicIds.project(id))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))

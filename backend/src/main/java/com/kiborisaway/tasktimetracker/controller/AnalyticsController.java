@@ -6,6 +6,9 @@ import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseAggregateRespo
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineQueryCondition;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResponse;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.PublicIdCodec;
+import com.kiborisaway.tasktimetracker.publicid.PublicIdType;
+import com.kiborisaway.tasktimetracker.publicid.converter.PublicIdPropertyEditor;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.AnalyticsService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,7 +20,9 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,10 +33,27 @@ import org.springframework.web.bind.annotation.RestController;
 public class AnalyticsController {
 
   private AnalyticsService service;
+  private PublicIdCodec codec;
 
   @Autowired
-  public AnalyticsController(AnalyticsService service) {
+  public AnalyticsController(AnalyticsService service, PublicIdCodec codec) {
     this.service = service;
+    this.codec = codec;
+  }
+
+  /**
+   * {@code AnalyticsQueryCondition}・{@code ReflectionTimelineQueryCondition} の
+   * {@code projectId}・{@code tagId} は公開ID文字列で受け取るが、MyBatisへそのまま渡すため
+   * フィールドの型自体は {@code Integer} のまま維持する。フィールド名を指定した
+   * {@link PublicIdPropertyEditor} の登録により、この2プロパティのバインドだけを差し替える
+   * （{@code Converter<String, Integer>} をグローバル登録すると全整数バインディングを壊すため）。
+   */
+  @InitBinder
+  public void initBinder(WebDataBinder binder) {
+    binder.registerCustomEditor(Integer.class, "projectId",
+        new PublicIdPropertyEditor(codec, PublicIdType.PROJECT));
+    binder.registerCustomEditor(Integer.class, "tagId",
+        new PublicIdPropertyEditor(codec, PublicIdType.TAG));
   }
 
   @Operation(

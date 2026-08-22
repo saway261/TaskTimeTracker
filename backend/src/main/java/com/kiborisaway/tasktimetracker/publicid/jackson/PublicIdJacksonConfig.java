@@ -49,6 +49,10 @@ public class PublicIdJacksonConfig {
         WorkSessionId::new);
     addDeserializer(module, codec, TagId.class, PublicIdType.TAG, TagId::new);
 
+    // WorkSession は Entity をそのまま返す設計（docs/dto_introduction_plan.md）のため、
+    // id/taskId は Integer のまま維持し、出力時だけ差し替える（WorkSessionIdSerializerModifier）。
+    module.setSerializerModifier(new WorkSessionIdSerializerModifier(codec));
+
     return module;
   }
 

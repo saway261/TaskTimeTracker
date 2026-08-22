@@ -1,8 +1,9 @@
 package com.kiborisaway.tasktimetracker.data.dto.task;
 
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
 import com.kiborisaway.tasktimetracker.validation.ValidUpdateParentRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Positive;
 
 /**
  * updateParent に移動先の親IDをリクエストボディとして渡すためのrecord
@@ -13,9 +14,9 @@ import jakarta.validation.constraints.Positive;
 @Schema(description = "タスク所属変更リクエスト。projectId と taskGroupId のどちらか片方のみ指定すること")
 @ValidUpdateParentRequest
 public record TaskUpdateParentRequest(
-    @Schema(description = "移動先プロジェクトID", example = "1")
-    @Positive Integer projectId,
+    @Schema(description = "移動先プロジェクトID", example = "Xr9mQ2vKp3")
+    ProjectId projectId,
     @Schema(description = "移動先タスクグループID", example = "null")
-    @Positive Integer taskGroupId) {
+    TaskGroupId taskGroupId) {
 
 }

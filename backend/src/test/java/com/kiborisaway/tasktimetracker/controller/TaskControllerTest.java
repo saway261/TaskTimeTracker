@@ -23,8 +23,10 @@ import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskTagsInvalidException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.TaskService;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
 import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.util.List;
@@ -58,7 +60,7 @@ class TaskControllerTest {
       throws Exception {
     // Act & Assert
     int pId = 1;
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/tasks", pId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/tasks", TestPublicIds.project(pId)))
         .andExpect(status().isOk());
 
     verify(service).findAllInProjectByCondition(USER_ID, pId,null);
@@ -69,7 +71,7 @@ class TaskControllerTest {
       throws Exception {
     // Act & Assert
     int pId = 1;
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/tasks", pId)
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/tasks", TestPublicIds.project(pId))
             .param("isFinished", "true"))
         .andExpect(status().isOk());
 
@@ -80,7 +82,7 @@ class TaskControllerTest {
   void プロジェクト内タスク一覧検索失敗_isFinishedが真偽値でなければ400を返すこと()
       throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/1/tasks")
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/tasks", TestPublicIds.project(1))
             .param("isFinished", "invalid"))
         .andExpect(status().isBadRequest());
 
@@ -97,7 +99,7 @@ class TaskControllerTest {
             "指定したIDのプロジェクトは見つかりませんでした"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/tasks", pId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/tasks", TestPublicIds.project(pId)))
         .andExpect(status().isNotFound());
   }
 
@@ -106,7 +108,7 @@ class TaskControllerTest {
       throws Exception {
     // Act & Assert
     int tgId = 1;
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/tasks", tgId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/tasks", TestPublicIds.taskGroup(tgId)))
         .andExpect(status().isOk());
 
     verify(service).findAllInTaskGroupByCondition(USER_ID, tgId,null);
@@ -117,7 +119,7 @@ class TaskControllerTest {
       throws Exception {
     // Act & Assert
     int tgId = 1;
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/tasks", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/tasks", TestPublicIds.taskGroup(tgId))
             .param("isFinished", "false"))
         .andExpect(status().isOk());
 
@@ -128,7 +130,7 @@ class TaskControllerTest {
   void タスクグループ内タスク一覧検索失敗_isFinishedが真偽値でなければ400を返すこと()
       throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/1/tasks")
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/tasks", TestPublicIds.taskGroup(1))
             .param("isFinished", "invalid"))
         .andExpect(status().isBadRequest());
 
@@ -145,7 +147,7 @@ class TaskControllerTest {
             "指定したIDのタスクグループは見つかりませんでした"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/tasks", tgId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/task-groups/{tgId}/tasks", TestPublicIds.taskGroup(tgId)))
         .andExpect(status().isNotFound());
   }
 
@@ -158,17 +160,17 @@ class TaskControllerTest {
     when(service.findById(USER_ID, taskId)).thenReturn(new TaskResponse(task, List.of(), List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}", taskId))
+    mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}", TestPublicIds.task(taskId)))
         .andExpect(status().isOk());
 
     verify(service).findById(USER_ID, taskId);
   }
 
   @Test
-  void タスク単体取得失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void タスク単体取得失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/tasks/0"))
-        .andExpect(status().isBadRequest());
+    mockMvc.perform(MockMvcRequestBuilders.get("/tasks/invalid-id"))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -178,17 +180,10 @@ class TaskControllerTest {
         new TargetNotFoundException("task.id", "task not found"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/tasks/999"))
+    mockMvc.perform(MockMvcRequestBuilders.get("/tasks/{taskId}", TestPublicIds.task(999)))
         .andExpect(status().isNotFound());
 
     verify(service).findById(USER_ID, 999);
-  }
-
-  @Test
-  void タスク単体取得失敗_パス変数の型が不正なら400を返すこと() throws Exception {
-    // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.get("/tasks/abc"))
-        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -210,7 +205,7 @@ class TaskControllerTest {
         }
         """;
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/tasks", pId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/tasks", TestPublicIds.project(pId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isCreated());
@@ -233,12 +228,12 @@ class TaskControllerTest {
           "title": "画面設計",
           "description": "ワイヤーフレームを作成する",
           "estimatedMinutes": 180,
-          "tagIds": [10, 20]
+          "tagIds": ["%s", "%s"]
         }
-        """;
+        """.formatted(TestPublicIds.tag(10), TestPublicIds.tag(20));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/tasks", pId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/tasks", TestPublicIds.project(pId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isCreated());
@@ -247,7 +242,7 @@ class TaskControllerTest {
         org.mockito.ArgumentCaptor.forClass(TaskCreateRequest.class);
     verify(service).register(eq(USER_ID), eq(pId), isNull(), captor.capture());
     org.assertj.core.api.Assertions.assertThat(captor.getValue().getTagIds())
-        .containsExactly(10, 20);
+        .containsExactly(new TagId(10), new TagId(20));
   }
 
   @Test
@@ -270,7 +265,7 @@ class TaskControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/task-groups/{tgId}/tasks", tgId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/task-groups/{tgId}/tasks", TestPublicIds.taskGroup(tgId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isCreated());
@@ -294,7 +289,7 @@ class TaskControllerTest {
             "指定したIDの親項目は見つかりませんでした"));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/tasks", pId)
+    mockMvc.perform(MockMvcRequestBuilders.post("/projects/{pId}/tasks", TestPublicIds.project(pId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -319,12 +314,12 @@ class TaskControllerTest {
         .thenReturn(new TaskResponse(updated, List.of(), List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.id").value(taskId))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.task(taskId)))
         .andExpect(jsonPath("$.title").value("更新タイトル"));
 
     verify(service).updateProperty(eq(USER_ID), eq(taskId), any(TaskUpdatePropertyRequest.class));
@@ -344,7 +339,7 @@ class TaskControllerTest {
         .when(service).updateProperty(eq(USER_ID), eq(taskId), any(TaskUpdatePropertyRequest.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -367,12 +362,12 @@ class TaskControllerTest {
         .thenReturn(new TaskResponse(updated, List.of(), List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.id").value(taskId))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.task(taskId)))
         .andExpect(jsonPath("$.estimatedMinutes").value(120));
 
     verify(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
@@ -392,7 +387,7 @@ class TaskControllerTest {
         .when(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isBadRequest());
@@ -414,7 +409,7 @@ class TaskControllerTest {
         .when(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isBadRequest());
@@ -435,7 +430,7 @@ class TaskControllerTest {
         .when(service).updateEstimateMinutes(eq(USER_ID), eq(taskId), any(TaskUpdateEstimatedMinutesRequest.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -444,7 +439,7 @@ class TaskControllerTest {
   }
 
   @Test
-  void 見積もり作業時間更新失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void 見積もり作業時間更新失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Arrange
     String validRequest = """
         {
@@ -453,10 +448,10 @@ class TaskControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/0/estimated-minutes")
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/invalid-id/estimated-minutes")
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isNotFound());
 
     verifyNoInteractions(service);
   }
@@ -472,7 +467,7 @@ class TaskControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/estimated-minutes", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -487,21 +482,21 @@ class TaskControllerTest {
     int taskGroupId = 2;
     String validRequest = """
         {
-          "taskGroupId": 2
+          "taskGroupId": "%s"
         }
-        """;
+        """.formatted(TestPublicIds.taskGroup(taskGroupId));
     Task updated = new Task(taskId, null, taskGroupId, "タスク", "説明", 60,
         null, null, null, null, null);
     when(service.updateParent(USER_ID, taskId, null, taskGroupId))
         .thenReturn(new TaskResponse(updated, List.of(), List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.taskGroupId").value(taskGroupId))
+        .andExpect(jsonPath("$.taskGroupId").value(TestPublicIds.taskGroup(taskGroupId)))
         .andExpect(jsonPath("$.projectId").doesNotExist());
 
     verify(service).updateParent(USER_ID, taskId, null, taskGroupId);
@@ -514,14 +509,14 @@ class TaskControllerTest {
     int taskGroupId = 2;
     String validRequest = """
         {
-          "taskGroupId": 2
+          "taskGroupId": "%s"
         }
-        """;
+        """.formatted(TestPublicIds.taskGroup(taskGroupId));
     doThrow(new TargetNotFoundException("task.id", "task not found"))
         .when(service).updateParent(USER_ID, taskId, null, taskGroupId);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -540,7 +535,7 @@ class TaskControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -549,38 +544,38 @@ class TaskControllerTest {
   }
 
   @Test
-  void 所属変更失敗_taskGroupIdが0以下なら400を返すこと() throws Exception {
+  void 所属変更失敗_taskGroupIdの形式が不正なら404を返すこと() throws Exception {
     // Arrange
     int taskId = 1;
     String invalidRequest = """
         {
-          "taskGroupId": 0
+          "taskGroupId": "invalid-id"
         }
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isNotFound());
 
     verifyNoInteractions(service);
   }
 
   @Test
-  void 所属変更失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void 所属変更失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Arrange
     String validRequest = """
         {
-          "taskGroupId": 2
+          "taskGroupId": "%s"
         }
-        """;
+        """.formatted(TestPublicIds.taskGroup(2));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/0/parent")
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/invalid-id/parent")
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isNotFound());
 
     verifyNoInteractions(service);
   }
@@ -592,21 +587,21 @@ class TaskControllerTest {
     int projectId = 1;
     String validRequest = """
         {
-          "projectId": 1
+          "projectId": "%s"
         }
-        """;
+        """.formatted(TestPublicIds.project(projectId));
     Task updated = new Task(taskId, projectId, null, "タスク", "説明", 60,
         null, null, null, null, null);
     when(service.updateParent(USER_ID, taskId, projectId, null))
         .thenReturn(new TaskResponse(updated, List.of(), List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.projectId").value(projectId))
+        .andExpect(jsonPath("$.projectId").value(TestPublicIds.project(projectId)))
         .andExpect(jsonPath("$.taskGroupId").doesNotExist());
 
     verify(service).updateParent(USER_ID, taskId, projectId, null);
@@ -619,14 +614,14 @@ class TaskControllerTest {
     int projectId = 1;
     String validRequest = """
         {
-          "projectId": 1
+          "projectId": "%s"
         }
-        """;
+        """.formatted(TestPublicIds.project(projectId));
     doThrow(new TargetNotFoundException("task.id", "task not found"))
         .when(service).updateParent(USER_ID, taskId, projectId, null);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -645,7 +640,7 @@ class TaskControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -654,20 +649,20 @@ class TaskControllerTest {
   }
 
   @Test
-  void プロジェクト直下への所属変更失敗_projectIdが0以下なら400を返すこと() throws Exception {
+  void プロジェクト直下への所属変更失敗_projectIdの形式が不正なら404を返すこと() throws Exception {
     // Arrange
     int taskId = 1;
     String invalidRequest = """
         {
-          "projectId": 0
+          "projectId": "invalid-id"
         }
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isNotFound());
 
     verifyNoInteractions(service);
   }
@@ -678,13 +673,13 @@ class TaskControllerTest {
     int taskId = 1;
     String invalidRequest = """
         {
-          "projectId": 1,
-          "taskGroupId": 2
+          "projectId": "%s",
+          "taskGroupId": "%s"
         }
-        """;
+        """.formatted(TestPublicIds.project(1), TestPublicIds.taskGroup(2));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/parent", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -698,23 +693,24 @@ class TaskControllerTest {
     int taskId = 1;
     String validRequest = """
         {
-          "tagIds": [10, 20]
+          "tagIds": ["%s", "%s"]
         }
-        """;
+        """.formatted(TestPublicIds.tag(10), TestPublicIds.tag(20));
     Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
     TaskResponse response = new TaskResponse(task, List.of(),
-        List.of(new TagSummaryResponse(10, "調査"), new TagSummaryResponse(20, "設定")));
+        List.of(new TagSummaryResponse(new TagId(10), "調査"),
+            new TagSummaryResponse(new TagId(20), "設定")));
     when(service.updateTags(eq(USER_ID), eq(taskId), any(TaskTagsUpdateRequest.class)))
         .thenReturn(response);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.tags.length()").value(2))
-        .andExpect(jsonPath("$.tags[0].id").value(10))
+        .andExpect(jsonPath("$.tags[0].id").value(TestPublicIds.tag(10)))
         .andExpect(jsonPath("$.tags[0].name").value("調査"));
 
     verify(service).updateTags(eq(USER_ID), eq(taskId), any(TaskTagsUpdateRequest.class));
@@ -734,7 +730,7 @@ class TaskControllerTest {
         .thenReturn(new TaskResponse(task, List.of(), List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
@@ -752,7 +748,7 @@ class TaskControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -761,7 +757,7 @@ class TaskControllerTest {
   }
 
   @Test
-  void タグ全置換失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void タグ全置換失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Arrange
     String validRequest = """
         {
@@ -770,10 +766,10 @@ class TaskControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/0/tags")
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/invalid-id/tags")
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isNotFound());
 
     verifyNoInteractions(service);
   }
@@ -784,14 +780,14 @@ class TaskControllerTest {
     int taskId = 1;
     String validRequest = """
         {
-          "tagIds": [10, 10]
+          "tagIds": ["%s", "%s"]
         }
-        """;
+        """.formatted(TestPublicIds.tag(10), TestPublicIds.tag(10));
     doThrow(new TaskTagsInvalidException("tagIds", "タグIDが重複しています"))
         .when(service).updateTags(eq(USER_ID), eq(taskId), any(TaskTagsUpdateRequest.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isBadRequest())
@@ -804,14 +800,14 @@ class TaskControllerTest {
     int taskId = 999;
     String validRequest = """
         {
-          "tagIds": [10]
+          "tagIds": ["%s"]
         }
-        """;
+        """.formatted(TestPublicIds.tag(10));
     doThrow(new TargetNotFoundException("task.id", "task not found"))
         .when(service).updateTags(eq(USER_ID), eq(taskId), any(TaskTagsUpdateRequest.class));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/tags", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -832,12 +828,12 @@ class TaskControllerTest {
         .thenReturn(new TaskResponse(finished, List.of(), List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.id").value(taskId))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.task(taskId)))
         .andExpect(jsonPath("$.actualMinutesCached").value(70));
 
     verify(service).updateFinished(USER_ID, taskId, true);
@@ -858,12 +854,12 @@ class TaskControllerTest {
         .thenReturn(new TaskResponse(unfinished, List.of(), List.of()));
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.id").value(taskId))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.task(taskId)))
         .andExpect(jsonPath("$.finishedAt").doesNotExist());
 
     verify(service).updateFinished(USER_ID, taskId, false);
@@ -882,7 +878,7 @@ class TaskControllerTest {
         .when(service).updateFinished(USER_ID, taskId, true);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isNotFound());
@@ -903,7 +899,7 @@ class TaskControllerTest {
         .when(service).updateFinished(USER_ID, taskId, true);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isBadRequest());
@@ -922,7 +918,7 @@ class TaskControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", taskId)
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/{taskId}/finished", TestPublicIds.task(taskId))
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
         .andExpect(status().isBadRequest());
@@ -931,7 +927,7 @@ class TaskControllerTest {
   }
 
   @Test
-  void 完了状態更新失敗_パス変数が0以下なら400を返すこと() throws Exception {
+  void 完了状態更新失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Arrange
     String validRequest = """
         {
@@ -940,10 +936,10 @@ class TaskControllerTest {
         """;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/0/finished")
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tasks/invalid-id/finished")
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isNotFound());
 
     verifyNoInteractions(service);
   }
@@ -954,7 +950,7 @@ class TaskControllerTest {
     int taskId = 1;
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.delete("/tasks/{taskId}", taskId))
+    mockMvc.perform(MockMvcRequestBuilders.delete("/tasks/{taskId}", TestPublicIds.task(taskId)))
         .andExpect(status().isNoContent())
         .andExpect(content().string(""));
 
@@ -969,17 +965,17 @@ class TaskControllerTest {
         .when(service).deleteById(USER_ID, taskId);
 
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.delete("/tasks/{taskId}", taskId))
+    mockMvc.perform(MockMvcRequestBuilders.delete("/tasks/{taskId}", TestPublicIds.task(taskId)))
         .andExpect(status().isNotFound());
 
     verify(service).deleteById(USER_ID, taskId);
   }
 
   @Test
-  void 削除失敗_パス変数の型が不正なら400を返すこと() throws Exception {
+  void 削除失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
     // Act & Assert
-    mockMvc.perform(MockMvcRequestBuilders.delete("/tasks/abc"))
-        .andExpect(status().isBadRequest());
+    mockMvc.perform(MockMvcRequestBuilders.delete("/tasks/invalid-id"))
+        .andExpect(status().isNotFound());
 
     verifyNoInteractions(service);
   }

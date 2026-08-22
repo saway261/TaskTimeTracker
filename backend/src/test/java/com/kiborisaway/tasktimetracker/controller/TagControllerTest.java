@@ -20,6 +20,7 @@ import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.TagService;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
 import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.util.List;
@@ -58,7 +59,7 @@ class TagControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.length()").value(2))
-        .andExpect(jsonPath("$[0].id").value(1))
+        .andExpect(jsonPath("$[0].id").value(TestPublicIds.tag(1)))
         .andExpect(jsonPath("$[0].name").value("調査"))
         .andExpect(jsonPath("$[0].isArchived").value(false))
         .andExpect(jsonPath("$[0].assignedTaskCount").value(3));
@@ -111,7 +112,7 @@ class TagControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.id").value(10))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.tag(10)))
         .andExpect(jsonPath("$.name").value("調査"));
 
     verify(service).create(eq(USER_ID), any(TagCreateRequest.class));
@@ -132,7 +133,7 @@ class TagControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(10))
+        .andExpect(jsonPath("$.id").value(TestPublicIds.tag(10)))
         .andExpect(jsonPath("$.name").value("ＡＰＩ"));
   }
 
@@ -194,7 +195,7 @@ class TagControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.put("/tags/10")
+    mockMvc.perform(MockMvcRequestBuilders.put("/tags/" + TestPublicIds.tag(10))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
@@ -206,15 +207,9 @@ class TagControllerTest {
   }
 
   @Test
-  void リネーム失敗_パス変数が0以下なら400を返すこと() throws Exception {
-    mockMvc.perform(MockMvcRequestBuilders.put("/tags/0").with(csrf()))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  void リネーム失敗_パス変数の型が不正なら400を返すこと() throws Exception {
-    mockMvc.perform(MockMvcRequestBuilders.put("/tags/abc").with(csrf()))
-        .andExpect(status().isBadRequest());
+  void リネーム失敗_パス変数の形式が不正なら404を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.put("/tags/invalid-id").with(csrf()))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -225,7 +220,7 @@ class TagControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.put("/tags/10")
+    mockMvc.perform(MockMvcRequestBuilders.put("/tags/" + TestPublicIds.tag(10))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
@@ -242,7 +237,7 @@ class TagControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.put("/tags/10")
+    mockMvc.perform(MockMvcRequestBuilders.put("/tags/" + TestPublicIds.tag(10))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
@@ -260,7 +255,7 @@ class TagControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.put("/tags/999")
+    mockMvc.perform(MockMvcRequestBuilders.put("/tags/" + TestPublicIds.tag(999))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
@@ -277,7 +272,7 @@ class TagControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tags/10/archived")
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tags/" + TestPublicIds.tag(10) + "/archived")
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
@@ -289,7 +284,7 @@ class TagControllerTest {
 
   @Test
   void アーカイブ状態更新失敗_リクエストボディにisArchivedがなければ400を返すこと() throws Exception {
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tags/10/archived")
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tags/" + TestPublicIds.tag(10) + "/archived")
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content("{}"))
@@ -306,7 +301,7 @@ class TagControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tags/10/archived")
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tags/" + TestPublicIds.tag(10) + "/archived")
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))
@@ -323,7 +318,7 @@ class TagControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.patch("/tags/999/archived")
+    mockMvc.perform(MockMvcRequestBuilders.patch("/tags/" + TestPublicIds.tag(999) + "/archived")
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(validRequest))

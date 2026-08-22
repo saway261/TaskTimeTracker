@@ -3,6 +3,7 @@ package com.kiborisaway.tasktimetracker.controller;
 import com.kiborisaway.tasktimetracker.data.dto.item_order.TaskGroupItemOrderReplaceRequest;
 import com.kiborisaway.tasktimetracker.data.dto.item_order.TaskGroupItemOrderResponse;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.TaskGroupItemOrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,7 +13,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,7 +41,7 @@ public class TaskGroupItemOrderController {
           @Parameter(in = ParameterIn.PATH,
               name = "tgId", required = true,
               description = "タスクグループID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -68,8 +68,8 @@ public class TaskGroupItemOrderController {
   @GetMapping("/task-groups/{tgId}/item-order")
   public List<TaskGroupItemOrderResponse> getAll(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tgId) {
-    return service.findAllInTaskGroup(user.getUserId(), tgId);
+      @PathVariable TaskGroupId tgId) {
+    return service.findAllInTaskGroup(user.getUserId(), tgId.value());
   }
 
   @Operation(
@@ -82,7 +82,7 @@ public class TaskGroupItemOrderController {
           @Parameter(in = ParameterIn.PATH,
               name = "tgId", required = true,
               description = "タスクグループID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -110,8 +110,8 @@ public class TaskGroupItemOrderController {
   @PutMapping("/task-groups/{tgId}/item-order")
   public List<TaskGroupItemOrderResponse> replace(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tgId,
+      @PathVariable TaskGroupId tgId,
       @RequestBody @Validated TaskGroupItemOrderReplaceRequest request) {
-    return service.replaceOrder(user.getUserId(), tgId, request.getItems());
+    return service.replaceOrder(user.getUserId(), tgId.value(), request.getItems());
   }
 }

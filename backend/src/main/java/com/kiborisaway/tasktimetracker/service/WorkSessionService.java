@@ -7,6 +7,11 @@ import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionEndNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.WorkSessionOperationNotAllowedException;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
+import com.kiborisaway.tasktimetracker.publicid.id.WorkSessionId;
+import com.kiborisaway.tasktimetracker.repository.ActiveTimerRow;
 import com.kiborisaway.tasktimetracker.repository.TaskRepository;
 import com.kiborisaway.tasktimetracker.repository.WorkSessionRepository;
 import java.util.List;
@@ -74,7 +79,19 @@ public class WorkSessionService {
    * ログインユーザーが所有する全タスクの未終了タイマーを取得します。
    */
   public List<ActiveTimerResponse> getAllActive(int userId) {
-    return wsRepository.findAllActiveByUserId(userId);
+    return wsRepository.findAllActiveByUserId(userId).stream()
+        .map(WorkSessionService::toActiveTimerResponse)
+        .toList();
+  }
+
+  private static ActiveTimerResponse toActiveTimerResponse(ActiveTimerRow row) {
+    return new ActiveTimerResponse(
+        new WorkSessionId(row.getSessionId()),
+        new TaskId(row.getTaskId()),
+        row.getTaskTitle(),
+        new ProjectId(row.getProjectId()),
+        row.getTaskGroupId() == null ? null : new TaskGroupId(row.getTaskGroupId()),
+        row.getStartedAt());
   }
 
   /**

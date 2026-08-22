@@ -5,6 +5,7 @@ import com.kiborisaway.tasktimetracker.data.dto.project.ProjectResponse;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateFinishedRequest;
 import com.kiborisaway.tasktimetracker.data.dto.project.ProjectUpdateRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.ProjectService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +15,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -83,10 +83,7 @@ public class ProjectController {
           @Parameter(in = ParameterIn.PATH,
               name = "projectId", required = true,
               description = "プロジェクトID",
-              schema = @Schema(
-                  type = "integer",
-                  format = "int32"
-              )
+              schema = @Schema(type = "string")
           )},
       responses = {
           @ApiResponse(
@@ -112,8 +109,8 @@ public class ProjectController {
   @GetMapping("/{id}")
   public ProjectResponse getById(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int id) {
-    return service.findById(user.getUserId(), id);
+      @PathVariable ProjectId id) {
+    return service.findById(user.getUserId(), id.value());
   }
 
   @Operation(
@@ -185,9 +182,9 @@ public class ProjectController {
   @PutMapping("/{id}")
   public ResponseEntity<ProjectResponse> update(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int id,
+      @PathVariable ProjectId id,
       @RequestBody @Validated ProjectUpdateRequest request) {
-    return ResponseEntity.ok(service.update(user.getUserId(), id, request));
+    return ResponseEntity.ok(service.update(user.getUserId(), id.value(), request));
   }
 
   @Operation(
@@ -200,7 +197,7 @@ public class ProjectController {
           @Parameter(in = ParameterIn.PATH,
               name = "id", required = true,
               description = "プロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -227,9 +224,9 @@ public class ProjectController {
   @PatchMapping("/{id}/finished")
   public ResponseEntity<ProjectResponse> updateFinished(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int id,
+      @PathVariable ProjectId id,
       @RequestBody @Validated ProjectUpdateFinishedRequest request) {
     return ResponseEntity.ok(
-        service.updateFinished(user.getUserId(), id, request.isFinished()));
+        service.updateFinished(user.getUserId(), id.value(), request.isFinished()));
   }
 }

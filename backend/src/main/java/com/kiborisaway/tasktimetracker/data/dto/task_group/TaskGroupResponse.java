@@ -2,6 +2,8 @@ package com.kiborisaway.tasktimetracker.data.dto.task_group;
 
 import com.kiborisaway.tasktimetracker.data.dto.memo.MemoResponse;
 import com.kiborisaway.tasktimetracker.data.entity.TaskGroup;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import lombok.EqualsAndHashCode;
@@ -12,11 +14,11 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class TaskGroupResponse {
 
-  @Schema(description = "プロジェクトID", example = "1")
-  private final Integer id;
+  @Schema(description = "プロジェクトID", example = "Xr9mQ2vKp3")
+  private final TaskGroupId id;
 
-  @Schema(description = "親となるプロジェクトID", example = "1")
-  private final Integer projectId;
+  @Schema(description = "親となるプロジェクトID", example = "Xr9mQ2vKp3")
+  private final ProjectId projectId;
 
   @Schema(description = "タスクグループ名", example = "環境構築")
   private final String title;
@@ -31,8 +33,8 @@ public class TaskGroupResponse {
   private final List<MemoResponse> memos;
 
   public TaskGroupResponse(TaskGroup tg, List<MemoResponse> memos) {
-    this.id = tg.getId();
-    this.projectId = tg.getProjectId();
+    this.id = new TaskGroupId(tg.getId());
+    this.projectId = new ProjectId(tg.getProjectId());
     this.title = tg.getTitle();
     this.description = tg.getDescription();
     this.isFinished = tg.getIsFinished();

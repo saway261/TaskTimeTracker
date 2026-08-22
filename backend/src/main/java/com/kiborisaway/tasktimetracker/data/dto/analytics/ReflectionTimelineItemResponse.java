@@ -2,6 +2,8 @@ package com.kiborisaway.tasktimetracker.data.dto.analytics;
 
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
 import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,14 +15,14 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class ReflectionTimelineItemResponse {
 
-  @Schema(description = "タスクID", example = "1")
-  private final int taskId;
+  @Schema(description = "タスクID", example = "Xr9mQ2vKp3")
+  private final TaskId taskId;
 
   @Schema(description = "タスク名", example = "画面設計")
   private final String taskTitle;
 
-  @Schema(description = "プロジェクトID", example = "1")
-  private final int projectId;
+  @Schema(description = "プロジェクトID", example = "Xr9mQ2vKp3")
+  private final ProjectId projectId;
 
   @Schema(description = "プロジェクト名", example = "タスク管理アプリ開発")
   private final String projectTitle;
@@ -72,9 +74,9 @@ public class ReflectionTimelineItemResponse {
       String cause,
       String nextAction,
       List<TagSummaryResponse> tags) {
-    this.taskId = taskId;
+    this.taskId = new TaskId(taskId);
     this.taskTitle = taskTitle;
-    this.projectId = projectId;
+    this.projectId = new ProjectId(projectId);
     this.projectTitle = projectTitle;
     this.finishedAt = finishedAt;
     this.estimatedMinutes = estimatedMinutes;

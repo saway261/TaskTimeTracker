@@ -5,6 +5,10 @@ import com.kiborisaway.tasktimetracker.data.dto.work_session.WorkSessionUpdateRe
 import com.kiborisaway.tasktimetracker.data.dto.work_session.ActiveTimerResponse;
 import com.kiborisaway.tasktimetracker.data.entity.WorkSession;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
+import com.kiborisaway.tasktimetracker.publicid.id.WorkSessionId;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.WorkSessionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +18,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -46,7 +49,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -70,8 +73,8 @@ public class WorkSessionController {
   @GetMapping("/tasks/{taskId}/work-sessions/total-minutes")
   public int getTaskActualTotalTime(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId) {
-    return service.getTaskActualTotalTime(user.getUserId(), taskId);
+      @PathVariable TaskId taskId) {
+    return service.getTaskActualTotalTime(user.getUserId(), taskId.value());
   }
 
   @Operation(
@@ -81,7 +84,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "tgId", required = true,
               description = "タスクグループID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -105,8 +108,8 @@ public class WorkSessionController {
   @GetMapping("/task-groups/{tgId}/work-sessions/total-minutes")
   public int getTaskGroupActualTotalTime(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tgId) {
-    return service.getTaskGroupActualTotalTime(user.getUserId(), tgId);
+      @PathVariable TaskGroupId tgId) {
+    return service.getTaskGroupActualTotalTime(user.getUserId(), tgId.value());
   }
 
   @Operation(
@@ -116,7 +119,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "pId", required = true,
               description = "プロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -140,8 +143,8 @@ public class WorkSessionController {
   @GetMapping("/projects/{pId}/work-sessions/total-minutes")
   public int getProjectActualTotalTime(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int pId) {
-    return service.getProjectActualTotalTime(user.getUserId(), pId);
+      @PathVariable ProjectId pId) {
+    return service.getProjectActualTotalTime(user.getUserId(), pId.value());
   }
 
   @Operation(
@@ -151,7 +154,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -170,8 +173,8 @@ public class WorkSessionController {
   @GetMapping("/tasks/{taskId}/work-sessions")
   public List<WorkSession> getAllInTask(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId) {
-    return service.getAllInTask(user.getUserId(), taskId);
+      @PathVariable TaskId taskId) {
+    return service.getAllInTask(user.getUserId(), taskId.value());
   }
 
   @Operation(
@@ -198,7 +201,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "wsId", required = true,
               description = "作業セッションID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -222,8 +225,8 @@ public class WorkSessionController {
   @GetMapping("/work-sessions/{wsId}")
   public WorkSession get(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int wsId) {
-    return service.get(user.getUserId(), wsId);
+      @PathVariable WorkSessionId wsId) {
+    return service.get(user.getUserId(), wsId.value());
   }
 
   @Operation(
@@ -237,7 +240,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -261,9 +264,9 @@ public class WorkSessionController {
   @PostMapping("/tasks/{taskId}/work-sessions")
   public ResponseEntity<WorkSession> create(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId,
+      @PathVariable TaskId taskId,
       @RequestBody @Validated WorkSessionCreateRequest request) {
-    return ResponseEntity.ok(service.create(user.getUserId(), taskId, request));
+    return ResponseEntity.ok(service.create(user.getUserId(), taskId.value(), request));
   }
 
   @Operation(
@@ -276,7 +279,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "wsId", required = true,
               description = "作業セッションID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -300,8 +303,8 @@ public class WorkSessionController {
   @PostMapping("/work-sessions/{wsId}/end")
   public ResponseEntity<WorkSession> setEnd(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int wsId) {
-    return ResponseEntity.ok(service.setEnd(user.getUserId(), wsId));
+      @PathVariable WorkSessionId wsId) {
+    return ResponseEntity.ok(service.setEnd(user.getUserId(), wsId.value()));
   }
 
   @Operation(
@@ -315,7 +318,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "wsId", required = true,
               description = "作業セッションID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -344,10 +347,10 @@ public class WorkSessionController {
   @PatchMapping("/work-sessions/{wsId}")
   public ResponseEntity<WorkSession> update(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int wsId,
+      @PathVariable WorkSessionId wsId,
       @RequestBody @Validated WorkSessionUpdateRequest request
   ) {
-    return ResponseEntity.ok(service.update(user.getUserId(), wsId, request));
+    return ResponseEntity.ok(service.update(user.getUserId(), wsId.value(), request));
   }
 
   @Operation(
@@ -357,7 +360,7 @@ public class WorkSessionController {
           @Parameter(in = ParameterIn.PATH,
               name = "workSessionId", required = true,
               description = "作業セッションID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -379,8 +382,8 @@ public class WorkSessionController {
   @DeleteMapping("/work-sessions/{workSessionId}")
   public ResponseEntity<Void> delete(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable("workSessionId") @Positive int wsId) {
-    service.delete(user.getUserId(), wsId);
+      @PathVariable("workSessionId") WorkSessionId wsId) {
+    service.delete(user.getUserId(), wsId.value());
     return ResponseEntity.noContent().build();
   }
 }

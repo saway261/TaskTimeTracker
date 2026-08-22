@@ -4,6 +4,8 @@ import com.kiborisaway.tasktimetracker.data.dto.reflection.ProjectReflectionOver
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionRequest;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionResponse;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.ReflectionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,7 +14,6 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.Positive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,7 +44,7 @@ public class ReflectionController {
           @Parameter(in = ParameterIn.PATH,
               name = "pId", required = true,
               description = "対象プロジェクトID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       responses = {
@@ -61,8 +62,8 @@ public class ReflectionController {
   @GetMapping("/projects/{pId}/reflections")
   public ProjectReflectionOverviewResponse getOverview(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int pId) {
-    return service.getOverview(user.getUserId(), pId);
+      @PathVariable ProjectId pId) {
+    return service.getOverview(user.getUserId(), pId.value());
   }
 
   @Operation(
@@ -72,7 +73,7 @@ public class ReflectionController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "対象タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -98,9 +99,9 @@ public class ReflectionController {
   @PostMapping("/tasks/{taskId}/reflection")
   public ResponseEntity<ReflectionResponse> create(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId,
+      @PathVariable TaskId taskId,
       @RequestBody @Validated ReflectionRequest request) {
-    ReflectionResponse response = service.register(user.getUserId(), taskId, request);
+    ReflectionResponse response = service.register(user.getUserId(), taskId.value(), request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
@@ -111,7 +112,7 @@ public class ReflectionController {
           @Parameter(in = ParameterIn.PATH,
               name = "taskId", required = true,
               description = "対象タスクID",
-              schema = @Schema(type = "integer", format = "int32")
+              schema = @Schema(type = "string")
           )
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -137,9 +138,9 @@ public class ReflectionController {
   @PutMapping("/tasks/{taskId}/reflection")
   public ResponseEntity<ReflectionResponse> update(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int taskId,
+      @PathVariable TaskId taskId,
       @RequestBody @Validated ReflectionRequest request) {
-    ReflectionResponse response = service.update(user.getUserId(), taskId, request);
+    ReflectionResponse response = service.update(user.getUserId(), taskId.value(), request);
     return ResponseEntity.ok(response);
   }
 }

@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.data.dto.reflection;
 
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import lombok.EqualsAndHashCode;
@@ -10,8 +11,8 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class ReflectionTaskGroupResponse {
 
-  @Schema(description = "タスクグループID", example = "1")
-  private final int id;
+  @Schema(description = "タスクグループID", example = "Xr9mQ2vKp3")
+  private final TaskGroupId id;
 
   @Schema(description = "タスクグループ名", example = "バックエンド開発")
   private final String title;
@@ -21,7 +22,7 @@ public class ReflectionTaskGroupResponse {
 
   public ReflectionTaskGroupResponse(
       int id, String title, List<ReflectionTaskResponse> tasks) {
-    this.id = id;
+    this.id = new TaskGroupId(id);
     this.title = title;
     this.tasks = tasks;
   }

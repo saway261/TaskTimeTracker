@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.support.AuthenticatedUserTestFactory;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Types;
@@ -66,7 +67,7 @@ class AnalyticsIntegrationTest {
     queryCounter.reset();
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.analyzedTaskCount").value(0))
@@ -98,7 +99,7 @@ class AnalyticsIntegrationTest {
     queryCounter.reset();
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.analyzedTaskCount").value(5))
@@ -126,7 +127,7 @@ class AnalyticsIntegrationTest {
     queryCounter.reset();
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.analyzedTaskCount").value(25));
@@ -147,7 +148,7 @@ class AnalyticsIntegrationTest {
     queryCounter.reset();
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.trend").isEmpty())
@@ -168,7 +169,7 @@ class AnalyticsIntegrationTest {
     }
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.trendAvailability.available").value(true))
@@ -183,7 +184,7 @@ class AnalyticsIntegrationTest {
   @Test
   void 取得失敗_存在しないプロジェクトIDで404を返すこと() throws Exception {
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("projectId", "999999")
+            .param("projectId", TestPublicIds.project(999999))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isNotFound());
   }
@@ -192,7 +193,7 @@ class AnalyticsIntegrationTest {
   void 取得失敗_他ユーザーのプロジェクトIDを指定すると404を返すこと() throws Exception {
     // プロジェクトID 3 は user-b（id=2）が所有する。
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("projectId", "3")
+            .param("projectId", TestPublicIds.project(3))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isNotFound());
   }
@@ -229,7 +230,7 @@ class AnalyticsIntegrationTest {
     }
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.sizeBuckets[0].bucketCode").value("M15"))
@@ -253,7 +254,7 @@ class AnalyticsIntegrationTest {
     }
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.analyzedTaskCount").value(501))
@@ -275,8 +276,8 @@ class AnalyticsIntegrationTest {
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalCount").value(2))
-        .andExpect(jsonPath("$.items[0].taskId").value(task2))
-        .andExpect(jsonPath("$.items[1].taskId").value(task1))
+        .andExpect(jsonPath("$.items[0].taskId").value(TestPublicIds.task(task2)))
+        .andExpect(jsonPath("$.items[1].taskId").value(TestPublicIds.task(task1)))
         .andExpect(jsonPath("$.hasNext").value(false));
 
     // projectId・causeCategoryとも未指定なので所有権確認・カテゴリ検証のクエリは発生しない。
@@ -293,7 +294,7 @@ class AnalyticsIntegrationTest {
     queryCounter.reset();
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk());
 
@@ -335,26 +336,26 @@ class AnalyticsIntegrationTest {
 
     // 完了日時降順: task3, task2, task1。size=2のページ0にはtask3・task2が入る。
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .param("size", "2")
             .param("page", "0")
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(2))
-        .andExpect(jsonPath("$.items[0].taskId").value(task3))
+        .andExpect(jsonPath("$.items[0].taskId").value(TestPublicIds.task(task3)))
         .andExpect(jsonPath("$.items[0].causeCategories").isEmpty())
-        .andExpect(jsonPath("$.items[1].taskId").value(task2))
+        .andExpect(jsonPath("$.items[1].taskId").value(TestPublicIds.task(task2)))
         .andExpect(jsonPath("$.items[1].causeCategories[0].code").value("FATIGUE"))
         .andExpect(jsonPath("$.hasNext").value(true));
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .param("size", "2")
             .param("page", "1")
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(1))
-        .andExpect(jsonPath("$.items[0].taskId").value(task1))
+        .andExpect(jsonPath("$.items[0].taskId").value(TestPublicIds.task(task1)))
         .andExpect(jsonPath("$.items[0].causeCategories[0].code").value("OTHER"))
         .andExpect(jsonPath("$.hasNext").value(false));
   }
@@ -367,7 +368,7 @@ class AnalyticsIntegrationTest {
     insertReflection(task, null, "次のアクションだけ書いた");
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[0].actualMinutes").value(0))
@@ -386,7 +387,7 @@ class AnalyticsIntegrationTest {
   @Test
   void タイムライン取得失敗_存在しないプロジェクトIDで404を返すこと() throws Exception {
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
-            .param("projectId", "999999")
+            .param("projectId", TestPublicIds.project(999999))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isNotFound());
   }
@@ -401,7 +402,7 @@ class AnalyticsIntegrationTest {
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.items[*].taskId").value(not(hasItem(task))));
+        .andExpect(jsonPath("$.items[*].taskId").value(not(hasItem(TestPublicIds.task(task)))));
   }
 
   @Test
@@ -410,7 +411,7 @@ class AnalyticsIntegrationTest {
     queryCounter.reset();
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.analyzedTaskCount").value(0))
@@ -446,7 +447,7 @@ class AnalyticsIntegrationTest {
     insertReflection(unclassifiedTask, "特に理由なし", null);
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
-            .param("projectId", String.valueOf(projectId))
+            .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.analyzedTaskCount").value(3))
@@ -478,7 +479,7 @@ class AnalyticsIntegrationTest {
   @Test
   void 原因カテゴリ集計取得失敗_存在しないプロジェクトIDで404を返すこと() throws Exception {
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
-            .param("projectId", "999999")
+            .param("projectId", TestPublicIds.project(999999))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isNotFound());
   }

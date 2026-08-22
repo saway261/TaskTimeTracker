@@ -1,5 +1,6 @@
 package com.kiborisaway.tasktimetracker.data.dto.tag;
 
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -9,8 +10,8 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class TagResponse {
 
-  @Schema(description = "タグID", example = "1")
-  private final Integer id;
+  @Schema(description = "タグID", example = "Xr9mQ2vKp3")
+  private final TagId id;
 
   @Schema(description = "タグ名", example = "調査")
   private final String name;
@@ -23,7 +24,7 @@ public class TagResponse {
   private final Integer assignedTaskCount;
 
   public TagResponse(int id, String name, boolean isArchived, int assignedTaskCount) {
-    this.id = id;
+    this.id = new TagId(id);
     this.name = name;
     this.isArchived = isArchived;
     this.assignedTaskCount = assignedTaskCount;

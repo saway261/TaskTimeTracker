@@ -5,6 +5,7 @@ import com.kiborisaway.tasktimetracker.data.dto.tag.TagResponse;
 import com.kiborisaway.tasktimetracker.data.dto.tag.TagUpdateArchivedRequest;
 import com.kiborisaway.tasktimetracker.data.dto.tag.TagUpdateRequest;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
 import com.kiborisaway.tasktimetracker.security.AuthenticatedUser;
 import com.kiborisaway.tasktimetracker.service.TagService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +15,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -103,7 +103,7 @@ public class TagController {
       parameters = {
           @Parameter(in = ParameterIn.PATH, name = "tagId", required = true,
               description = "タグID",
-              schema = @Schema(type = "integer", format = "int32"))
+              schema = @Schema(type = "string"))
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "変更後のタグ名",
@@ -126,9 +126,9 @@ public class TagController {
   @PutMapping("/{tagId}")
   public ResponseEntity<TagResponse> update(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tagId,
+      @PathVariable TagId tagId,
       @RequestBody @Validated TagUpdateRequest request) {
-    return ResponseEntity.ok(service.update(user.getUserId(), tagId, request));
+    return ResponseEntity.ok(service.update(user.getUserId(), tagId.value(), request));
   }
 
   @Operation(
@@ -141,7 +141,7 @@ public class TagController {
       parameters = {
           @Parameter(in = ParameterIn.PATH, name = "tagId", required = true,
               description = "タグID",
-              schema = @Schema(type = "integer", format = "int32"))
+              schema = @Schema(type = "string"))
       },
       requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
           description = "アーカイブ状態フラグ（true: アーカイブする、false: 解除する）",
@@ -164,9 +164,9 @@ public class TagController {
   @PatchMapping("/{tagId}/archived")
   public ResponseEntity<TagResponse> updateArchived(
       @Parameter(hidden = true) @AuthenticationPrincipal AuthenticatedUser user,
-      @PathVariable @Positive int tagId,
+      @PathVariable TagId tagId,
       @RequestBody @Validated TagUpdateArchivedRequest request) {
     return ResponseEntity.ok(
-        service.updateArchived(user.getUserId(), tagId, request.isArchived()));
+        service.updateArchived(user.getUserId(), tagId.value(), request.isArchived()));
   }
 }

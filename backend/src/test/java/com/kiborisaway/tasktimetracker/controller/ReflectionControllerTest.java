@@ -23,6 +23,7 @@ import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorDetailsBuilder;
 import com.kiborisaway.tasktimetracker.security.JsonAuthenticationEntryPoint;
 import com.kiborisaway.tasktimetracker.service.ReflectionService;
+import com.kiborisaway.tasktimetracker.support.TestPublicIds;
 import com.kiborisaway.tasktimetracker.support.WebMvcTestSecuritySupportConfig;
 import com.kiborisaway.tasktimetracker.support.WithMockAuthenticatedUser;
 import java.time.LocalDateTime;
@@ -94,12 +95,12 @@ class ReflectionControllerTest {
         List.of(new ReflectionTaskGroupResponse(4, "グループA", List.of(groupedTask))));
     when(service.getOverview(USER_ID, 3)).thenReturn(response);
 
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/reflections", 3))
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/reflections", TestPublicIds.project(3)))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.projectId").value(3))
+        .andExpect(jsonPath("$.projectId").value(TestPublicIds.project(3)))
         .andExpect(jsonPath("$.projectTitle").value("プロジェクトX"))
-        .andExpect(jsonPath("$.tasks[0].id").value(6))
+        .andExpect(jsonPath("$.tasks[0].id").value(TestPublicIds.task(6)))
         .andExpect(jsonPath("$.tasks[0].gapRateCached").value(50.0))
         .andExpect(jsonPath("$.tasks[0].reflection.id").value(20))
         .andExpect(jsonPath("$.tasks[0].reflection.causeCategories.length()").value(1))
@@ -107,8 +108,8 @@ class ReflectionControllerTest {
             .value("TASK_BREAKDOWN"))
         .andExpect(jsonPath("$.tasks[0].reflection.causeCategories[0].label")
             .value("作業の洗い出しが足りなかった"))
-        .andExpect(jsonPath("$.taskGroups[0].id").value(4))
-        .andExpect(jsonPath("$.taskGroups[0].tasks[0].id").value(9))
+        .andExpect(jsonPath("$.taskGroups[0].id").value(TestPublicIds.taskGroup(4)))
+        .andExpect(jsonPath("$.taskGroups[0].tasks[0].id").value(TestPublicIds.task(9)))
         .andExpect(jsonPath("$.taskGroups[0].tasks[0].actualMinutesCached").isEmpty())
         .andExpect(jsonPath("$.taskGroups[0].tasks[0].reflection").isEmpty());
 
@@ -120,20 +121,14 @@ class ReflectionControllerTest {
     when(service.getOverview(USER_ID, 999))
         .thenThrow(new TargetNotFoundException("project.id", "project not found"));
 
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/reflections", 999))
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/reflections", TestPublicIds.project(999)))
         .andExpect(status().isNotFound());
   }
 
   @Test
-  void 一覧取得失敗_プロジェクトIDが負値の場合は400を返すこと() throws Exception {
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/{pId}/reflections", -1))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  void 一覧取得失敗_プロジェクトIDが非数値の場合は400を返すこと() throws Exception {
-    mockMvc.perform(MockMvcRequestBuilders.get("/projects/not-a-number/reflections"))
-        .andExpect(status().isBadRequest());
+  void 一覧取得失敗_プロジェクトIDの形式が不正なら404を返すこと() throws Exception {
+    mockMvc.perform(MockMvcRequestBuilders.get("/projects/invalid-id/reflections"))
+        .andExpect(status().isNotFound());
   }
 
   @Test
@@ -141,14 +136,14 @@ class ReflectionControllerTest {
     when(service.register(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class)))
         .thenReturn(reflectionResponse());
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isCreated())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.id").value(20))
-        .andExpect(jsonPath("$.taskId").value(TASK_ID))
+        .andExpect(jsonPath("$.taskId").value(TestPublicIds.task(TASK_ID)))
         .andExpect(jsonPath("$.causeCategories.length()").value(1))
         .andExpect(jsonPath("$.causeCategories[0].code").value("TASK_BREAKDOWN"))
         .andExpect(jsonPath("$.causeCategories[0].label").value("作業の洗い出しが足りなかった"))
@@ -165,13 +160,13 @@ class ReflectionControllerTest {
     when(service.update(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class)))
         .thenReturn(reflectionResponse());
 
-    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(20))
-        .andExpect(jsonPath("$.taskId").value(TASK_ID))
+        .andExpect(jsonPath("$.taskId").value(TestPublicIds.task(TASK_ID)))
         .andExpect(jsonPath("$.causeCategories[0].code").value("TASK_BREAKDOWN"));
 
     verify(service).update(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class));
@@ -189,7 +184,7 @@ class ReflectionControllerTest {
     when(service.register(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class)))
         .thenReturn(reflectionResponse());
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(request))
@@ -205,7 +200,7 @@ class ReflectionControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
@@ -222,7 +217,7 @@ class ReflectionControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
@@ -239,7 +234,7 @@ class ReflectionControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
@@ -256,7 +251,7 @@ class ReflectionControllerTest {
         }
         """;
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidRequest))
@@ -269,7 +264,7 @@ class ReflectionControllerTest {
         .thenThrow(new ReflectionCauseCategoryInvalidException(
             "reflection.causeCategoryCodes", "指定した原因カテゴリは選択できません"));
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
@@ -283,7 +278,7 @@ class ReflectionControllerTest {
         .thenThrow(new ReflectionCauseRequiredException(
             "reflection.cause", "選択した原因カテゴリでは、原因の記述が必要です"));
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
@@ -296,7 +291,7 @@ class ReflectionControllerTest {
     when(service.register(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class)))
         .thenThrow(new TargetNotFoundException("task.id", "task not found"));
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
@@ -308,7 +303,7 @@ class ReflectionControllerTest {
     when(service.update(eq(USER_ID), eq(TASK_ID), any(ReflectionRequest.class)))
         .thenThrow(new TargetNotFoundException("reflection.taskId", "reflection not found"));
 
-    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
@@ -321,7 +316,7 @@ class ReflectionControllerTest {
         .thenThrow(new ReflectionAlreadyExistsException(
             "reflection.taskId", "reflection already exists"));
 
-    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.post("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))
@@ -335,7 +330,7 @@ class ReflectionControllerTest {
         .thenThrow(new ReflectionOperationNotAllowedException(
             "task.finishedAt", "task is unfinished"));
 
-    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/reflection", TASK_ID)
+    mockMvc.perform(MockMvcRequestBuilders.put("/tasks/{taskId}/reflection", TestPublicIds.task(TASK_ID))
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(VALID_REQUEST))

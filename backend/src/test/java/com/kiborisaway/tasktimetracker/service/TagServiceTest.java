@@ -21,6 +21,7 @@ import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import com.kiborisaway.tasktimetracker.exception.TagLimitExceededException;
 import com.kiborisaway.tasktimetracker.exception.TagNameDuplicateException;
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
 import com.kiborisaway.tasktimetracker.repository.TagRepository;
 import com.kiborisaway.tasktimetracker.repository.TagRow;
 import java.util.List;
@@ -55,8 +56,8 @@ class TagServiceTest {
         .extracting(TagResponse::getId, TagResponse::getName, TagResponse::getIsArchived,
             TagResponse::getAssignedTaskCount)
         .containsExactly(
-            tuple(1, "調査", false, 3),
-            tuple(2, "設定", true, 0));
+            tuple(new TagId(1), "調査", false, 3),
+            tuple(new TagId(2), "設定", true, 0));
   }
 
   @Test
@@ -71,7 +72,7 @@ class TagServiceTest {
     TagService.CreateResult actual = sut.create(USER_ID, request);
 
     assertThat(actual.created()).isTrue();
-    assertThat(actual.tag().getId()).isEqualTo(10);
+    assertThat(actual.tag().getId()).isEqualTo(new TagId(10));
     assertThat(actual.tag().getName()).isEqualTo("調査");
     assertThat(actual.tag().getAssignedTaskCount()).isZero();
     verify(repository).insert(any(Tag.class));
@@ -190,7 +191,7 @@ class TagServiceTest {
     TagService.CreateResult actual = sut.create(USER_ID, request);
 
     assertThat(actual.created()).isFalse();
-    assertThat(actual.tag().getId()).isEqualTo(10);
+    assertThat(actual.tag().getId()).isEqualTo(new TagId(10));
     assertThat(actual.tag().getName()).isEqualTo("ＡＰＩ");
     assertThat(actual.tag().getAssignedTaskCount()).isEqualTo(4);
     verify(repository, never()).insert(any(Tag.class));
@@ -253,7 +254,7 @@ class TagServiceTest {
 
     TagResponse actual = sut.update(USER_ID, 10, request);
 
-    assertThat(actual.getId()).isEqualTo(10);
+    assertThat(actual.getId()).isEqualTo(new TagId(10));
   }
 
   @Test

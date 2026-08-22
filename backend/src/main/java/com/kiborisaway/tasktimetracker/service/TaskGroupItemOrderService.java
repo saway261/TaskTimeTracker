@@ -71,10 +71,11 @@ public class TaskGroupItemOrderService {
     validateSameItemSet(current, items);
 
     for (int i = 0; i < items.size(); i++) {
-      orderRepository.updatePositionByTaskId(items.get(i).id(), TEMP_POSITION_OFFSET + i, userId);
+      orderRepository.updatePositionByTaskId(
+          items.get(i).id().value(), TEMP_POSITION_OFFSET + i, userId);
     }
     for (int i = 0; i < items.size(); i++) {
-      orderRepository.updatePositionByTaskId(items.get(i).id(), i, userId);
+      orderRepository.updatePositionByTaskId(items.get(i).id().value(), i, userId);
     }
 
     return toResponses(orderRepository.findAllInTaskGroupOrdered(taskGroupId, userId));
@@ -86,7 +87,7 @@ public class TaskGroupItemOrderService {
         .map(TaskGroupItemOrder::getTaskId)
         .collect(Collectors.toSet());
     Set<Integer> requestedIds = items.stream()
-        .map(TaskGroupItemOrderItemRequest::id)
+        .map(item -> item.id().value())
         .collect(Collectors.toSet());
 
     if (requestedIds.size() != items.size()) {

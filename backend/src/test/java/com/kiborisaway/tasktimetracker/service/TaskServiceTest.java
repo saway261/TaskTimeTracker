@@ -27,7 +27,12 @@ import com.kiborisaway.tasktimetracker.exception.EstimateMinutesUpdateNotAllowed
 import com.kiborisaway.tasktimetracker.exception.TargetNotFoundException;
 import com.kiborisaway.tasktimetracker.exception.TaskFinishNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.TaskTagsInvalidException;
+import com.kiborisaway.tasktimetracker.publicid.id.ProjectId;
+import com.kiborisaway.tasktimetracker.publicid.id.TagId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskGroupId;
+import com.kiborisaway.tasktimetracker.publicid.id.TaskId;
 import com.kiborisaway.tasktimetracker.repository.MemoRepository;
+import com.kiborisaway.tasktimetracker.repository.TagSummaryRow;
 import com.kiborisaway.tasktimetracker.repository.ProjectItemOrderRepository;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionRepository;
@@ -111,8 +116,8 @@ class TaskServiceTest {
         .extracting(TaskResponse::getId, TaskResponse::getTaskGroupId, TaskResponse::getTitle,
             TaskResponse::getDescription, TaskResponse::getEstimatedMinutes)
         .containsExactly(
-            tuple(1, tgId, "タスク１", "説明", 60),
-            tuple(2, tgId, "タスク２", null, 120)
+            tuple(new TaskId(1), new TaskGroupId(tgId), "タスク１", "説明", 60),
+            tuple(new TaskId(2), new TaskGroupId(tgId), "タスク２", null, 120)
         );
     verify(tgRepository, times(1)).existsByIdAndUserId(tgId, USER_ID);
     verify(tsRepository, times(1)).findAllInTaskGroup(tgId, USER_ID);
@@ -124,10 +129,10 @@ class TaskServiceTest {
     assertThat(actual).allSatisfy(response -> assertThat(response.getMemos()).hasSize(1));
     assertThat(actual.get(0).getTags())
         .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
-        .containsExactly(tuple(10, "調査"));
+        .containsExactly(tuple(new TagId(10), "調査"));
     assertThat(actual.get(1).getTags())
         .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
-        .containsExactly(tuple(20, "設定"), tuple(30, "レビュー"));
+        .containsExactly(tuple(new TagId(20), "設定"), tuple(new TagId(30), "レビュー"));
   }
 
   @ParameterizedTest(name = "[{index}]タスクグループ内タスク一覧検索_第2引数に{0}を指定すると完了フラグ指定検索用のリポジトリのメソッドに{0}を指定して呼び出すこと")
@@ -149,7 +154,7 @@ class TaskServiceTest {
     // Assert
     assertThat(actual)
         .extracting(TaskResponse::getId, TaskResponse::getTaskGroupId, TaskResponse::getTitle)
-        .containsExactly(tuple(1, tgId, "タスク１"));
+        .containsExactly(tuple(new TaskId(1), new TaskGroupId(tgId), "タスク１"));
     verify(tgRepository, times(1)).existsByIdAndUserId(tgId, USER_ID);
     verify(tsRepository, times(1)).findAllInTaskGroupByCondition(tgId, flg, USER_ID);
     verify(tsRepository, never()).findAllInTaskGroup(anyInt(), anyInt());
@@ -203,8 +208,8 @@ class TaskServiceTest {
         .extracting(TaskResponse::getId, TaskResponse::getProjectId, TaskResponse::getTaskGroupId,
             TaskResponse::getTitle)
         .containsExactly(
-            tuple(1, pId, null, "タスク１"),
-            tuple(2, null, 1, "タスク２")
+            tuple(new TaskId(1), new ProjectId(pId), null, "タスク１"),
+            tuple(new TaskId(2), null, new TaskGroupId(1), "タスク２")
         );
     verify(pjRepository, times(1)).existsByIdAndUserId(pId, USER_ID);
     verify(tsRepository, times(1)).findAllInProject(pId, USER_ID);
@@ -230,7 +235,7 @@ class TaskServiceTest {
     // Assert
     assertThat(actual)
         .extracting(TaskResponse::getId, TaskResponse::getProjectId, TaskResponse::getTitle)
-        .containsExactly(tuple(1, pId, "タスク１"));
+        .containsExactly(tuple(new TaskId(1), new ProjectId(pId), "タスク１"));
     verify(pjRepository, times(1)).existsByIdAndUserId(pId, USER_ID);
     verify(tsRepository, times(1)).findAllInProjectByCondition(pId, flg, USER_ID);
     verify(tsRepository, never()).findAllInProject(anyInt(), anyInt());
@@ -259,14 +264,14 @@ class TaskServiceTest {
 
     when(tsRepository.findById(id, USER_ID)).thenReturn(expected);
     when(tagRepository.findTagsByTaskId(id)).thenReturn(List.of(
-        new TagSummaryResponse(10, "調査")));
+        new TagSummaryRow(10, "調査")));
 
     // Act
     TaskResponse actual = sut.findById(USER_ID, id);
 
     // Assert
-    assertThat(actual.getId()).isEqualTo(expected.getId());
-    assertThat(actual.getProjectId()).isEqualTo(expected.getProjectId());
+    assertThat(actual.getId()).isEqualTo(new TaskId(expected.getId()));
+    assertThat(actual.getProjectId()).isEqualTo(new ProjectId(expected.getProjectId()));
     assertThat(actual.getTaskGroupId()).isEqualTo(expected.getTaskGroupId());
     assertThat(actual.getTitle()).isEqualTo(expected.getTitle());
     assertThat(actual.getDescription()).isEqualTo(expected.getDescription());
@@ -274,7 +279,7 @@ class TaskServiceTest {
     assertThat(actual.getMemos()).isEmpty();
     assertThat(actual.getTags())
         .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
-        .containsExactly(tuple(10, "調査"));
+        .containsExactly(tuple(new TagId(10), "調査"));
     verify(tsRepository, times(1)).findById(id, USER_ID);
     verify(tagRepository, times(1)).findTagsByTaskId(id);
   }
@@ -314,7 +319,7 @@ class TaskServiceTest {
     TaskResponse actual = sut.register(USER_ID, pId, null, request);
 
     // Assert
-    assertThat(actual.getProjectId()).isEqualTo(pId);
+    assertThat(actual.getProjectId()).isEqualTo(new ProjectId(pId));
     assertThat(actual.getTaskGroupId()).isNull();
     assertThat(actual.getMemos()).isEmpty();
     verify(pjRepository, times(1)).existsByIdAndUserId(pId, USER_ID);
@@ -351,7 +356,7 @@ class TaskServiceTest {
     TaskResponse actual = sut.register(USER_ID, null, tgId, request);
 
     // Assert
-    assertThat(actual.getTaskGroupId()).isEqualTo(tgId);
+    assertThat(actual.getTaskGroupId()).isEqualTo(new TaskGroupId(tgId));
     assertThat(actual.getProjectId()).isNull();
     assertThat(actual.getMemos()).isEmpty();
     verify(tgRepository, times(1)).existsByIdAndUserId(tgId, USER_ID);
@@ -434,7 +439,7 @@ class TaskServiceTest {
     request.setTitle("タスク１");
     request.setDescription("説明");
     request.setEstimatedMinutes(60);
-    request.setTagIds(List.of(10, 20));
+    request.setTagIds(List.of(new TagId(10), new TagId(20)));
 
     when(pjRepository.existsByIdAndUserId(pId, USER_ID)).thenReturn(true);
     when(tagRepository.countOwnedByIds(USER_ID, List.of(10, 20))).thenReturn(2);
@@ -465,7 +470,7 @@ class TaskServiceTest {
     request.setTitle("タスク１");
     request.setDescription("説明");
     request.setEstimatedMinutes(60);
-    request.setTagIds(tagIds);
+    request.setTagIds(tagIds.stream().map(TagId::new).toList());
 
     when(pjRepository.existsByIdAndUserId(pId, USER_ID)).thenReturn(true);
     when(tagRepository.countOwnedByIds(USER_ID, tagIds)).thenReturn(tagIds.size());
@@ -522,7 +527,7 @@ class TaskServiceTest {
     request.setTitle("タスク１");
     request.setDescription("説明");
     request.setEstimatedMinutes(60);
-    request.setTagIds(List.of(10, 10));
+    request.setTagIds(List.of(new TagId(10), new TagId(10)));
 
     // Act & Assert
     assertThatThrownBy(() -> sut.register(USER_ID, pId, null, request))
@@ -541,7 +546,7 @@ class TaskServiceTest {
     request.setTitle("タスク１");
     request.setDescription("説明");
     request.setEstimatedMinutes(60);
-    request.setTagIds(List.of(10, 999));
+    request.setTagIds(List.of(new TagId(10), new TagId(999)));
 
     when(tagRepository.countOwnedByIds(USER_ID, List.of(10, 999))).thenReturn(1);
 
@@ -817,7 +822,7 @@ class TaskServiceTest {
     int taskId = 1;
     Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
     TaskTagsUpdateRequest request = new TaskTagsUpdateRequest();
-    request.setTagIds(List.of(10, 20));
+    request.setTagIds(List.of(new TagId(10), new TagId(20)));
 
     when(tsRepository.findById(taskId, USER_ID)).thenReturn(task);
     when(tagRepository.countOwnedByIds(USER_ID, List.of(10, 20))).thenReturn(2);
@@ -857,7 +862,7 @@ class TaskServiceTest {
     // Arrange
     int taskId = 999;
     TaskTagsUpdateRequest request = new TaskTagsUpdateRequest();
-    request.setTagIds(List.of(10));
+    request.setTagIds(List.of(new TagId(10)));
 
     when(tsRepository.findById(taskId, USER_ID)).thenReturn(null);
 
@@ -875,7 +880,7 @@ class TaskServiceTest {
     int taskId = 1;
     Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
     TaskTagsUpdateRequest request = new TaskTagsUpdateRequest();
-    request.setTagIds(List.of(10, 10));
+    request.setTagIds(List.of(new TagId(10), new TagId(10)));
 
     when(tsRepository.findById(taskId, USER_ID)).thenReturn(task);
 
@@ -893,7 +898,7 @@ class TaskServiceTest {
     int taskId = 1;
     Task task = new Task(taskId, 1, null, "タスク１", "説明", 60, null, null, null, null, null);
     TaskTagsUpdateRequest request = new TaskTagsUpdateRequest();
-    request.setTagIds(List.of(10, 999));
+    request.setTagIds(List.of(new TagId(10), new TagId(999)));
 
     when(tsRepository.findById(taskId, USER_ID)).thenReturn(task);
     when(tagRepository.countOwnedByIds(USER_ID, List.of(10, 999))).thenReturn(1);
