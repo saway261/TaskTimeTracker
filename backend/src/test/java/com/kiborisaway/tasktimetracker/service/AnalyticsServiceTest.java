@@ -2,6 +2,7 @@ package com.kiborisaway.tasktimetracker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,12 +13,14 @@ import com.kiborisaway.tasktimetracker.data.dto.analytics.EstimationAccuracyResp
 import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseAggregateResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseGroupResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.GapCauseItemResponse;
+import com.kiborisaway.tasktimetracker.data.dto.analytics.ProjectBreakdownItemResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionOutcomeFilter;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineQueryCondition;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.ScatterPointResponse;
 import com.kiborisaway.tasktimetracker.data.dto.analytics.SizeBucketResponse;
 import com.kiborisaway.tasktimetracker.data.dto.reflection.ReflectionCauseCategorySummaryResponse;
+import com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse;
 import com.kiborisaway.tasktimetracker.data.entity.Tag;
 import com.kiborisaway.tasktimetracker.exception.AnalyticsQueryInvalidException;
 import com.kiborisaway.tasktimetracker.exception.ReflectionCauseCategoryInvalidException;
@@ -30,11 +33,13 @@ import com.kiborisaway.tasktimetracker.repository.AnalyticsSummaryRow;
 import com.kiborisaway.tasktimetracker.repository.AnalyticsTrendRow;
 import com.kiborisaway.tasktimetracker.repository.ExcludedCountRow;
 import com.kiborisaway.tasktimetracker.repository.GapCauseRow;
+import com.kiborisaway.tasktimetracker.repository.ProjectBreakdownRow;
 import com.kiborisaway.tasktimetracker.repository.ProjectRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryLinkRow;
 import com.kiborisaway.tasktimetracker.repository.ReflectionCauseCategoryRepository;
 import com.kiborisaway.tasktimetracker.repository.ReflectionTimelineRow;
 import com.kiborisaway.tasktimetracker.repository.TagRepository;
+import com.kiborisaway.tasktimetracker.repository.TaskTagRow;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -170,6 +175,63 @@ class AnalyticsServiceTest {
     assertThat(actual.getTrend()).isEmpty();
     assertThat(actual.getTrendAvailability().isAvailable()).isFalse();
     assertThat(actual.getTrendAvailability().getRequiredCount()).isEqualTo(20);
+    // 分析対象0件でもエラーにならず空配列で返る（タグ機能実装計画フェーズB4の完了条件）。
+    assertThat(actual.getProjectBreakdown()).isEmpty();
+  }
+
+  @Test
+  void 取得成功_プロジェクト分布は分析対象件数によらず常に取得され正しく変換されること() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    stub(condition, summaryRow(2, 1, 0, 1, 1.2, 1.0, 1.4, 20.0),
+        varianceRow(null, null), excludedRow(2, 0, 0));
+    when(analyticsRepository.findProjectBreakdown(USER_ID, condition)).thenReturn(List.of(
+        new ProjectBreakdownRow(1, "開発基盤", 18),
+        new ProjectBreakdownRow(2, "社内ツール", 4)));
+
+    EstimationAccuracyResponse actual = sut.getEstimationAccuracy(USER_ID, condition);
+
+    // 分析対象が5件未満でsummaryの統計値がnullの状態でも、分布は返る。
+    assertThat(actual.getSummary().getAvailability().isAvailable()).isFalse();
+    assertThat(actual.getProjectBreakdown())
+        .extracting(
+            ProjectBreakdownItemResponse::getProjectId,
+            ProjectBreakdownItemResponse::getProjectTitle,
+            ProjectBreakdownItemResponse::getCount)
+        .containsExactly(tuple(1, "開発基盤", 18), tuple(2, "社内ツール", 4));
+  }
+
+  @Test
+  void 取得成功_散布図の各点にタグ取得済みのtaskId群から一括取得したタグが付くこと() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    stub(condition, summaryRow(1, 0, 0, 1, 1.0, 1.0, 1.0, 0.0),
+        varianceRow(null, null), excludedRow(1, 0, 0));
+    when(analyticsRepository.findScatterPoints(USER_ID, condition, 10.0, 500)).thenReturn(List.of(
+        new AnalyticsScatterPointRow(10, "タスクA", 60, 60, 0.0, "ON_TIME")));
+    when(tagRepository.findTagsInTasks(List.of(10))).thenReturn(List.of(
+        new TaskTagRow(10, 100, "調査")));
+
+    EstimationAccuracyResponse actual = sut.getEstimationAccuracy(USER_ID, condition);
+
+    assertThat(actual.getScatter()).hasSize(1);
+    assertThat(actual.getScatter().get(0).getTags())
+        .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
+        .containsExactly(tuple(100, "調査"));
+  }
+
+  @Test
+  void 取得成功_散布図が0件のときタグ取得クエリを呼び出さないこと() {
+    AnalyticsService sut = service();
+    AnalyticsQueryCondition condition = condition(null, null, null);
+    stub(condition, summaryRow(0, 0, 0, 0, null, null, null, null),
+        varianceRow(null, null), excludedRow(0, 0, 0));
+
+    sut.getEstimationAccuracy(USER_ID, condition);
+
+    // 空リストでIN()を発行するとMyBatisが構文エラーになるため、呼び出し自体を避けなければならない
+    // （既存のmemoRepository.findAllInTasksと同じ扱い。B2の完了条件と同じ理由）。
+    verify(tagRepository, never()).findTagsInTasks(ArgumentMatchers.any());
   }
 
   @Test
@@ -774,6 +836,36 @@ class AnalyticsServiceTest {
         .containsExactly("OTHER", "TASK_BREAKDOWN");
     assertThat(actual.getItems().get(1).getCauseCategories()).isEmpty();
     assertThat(actual.getItems().get(1).getCause()).isNull();
+  }
+
+  @Test
+  void タイムライン取得成功_タグがタスクID単位でグループ化されて付くこと() {
+    AnalyticsService sut = service();
+    ReflectionTimelineQueryCondition condition = timelineCondition(null, null, 0, 20);
+    LocalDateTime finishedAt = LocalDateTime.of(2026, 8, 10, 10, 0);
+    // taskId=1・reflectionId=10のタスクと、taskId=2・reflectionId=11のタスク。
+    // タグはreflectionIdではなくtaskIdでグループ化されなければならない。
+    ReflectionTimelineRow taskA = new ReflectionTimelineRow(
+        1, "タスクA", 1, "プロジェクトA", finishedAt, 60, 90, 30, 50.0, "LATE", 10, "原因A", null);
+    ReflectionTimelineRow taskB = new ReflectionTimelineRow(
+        2, "タスクB", 1, "プロジェクトA", finishedAt.minusDays(1), 60, 60, 0, 0.0, "ON_TIME", 11, null,
+        null);
+    when(analyticsRepository.findReflectionTimelineItems(USER_ID, condition, 10.0))
+        .thenReturn(List.of(taskA, taskB));
+    when(analyticsRepository.countReflectionTimeline(USER_ID, condition, 10.0)).thenReturn(2);
+    when(analyticsRepository.findReflectionTimelineCategories(USER_ID, condition, 10.0))
+        .thenReturn(List.of());
+    when(analyticsRepository.findReflectionTimelineTags(USER_ID, condition, 10.0))
+        .thenReturn(List.of(new TaskTagRow(1, 100, "調査")));
+
+    ReflectionTimelineResponse actual = sut.getReflectionTimeline(USER_ID, condition);
+
+    assertThat(actual.getItems().get(0).getTaskId()).isEqualTo(1);
+    assertThat(actual.getItems().get(0).getTags())
+        .extracting(TagSummaryResponse::getId, TagSummaryResponse::getName)
+        .containsExactly(tuple(100, "調査"));
+    assertThat(actual.getItems().get(1).getTaskId()).isEqualTo(2);
+    assertThat(actual.getItems().get(1).getTags()).isEmpty();
   }
 
   @Test

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.kiborisaway.tasktimetracker.data.dto.analytics.EstimationAccuracyResponse;
@@ -51,9 +52,24 @@ class AnalyticsControllerTest {
     when(service.getEstimationAccuracy(eq(USER_ID), any())).thenReturn(response());
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy"))
-        .andExpect(status().isOk());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.projectBreakdown").isArray());
 
     verify(service).getEstimationAccuracy(anyInt(), any());
+  }
+
+  @Test
+  void 取得成功_プロジェクト分布がJSONに含まれること() throws Exception {
+    when(service.getEstimationAccuracy(eq(USER_ID), any())).thenReturn(response(List.of(
+        new com.kiborisaway.tasktimetracker.data.dto.analytics.ProjectBreakdownItemResponse(
+            1, "開発基盤", 18))));
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/estimation-accuracy"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.projectBreakdown.length()").value(1))
+        .andExpect(jsonPath("$.projectBreakdown[0].projectId").value(1))
+        .andExpect(jsonPath("$.projectBreakdown[0].projectTitle").value("開発基盤"))
+        .andExpect(jsonPath("$.projectBreakdown[0].count").value(18));
   }
 
   @Test
@@ -123,6 +139,26 @@ class AnalyticsControllerTest {
         .andExpect(status().isOk());
 
     verify(service).getReflectionTimeline(anyInt(), any());
+  }
+
+  @Test
+  void タイムライン取得成功_タグがJSONに含まれること() throws Exception {
+    com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineItemResponse item =
+        new com.kiborisaway.tasktimetracker.data.dto.analytics.ReflectionTimelineItemResponse(
+            1, "タスクA", 1, "プロジェクトA",
+            java.time.LocalDateTime.of(2026, 8, 10, 10, 0),
+            60, 90, 30, 50.0, "LATE",
+            List.of(), "原因A", null,
+            List.of(new com.kiborisaway.tasktimetracker.data.dto.tag.TagSummaryResponse(
+                100, "調査")));
+    when(service.getReflectionTimeline(eq(USER_ID), any()))
+        .thenReturn(new ReflectionTimelineResponse(List.of(item), 0, 20, 1, false));
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].tags.length()").value(1))
+        .andExpect(jsonPath("$.items[0].tags[0].id").value(100))
+        .andExpect(jsonPath("$.items[0].tags[0].name").value("調査"));
   }
 
   @Test
@@ -236,6 +272,12 @@ class AnalyticsControllerTest {
   }
 
   private static EstimationAccuracyResponse response() {
+    return response(List.of());
+  }
+
+  private static EstimationAccuracyResponse response(
+      List<com.kiborisaway.tasktimetracker.data.dto.analytics.ProjectBreakdownItemResponse>
+          projectBreakdown) {
     return new EstimationAccuracyResponse(
         10.0,
         0,
@@ -249,6 +291,7 @@ class AnalyticsControllerTest {
         false,
         List.of(),
         List.of(),
-        new MetricAvailabilityResponse(false, 20, 0));
+        new MetricAvailabilityResponse(false, 20, 0),
+        projectBreakdown);
   }
 }

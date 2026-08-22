@@ -81,9 +81,10 @@ class AnalyticsIntegrationTest {
         .andExpect(jsonPath("$.trend").isEmpty())
         .andExpect(jsonPath("$.trendAvailability.available").value(false));
 
-    // projectId指定時はプロジェクト所有権確認1本＋集計5本（サマリー・直近傾向・除外件数・散布図・
-    // サイズ帯別）で6本になる。
-    assertThat(queryCounter.getCount()).isEqualTo(6);
+    // projectId指定時はプロジェクト所有権確認1本＋集計6本（サマリー・直近傾向・除外件数・散布図・
+    // サイズ帯別・プロジェクト分布）で7本になる。分析対象0件で散布図が空のため、タグ一括取得
+    // （タスクIDが空だとMyBatisのIN()が構文エラーになるため呼び出し自体を避ける）は発生しない。
+    assertThat(queryCounter.getCount()).isEqualTo(7);
   }
 
   @Test
@@ -108,7 +109,9 @@ class AnalyticsIntegrationTest {
         .andExpect(jsonPath("$.summary.factorMedian").value(1.0))
         .andExpect(jsonPath("$.summary.onTimeRate").value(60.0));
 
-    assertThat(queryCounter.getCount()).isEqualTo(6);
+    // 基本6本（サマリー・直近傾向・除外件数・散布図・サイズ帯別・プロジェクト分布）
+    // ＋所有権確認1本＋散布図の点が1件以上あるためタグ一括取得1本で8本になる。
+    assertThat(queryCounter.getCount()).isEqualTo(8);
   }
 
   @Test
@@ -128,9 +131,10 @@ class AnalyticsIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.analyzedTaskCount").value(25));
 
-    // 分析対象25件（MIN_TASKS_FOR_TREND=20以上）のため精度推移クエリが1本加わり7本になる。
+    // 基本8本（前テストの内訳＋プロジェクト分布・タグ一括取得）に、分析対象25件
+    // （MIN_TASKS_FOR_TREND=20以上）のため精度推移クエリが1本加わり9本になる。
     // 推移クエリ自体は返る行数（タスク件数に応じて増減する）によらず常に1本である点を確認する。
-    assertThat(queryCounter.getCount()).isEqualTo(7);
+    assertThat(queryCounter.getCount()).isEqualTo(9);
   }
 
   @Test
@@ -150,8 +154,9 @@ class AnalyticsIntegrationTest {
         .andExpect(jsonPath("$.trendAvailability.available").value(false))
         .andExpect(jsonPath("$.trendAvailability.currentCount").value(19));
 
-    // 19件（20件未満）のため推移クエリは発行されず、所有権確認込みで6本のまま。
-    assertThat(queryCounter.getCount()).isEqualTo(6);
+    // 19件（20件未満）のため推移クエリは発行されない。基本8本
+    // （前テストの内訳＋プロジェクト分布・タグ一括取得。散布図19件で0件超のためタグ取得も発生）のまま。
+    assertThat(queryCounter.getCount()).isEqualTo(8);
   }
 
   @Test
@@ -274,8 +279,9 @@ class AnalyticsIntegrationTest {
         .andExpect(jsonPath("$.items[1].taskId").value(task1))
         .andExpect(jsonPath("$.hasNext").value(false));
 
-    // projectId・causeCategoryとも未指定なので所有権確認・カテゴリ検証のクエリは発生せず3本のまま。
-    assertThat(queryCounter.getCount()).isEqualTo(3);
+    // projectId・causeCategoryとも未指定なので所有権確認・カテゴリ検証のクエリは発生しない。
+    // 集計3本（件数・一覧・カテゴリ一括取得）＋タグ一括取得1本で4本になる。
+    assertThat(queryCounter.getCount()).isEqualTo(4);
   }
 
   @Test
@@ -291,7 +297,8 @@ class AnalyticsIntegrationTest {
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk());
 
-    assertThat(queryCounter.getCount()).isEqualTo(4);
+    // projectId所有権確認1本＋集計3本＋タグ一括取得1本で5本になる。
+    assertThat(queryCounter.getCount()).isEqualTo(5);
   }
 
   @Test
@@ -309,8 +316,8 @@ class AnalyticsIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items[0].causeCategories[0].code").value("TASK_BREAKDOWN"));
 
-    // 原因カテゴリの有効性確認クエリが1本加わり、タイムライン集計3本と合わせて4本になる。
-    assertThat(queryCounter.getCount()).isEqualTo(4);
+    // 原因カテゴリの有効性確認クエリ1本＋タイムライン集計3本＋タグ一括取得1本で5本になる。
+    assertThat(queryCounter.getCount()).isEqualTo(5);
   }
 
   @Test

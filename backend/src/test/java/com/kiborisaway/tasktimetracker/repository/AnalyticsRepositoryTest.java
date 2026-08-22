@@ -306,6 +306,94 @@ class AnalyticsRepositoryTest {
   }
 
   @Test
+  void findProjectBreakdown_プロジェクト別件数が件数降順プロジェクト名昇順で返り合計が分析対象件数と一致すること() {
+    int projectA = insertProject(USER_ID, "分布検証A");
+    int projectB = insertProject(USER_ID, "分布検証B");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    insertFinishedTaskForTimeline(projectA, base, 100, 5.0);
+    insertFinishedTaskForTimeline(projectA, base.plusDays(1), 100, 5.0);
+    insertFinishedTaskForTimeline(projectA, base.plusDays(2), 100, 5.0);
+    insertFinishedTaskForTimeline(projectB, base, 100, 5.0);
+
+    // 自分の他フィクスチャの影響を受けないよう、両プロジェクトに絞り込んだ集計と個別集計を突き合わせる
+    AnalyticsQueryCondition conditionA = conditionFor(projectA);
+    AnalyticsQueryCondition conditionB = conditionFor(projectB);
+    int countA = sut.findSummary(USER_ID, conditionA, THRESHOLD).getAnalyzedCount();
+    int countB = sut.findSummary(USER_ID, conditionB, THRESHOLD).getAnalyzedCount();
+
+    List<ProjectBreakdownRow> actual = sut.findProjectBreakdown(USER_ID, new AnalyticsQueryCondition());
+
+    ProjectBreakdownRow rowA = actual.stream()
+        .filter(row -> row.getProjectId() == projectA).findFirst().orElseThrow();
+    ProjectBreakdownRow rowB = actual.stream()
+        .filter(row -> row.getProjectId() == projectB).findFirst().orElseThrow();
+    assertThat(rowA.getCount()).isEqualTo(countA);
+    assertThat(rowA.getProjectTitle()).isEqualTo("分布検証A");
+    assertThat(rowB.getCount()).isEqualTo(countB);
+    // 分布の合計は分析対象件数の総数と一致する（タスクは必ず1プロジェクトに属するため）
+    int totalBreakdown = actual.stream().mapToInt(ProjectBreakdownRow::getCount).sum();
+    int totalAnalyzed = sut.findSummary(USER_ID, new AnalyticsQueryCondition(), THRESHOLD)
+        .getAnalyzedCount();
+    assertThat(totalBreakdown).isEqualTo(totalAnalyzed);
+  }
+
+  @Test
+  void findProjectBreakdown_同数の場合はプロジェクト名の昇順で並ぶこと() {
+    int projectZ = insertProject(USER_ID, "並び順検証Z");
+    int projectA = insertProject(USER_ID, "並び順検証A");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    insertFinishedTaskForTimeline(projectZ, base, 100, 5.0);
+    insertFinishedTaskForTimeline(projectA, base, 100, 5.0);
+
+    AnalyticsQueryCondition condition = new AnalyticsQueryCondition();
+    List<ProjectBreakdownRow> actual = sut.findProjectBreakdown(USER_ID, condition);
+
+    // count=1のプロジェクトが複数あってもZ・Aの相対順序はプロジェクト名昇順になる
+    // （streamのfilterはDBが返した順序を保持する）。
+    List<ProjectBreakdownRow> ordered = actual.stream()
+        .filter(row -> row.getProjectId() == projectZ || row.getProjectId() == projectA)
+        .toList();
+    assertThat(ordered).extracting(ProjectBreakdownRow::getProjectTitle)
+        .containsExactly("並び順検証A", "並び順検証Z");
+  }
+
+  @Test
+  void findProjectBreakdown_tagId指定時は指定タグのタスクのみ集計されること() {
+    int projectA = insertProject(USER_ID, "分布タグ検証A");
+    int projectB = insertProject(USER_ID, "分布タグ検証B");
+    int tag = insertTag(USER_ID, "分布タグ");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int taggedInA = insertFinishedTaskForTimeline(projectA, base, 100, 5.0);
+    insertFinishedTaskForTimeline(projectA, base.plusDays(1), 100, 5.0); // タグなし
+    int taggedInB = insertFinishedTaskForTimeline(projectB, base, 100, 5.0);
+    linkTag(taggedInA, tag);
+    linkTag(taggedInB, tag);
+
+    AnalyticsQueryCondition condition = new AnalyticsQueryCondition();
+    condition.setTagId(tag);
+    List<ProjectBreakdownRow> actual = sut.findProjectBreakdown(USER_ID, condition);
+
+    List<ProjectBreakdownRow> relevant = actual.stream()
+        .filter(row -> row.getProjectId() == projectA || row.getProjectId() == projectB)
+        .toList();
+    assertThat(relevant).extracting(ProjectBreakdownRow::getCount).containsOnly(1);
+    assertThat(relevant).hasSize(2);
+  }
+
+  @Test
+  void findProjectBreakdown_分析対象0件のときは空配列でエラーにならないこと() {
+    int projectId = insertProject(USER_ID, "分布0件検証");
+    int tag = insertTag(USER_ID, "誰も付与していないタグ");
+
+    AnalyticsQueryCondition condition = conditionFor(projectId);
+    condition.setTagId(tag);
+
+    List<ProjectBreakdownRow> actual = sut.findProjectBreakdown(USER_ID, condition);
+
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
   void findScatterPoints_完了日時降順で上限プラス1件まで取得できること() {
     int projectId = insertProject(USER_ID, "散布図検証");
     LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
@@ -633,6 +721,66 @@ class AnalyticsRepositoryTest {
     assertThat(actual)
         .extracting(ReflectionCauseCategoryLinkRow::getReflectionId)
         .containsOnly(reflection1);
+  }
+
+  @Test
+  void タイムラインタグ取得_ページに含まれるタスクのタグのみ名前昇順で返ること() {
+    int projectId = insertProject(USER_ID, "タイムラインタグ取得検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int taskWithTags = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int taskWithoutTags = insertFinishedTaskForTimeline(projectId, base.minusDays(1), 100, 5.0);
+    insertReflection(taskWithTags, "タグあり", null);
+    insertReflection(taskWithoutTags, "タグなし", null);
+    int tagZ = insertTag(USER_ID, "ゼータタグ");
+    int tagA = insertTag(USER_ID, "アルファタグ");
+    linkTag(taskWithTags, tagZ);
+    linkTag(taskWithTags, tagA);
+
+    ReflectionTimelineQueryCondition condition = timelineConditionFor(projectId);
+
+    List<TaskTagRow> actual = sut.findReflectionTimelineTags(USER_ID, condition, THRESHOLD);
+
+    assertThat(actual)
+        .extracting(TaskTagRow::getTaskId, TaskTagRow::getTagId)
+        .containsExactly(tuple(taskWithTags, tagA), tuple(taskWithTags, tagZ));
+  }
+
+  @Test
+  void タイムラインタグ取得_アーカイブ済みタグも含めて返すこと() {
+    int projectId = insertProject(USER_ID, "タイムラインアーカイブ済みタグ検証");
+    int taskId = insertFinishedTaskForTimeline(
+        projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 5.0);
+    insertReflection(taskId, "アーカイブ済みタグ付き", null);
+    int archivedTag = insertTag(USER_ID, "旧タグ");
+    linkTag(taskId, archivedTag);
+    jdbcTemplate.update("UPDATE tags SET is_archived = TRUE WHERE id = ?", archivedTag);
+
+    List<TaskTagRow> actual = sut.findReflectionTimelineTags(
+        USER_ID, timelineConditionFor(projectId), THRESHOLD);
+
+    assertThat(actual).extracting(TaskTagRow::getTagId).containsExactly(archivedTag);
+  }
+
+  @Test
+  void タイムラインタグ取得_2ページ目には1ページ目のタグが含まれないこと() {
+    int projectId = insertProject(USER_ID, "タイムラインタグページ境界検証");
+    LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
+    int task1 = insertFinishedTaskForTimeline(projectId, base, 100, 5.0);
+    int task2 = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 5.0);
+    insertReflection(task1, "1件目", null);
+    insertReflection(task2, "2件目", null);
+    int tag1 = insertTag(USER_ID, "タグ1件目");
+    int tag2 = insertTag(USER_ID, "タグ2件目");
+    linkTag(task1, tag1);
+    linkTag(task2, tag2);
+
+    ReflectionTimelineQueryCondition page1 = timelineConditionFor(projectId);
+    page1.setSize(1);
+    page1.setPage(1); // 完了日時降順の2件目 = task1
+
+    List<TaskTagRow> actual = sut.findReflectionTimelineTags(USER_ID, page1, THRESHOLD);
+
+    assertThat(actual).extracting(TaskTagRow::getTagId).containsOnly(tag1);
   }
 
   @Test
