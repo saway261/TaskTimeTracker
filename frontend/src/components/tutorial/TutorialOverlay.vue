@@ -18,10 +18,13 @@ const clipPath = computed(() => {
   const right = r.right + pad
   const bottom = r.bottom + pad
 
+  // 外周(下→右→上→左)と内周が同じ回転方向だと、非零規則では巻き数が打ち消し合わず
+  // 穴が開かない(両方とも塗りつぶし対象になり、画面全体が暗くなる)。内周は外周と
+  // 逆回りにする必要がある。
   return (
     `polygon(` +
     `0px 0px, 0px 100vh, 100vw 100vh, 100vw 0px, 0px 0px, ` +
-    `${left}px ${top}px, ${left}px ${bottom}px, ${right}px ${bottom}px, ${right}px ${top}px, ${left}px ${top}px` +
+    `${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px ${top}px` +
     `)`
   )
 })

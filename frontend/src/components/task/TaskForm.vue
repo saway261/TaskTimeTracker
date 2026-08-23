@@ -109,6 +109,7 @@ function removeSelectedTag(tagId: string) {
     <BaseInput
       v-if="!task"
       v-model="estimatedMinutes"
+      class="estimate-field"
       label="見積時間（分）"
       required
       type="number"

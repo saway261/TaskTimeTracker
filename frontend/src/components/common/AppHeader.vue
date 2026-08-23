@@ -1,11 +1,24 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
 import ActiveTimerMenu from '@/components/common/ActiveTimerMenu.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import type { ApiError } from '@/types/apiError'
+
+// 開くまでは読み込まない(要件 §11)。章の一覧・本文を扱うため本体バンドルへ含めない。
+const TutorialChapterModal = defineAsyncComponent(
+  () => import('@/components/tutorial/TutorialChapterModal.vue'),
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +31,7 @@ const menuButton = ref<HTMLButtonElement | null>(null)
 const navMenuOpen = ref(false)
 const navMenuRoot = ref<HTMLElement | null>(null)
 const navMenuButton = ref<HTMLButtonElement | null>(null)
+const showChapterModal = ref(false)
 
 function toggleMenu() {
   menuOpen.value = !menuOpen.value
@@ -26,6 +40,11 @@ function toggleMenu() {
 
 function closeMenu() {
   menuOpen.value = false
+}
+
+function openChapterModal() {
+  showChapterModal.value = true
+  closeMenu()
 }
 
 async function closeMenuAndRestoreFocus() {
@@ -179,6 +198,9 @@ onBeforeUnmount(() => {
             </span>
           </div>
           <div class="user-menu-separator" role="separator"></div>
+          <button type="button" class="user-menu-item" role="menuitem" @click="openChapterModal">
+            チュートリアル
+          </button>
           <RouterLink to="/tags" class="user-menu-item" role="menuitem" @click="closeMenu">
             タグ管理
           </RouterLink>
@@ -257,6 +279,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </header>
+  <TutorialChapterModal v-if="showChapterModal" v-model="showChapterModal" />
 </template>
 
 <style scoped>

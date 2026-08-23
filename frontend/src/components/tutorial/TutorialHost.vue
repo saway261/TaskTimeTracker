@@ -4,6 +4,7 @@ import { useTutorialStore } from '@/stores/tutorialStore'
 import { resolveAnchor } from '@/tutorial/anchor'
 import { findChapter } from '@/tutorial/chapters'
 import type { Rect } from '@/tutorial/position'
+import type { TutorialScope } from '@/tutorial/scopes'
 import type { TutorialStep } from '@/tutorial/types'
 import TutorialOverlay from './TutorialOverlay.vue'
 import TutorialCard from './TutorialCard.vue'
@@ -16,7 +17,10 @@ const store = useTutorialStore()
 const chapter = computed(() =>
   store.activeChapterId ? findChapter(store.activeChapterId) : undefined,
 )
-const steps = computed<TutorialStep[]>(() => chapter.value?.steps ?? [])
+// スコープ指定がある場合は、絞り込んだ結果をここへ入れる(onMountedで一度だけ決める)。
+// 再生中に絞り込み結果が変わるとステップ番号がずれるため、開始時点で固定する。
+const scopedSteps = ref<TutorialStep[] | null>(null)
+const steps = computed<TutorialStep[]>(() => scopedSteps.value ?? chapter.value?.steps ?? [])
 const chapterTitle = computed(() => chapter.value?.title ?? '')
 
 const currentStep = computed<TutorialStep | null>(() => steps.value[store.stepIndex] ?? null)
@@ -27,11 +31,22 @@ const cardRef = ref<InstanceType<typeof TutorialCard> | null>(null)
 let previouslyFocused: HTMLElement | null = null
 let rafId = 0
 
+// 今いる画面の範囲。ヘッダーは全画面に常駐する共通UIなので常にスコープへ含める
+// (稼働中タイマーの説明などが、どの画面から再生しても出るようにするため)。
+// スコープ要素が見つからないときはundefinedを返し、絞り込みを行わない(安全側)。
+function currentScopeRoots(): Element[] | undefined {
+  if (!store.scopeSelector) return undefined
+  const screen = document.querySelector(store.scopeSelector)
+  if (!screen) return undefined
+  const header = document.querySelector('.app-header')
+  return header ? [screen, header] : [screen]
+}
+
 // onMissing:'skip' はデバイス上に存在しない機能向け。before で開くメニューの中身を
 // 対象にする場合、この判定は before 実行前のDOM状態を見るため、
 // onMissing:'skip' と before を同じステップで組み合わせてはならない(§F2実装注記)。
 function isUnavailable(step: TutorialStep): boolean {
-  return step.onMissing === 'skip' && resolveAnchor(step.targets) === null
+  return step.onMissing === 'skip' && resolveAnchor(step.targets, currentScopeRoots()) === null
 }
 
 function findNextAvailable(from: number): number | null {
@@ -67,7 +82,7 @@ function reresolveAnchor() {
     anchorRect.value = null
     return
   }
-  const el = resolveAnchor(step.targets)
+  const el = resolveAnchor(step.targets, currentScopeRoots())
   resolvedEl.value = el
   if (el) {
     el.scrollIntoView({ block: 'center' })
@@ -154,6 +169,25 @@ function onScroll() {
   rafId = requestAnimationFrame(remeasureAnchor)
 }
 
+// スコープ指定時は「今いる画面にある要素を指すステップ」だけへ絞り込む(要件 §7.2)。
+// アンカーを持たない概念だけのステップは、画面の説明ではないためスコープ再生から外す。
+// 絞り込んだ結果が0件になる場合は、何も出ないより良いので章全体へフォールバックする。
+function applyScope() {
+  const roots = currentScopeRoots()
+  if (!roots || !chapter.value) return
+  const scope = store.scopeSelector
+  const filtered = chapter.value.steps.filter((step) => {
+    // scopes を持つステップは、列挙された画面から再生したときだけ表示する。
+    // ヘッダー常駐の要素はどの画面でもアンカーが解決できてしまうため、
+    // アンカーの有無だけでは「意味のある画面」を絞れないケースがある。
+    if (step.scopes && (scope === null || !step.scopes.includes(scope as TutorialScope))) {
+      return false
+    }
+    return step.targets !== undefined && resolveAnchor(step.targets, roots) !== null
+  })
+  scopedSteps.value = filtered.length > 0 ? filtered : null
+}
+
 onMounted(async () => {
   if (!chapter.value) {
     // activeChapterIdに対応する章が見つからない(通常起こらない防御的分岐)。
@@ -162,6 +196,8 @@ onMounted(async () => {
   }
 
   previouslyFocused = document.activeElement as HTMLElement | null
+
+  applyScope()
 
   const start = findNextAvailable(store.stepIndex)
   if (start === null) {

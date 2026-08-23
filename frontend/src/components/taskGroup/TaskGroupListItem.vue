@@ -17,6 +17,8 @@ import { isFinished as isTaskFinished, sumEstimatedMinutes } from '@/utils/task'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 import TaskListItem from '@/components/task/TaskListItem.vue'
 import TaskGroupRowMenu from './TaskGroupRowMenu.vue'
 
@@ -340,6 +342,13 @@ async function handleCreateTask(payload: {
     />
 
     <BaseModal v-model="showCreateTaskModal" title="新規タスク">
+      <template #title-extra>
+        <TutorialHelpButton
+          chapter-id="tasks"
+          chapter-title="タスク管理"
+          :scope="TUTORIAL_SCOPES.taskForm"
+        />
+      </template>
       <TaskForm
         :submitting="creatingTask"
         :error="createTaskError"

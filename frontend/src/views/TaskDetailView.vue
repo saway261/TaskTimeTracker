@@ -31,6 +31,8 @@ import WorkTimer from '@/components/workSession/WorkTimer.vue'
 import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
 import TagBadgeList from '@/components/tag/TagBadgeList.vue'
 import TagSelect from '@/components/tag/TagSelect.vue'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
 const props = defineProps<{
   projectId: string
@@ -312,7 +314,14 @@ function handleMemoCreate(req: MemoRequest) {
     <template v-else-if="taskStore.currentTask">
       <div class="header">
         <div>
-          <h1>{{ taskStore.currentTask.title }}</h1>
+          <h1>
+            {{ taskStore.currentTask.title }}
+            <TutorialHelpButton
+              chapter-id="tasks"
+              chapter-title="タスク管理"
+              :scope="TUTORIAL_SCOPES.taskDetail"
+            />
+          </h1>
           <FinishedCheckbox
             :model-value="finished"
             :disabled="finishing || (!finished && hasActiveTimer)"

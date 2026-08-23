@@ -81,7 +81,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           tabindex="-1"
         >
           <header class="base-modal-header">
-            <h2>{{ title }}</h2>
+            <h2>
+              {{ title }}
+              <slot name="title-extra" />
+            </h2>
             <button type="button" class="close-button" aria-label="閉じる" @click="close">×</button>
           </header>
           <div class="base-modal-body">

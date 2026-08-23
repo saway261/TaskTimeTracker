@@ -4,6 +4,8 @@ import { useProjectStore } from '@/stores/projectStore'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import ReflectionProjectCard from '@/components/reflection/ReflectionProjectCard.vue'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
 const projectStore = useProjectStore()
 
@@ -15,7 +17,14 @@ onMounted(() => {
 
 <template>
   <div class="reflection-view">
-    <h1>振り返り</h1>
+    <h1>
+      振り返り
+      <TutorialHelpButton
+        chapter-id="reflections"
+        chapter-title="振り返り"
+        :scope="TUTORIAL_SCOPES.reflectionList"
+      />
+    </h1>
 
     <LoadingIndicator v-if="projectStore.loading" />
     <ErrorMessage v-else-if="projectStore.error" :error="projectStore.error" />

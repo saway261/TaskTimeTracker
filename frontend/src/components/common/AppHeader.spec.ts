@@ -135,6 +135,32 @@ describe('AppHeader user menu', () => {
     wrapper.unmount()
   })
 
+  it('チュートリアル項目はタグ管理の上にあり、選ぶと章選択モーダルを開く', async () => {
+    const wrapper = mount(AppHeader, {
+      attachTo: document.body,
+      global: { plugins: [pinia, router] },
+    })
+    await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
+
+    const items = wrapper.findAll('.user-menu-item')
+    const tutorialIndex = items.findIndex((item) => item.text() === 'チュートリアル')
+    const tagIndex = items.findIndex((item) => item.text() === 'タグ管理')
+    expect(tutorialIndex).toBeGreaterThanOrEqual(0)
+    expect(tutorialIndex).toBeLessThan(tagIndex)
+
+    await items[tutorialIndex].trigger('click')
+
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+    // defineAsyncComponentの解決はマイクロタスクのflushPromises()だけでは追いつかないため、
+    // 実タイマーでポーリングするvi.waitForを使う。
+    await vi.waitFor(() => {
+      expect(
+        document.body.querySelector('[role="dialog"][aria-label="チュートリアル"]'),
+      ).not.toBeNull()
+    })
+    wrapper.unmount()
+  })
+
   it('logs out from the menu and navigates to login', async () => {
     vi.mocked(authApi.logout).mockResolvedValue({} as never)
     const wrapper = mount(AppHeader, {

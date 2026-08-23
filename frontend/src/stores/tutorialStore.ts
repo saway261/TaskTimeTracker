@@ -6,6 +6,10 @@ export const useTutorialStore = defineStore('tutorial', {
     activeChapterId: null as ChapterId | null,
     stepIndex: 0,
     mode: null as 'tour' | 'replay' | null,
+    // 再生を「今いる画面にある要素の説明」だけに絞り込むためのCSSセレクタ。
+    // ヘルプボタンからの再生時に、その画面のルート要素を指定する(要件 §7.2)。
+    // nullなら絞り込まず章全体を再生する(章選択モーダル・初回ツアー)。
+    scopeSelector: null as string | null,
     // セッション内の初回ツアー再発火抑止（要件 §6.2）。モジュール変数ではなくストアの
     // 状態にするのは、テストからリセットできるようにするため。
     tourAttempted: false,
@@ -14,10 +18,11 @@ export const useTutorialStore = defineStore('tutorial', {
     isActive: (state) => state.activeChapterId !== null,
   },
   actions: {
-    start(chapterId: ChapterId, mode: 'tour' | 'replay') {
+    start(chapterId: ChapterId, mode: 'tour' | 'replay', scopeSelector: string | null = null) {
       this.activeChapterId = chapterId
       this.stepIndex = 0
       this.mode = mode
+      this.scopeSelector = scopeSelector
       if (mode === 'tour') {
         this.tourAttempted = true
       }
@@ -33,6 +38,7 @@ export const useTutorialStore = defineStore('tutorial', {
       this.activeChapterId = null
       this.stepIndex = 0
       this.mode = null
+      this.scopeSelector = null
     },
   },
 })

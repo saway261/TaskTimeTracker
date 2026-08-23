@@ -224,4 +224,17 @@ describe('TaskQuickActionModal', () => {
     expect(reflectionsApi.fetchOverview).toHaveBeenCalledWith('p1')
     expect(wrapper.text()).toContain('振り返りの詳細・変更')
   })
+
+  it('タイトル横のヘルプボタンから「タスク管理」章を画面遷移なしで再生できる', async () => {
+    const { useTutorialStore } = await import('@/stores/tutorialStore')
+    vi.mocked(workSessionsApi.fetchAllInTask).mockResolvedValue({ data: [] } as never)
+    const wrapper = mountModal()
+    await flushPromises()
+
+    await wrapper.get('.help-button').trigger('click')
+
+    const tutorialStore = useTutorialStore()
+    expect(tutorialStore.activeChapterId).toBe('tasks')
+    expect(tutorialStore.mode).toBe('replay')
+  })
 })

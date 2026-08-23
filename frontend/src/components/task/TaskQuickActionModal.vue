@@ -26,6 +26,8 @@ import ManualWorkSessionForm from '@/components/workSession/ManualWorkSessionFor
 import WorkSessionList from '@/components/workSession/WorkSessionList.vue'
 import WorkTimer from '@/components/workSession/WorkTimer.vue'
 import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
 const props = defineProps<{
   modelValue: boolean
@@ -216,6 +218,13 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
     :title="taskTitle"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #title-extra>
+      <TutorialHelpButton
+        chapter-id="tasks"
+        chapter-title="タスク管理"
+        :scope="TUTORIAL_SCOPES.taskQuickActions"
+      />
+    </template>
     <div class="task-quick-actions">
       <LoadingIndicator v-if="loading" />
       <ErrorMessage v-else-if="loadError" :error="loadError" />
@@ -250,7 +259,11 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
           </div>
         </details>
 
-        <section v-if="!finished" class="quick-section" aria-labelledby="manual-record-title">
+        <section
+          v-if="!finished"
+          class="quick-section manual-record-section"
+          aria-labelledby="manual-record-title"
+        >
           <h3 id="manual-record-title">手動で記録を追加</h3>
           <ManualWorkSessionForm
             :submitting="creatingSession"

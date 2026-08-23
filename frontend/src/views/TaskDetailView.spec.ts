@@ -161,4 +161,38 @@ describe('TaskDetailView', () => {
     expect(tasksApi.updateFinished).toHaveBeenCalledWith('task11', { isFinished: true })
     expect(wrapper.text()).toContain('振り返りを入力')
   })
+
+  it('ヘルプボタンから「タスク管理」章が画面遷移なしで再生される', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const { useTutorialStore } = await import('@/stores/tutorialStore')
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: { template: '<div />' } }],
+    })
+    await router.push('/')
+    await router.isReady()
+    vi.mocked(tasksApi.fetchById).mockResolvedValue({ data: unfinishedTask } as never)
+    vi.mocked(projectsApi.fetchById).mockResolvedValue({
+      data: { id: 'p1', title: 'プロジェクト', description: null, isFinished: false, memos: [] },
+    } as never)
+    vi.mocked(workSessionsApi.fetchAllInTask).mockResolvedValue({ data: [] } as never)
+    vi.mocked(tagsApi.fetchAll).mockResolvedValue({ data: [] } as never)
+    const wrapper = shallowMount(TaskDetailView, {
+      props: { projectId: 'p1', taskId: 'task11', taskGroupId: null },
+      global: {
+        plugins: [pinia, router],
+        stubs: { TutorialHelpButton: false },
+      },
+    })
+    await flushPromises()
+    const routeBefore = router.currentRoute.value.fullPath
+
+    await wrapper.get('.help-button').trigger('click')
+
+    const tutorialStore = useTutorialStore()
+    expect(tutorialStore.activeChapterId).toBe('tasks')
+    expect(tutorialStore.mode).toBe('replay')
+    expect(router.currentRoute.value.fullPath).toBe(routeBefore)
+  })
 })

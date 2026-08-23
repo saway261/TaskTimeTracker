@@ -11,6 +11,8 @@ import ReflectionTaskRow from '@/components/reflection/ReflectionTaskRow.vue'
 import ReflectionTaskGroupSection from '@/components/reflection/ReflectionTaskGroupSection.vue'
 import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
 import ReflectionAggregateSummary from '@/components/reflection/ReflectionAggregateSummary.vue'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
 const props = defineProps<{
   projectId: string
@@ -102,7 +104,14 @@ watch(() => props.projectId, load)
     <LoadingIndicator v-if="reflectionStore.loading" />
     <ErrorMessage v-else-if="reflectionStore.error" :error="reflectionStore.error" />
     <template v-else-if="overview">
-      <h1>{{ overview.projectTitle }}</h1>
+      <h1>
+        {{ overview.projectTitle }}
+        <TutorialHelpButton
+          chapter-id="reflections"
+          chapter-title="振り返り"
+          :scope="TUTORIAL_SCOPES.reflectionDetail"
+        />
+      </h1>
 
       <p v-if="isEmpty" class="empty">このプロジェクトには完了したタスクがまだありません。</p>
       <template v-else>

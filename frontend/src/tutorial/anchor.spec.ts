@@ -55,4 +55,51 @@ describe('resolveAnchor', () => {
   it('returns null when targets is undefined', () => {
     expect(resolveAnchor(undefined)).toBeNull()
   })
+
+  it('ignores visible elements outside the given scope roots', () => {
+    // モーダルを開いても背後のページはDOMに残り可視のままなので、
+    // スコープ指定が無いと「今見ていない画面」の要素を拾ってしまう。
+    const page = appendWithClass('page-root')
+    const pageHeading = document.createElement('h1')
+    page.appendChild(pageHeading)
+    const modal = appendWithClass('modal-root')
+    const modalSection = document.createElement('section')
+    modalSection.className = 'metrics-section'
+    modal.appendChild(modalSection)
+    markVisible(pageHeading)
+    markVisible(modalSection)
+
+    expect(resolveAnchor(['.page-root h1'], [modal])).toBeNull()
+    expect(resolveAnchor(['.metrics-section'], [modal])).toBe(modalSection)
+  })
+
+  it('prefers a later candidate that is inside the scope over an earlier one outside it', () => {
+    const page = appendWithClass('page-root')
+    const pageSection = document.createElement('section')
+    pageSection.className = 'estimation-section'
+    page.appendChild(pageSection)
+    const modal = appendWithClass('modal-root')
+    const modalSection = document.createElement('section')
+    modalSection.className = 'metrics-section'
+    modal.appendChild(modalSection)
+    markVisible(pageSection)
+    markVisible(modalSection)
+
+    // スコープ無しなら第1候補(ページ側)、スコープありなら第2候補(モーダル側)。
+    expect(resolveAnchor(['.estimation-section', '.metrics-section'])).toBe(pageSection)
+    expect(resolveAnchor(['.estimation-section', '.metrics-section'], [modal])).toBe(modalSection)
+  })
+
+  it('accepts an element inside any of several scope roots', () => {
+    const header = appendWithClass('app-header')
+    const trigger = document.createElement('button')
+    trigger.className = 'timer-menu-trigger'
+    header.appendChild(trigger)
+    const screen = appendWithClass('screen-root')
+    markVisible(trigger)
+
+    // ヘッダーは全画面共通なので、画面ルートと一緒にスコープへ含める運用。
+    expect(resolveAnchor(['.timer-menu-trigger'], [screen])).toBeNull()
+    expect(resolveAnchor(['.timer-menu-trigger'], [screen, header])).toBe(trigger)
+  })
 })

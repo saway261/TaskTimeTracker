@@ -11,6 +11,8 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import CompletedItemsToggle from '@/components/common/CompletedItemsToggle.vue'
 import ProjectCard from '@/components/project/ProjectCard.vue'
 import ProjectForm from '@/components/project/ProjectForm.vue'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
 const projectStore = useProjectStore()
 const notification = useNotificationStore()
@@ -54,7 +56,14 @@ async function handleCreate(payload: { title: string; description: string | null
 <template>
   <div class="project-list-view">
     <div class="header">
-      <h1>タスク管理</h1>
+      <h1>
+        タスク管理
+        <TutorialHelpButton
+          chapter-id="tasks"
+          chapter-title="タスク管理"
+          :scope="TUTORIAL_SCOPES.projectList"
+        />
+      </h1>
       <div class="header-actions">
         <CompletedItemsToggle v-model="showCompletedProjects" />
         <BaseButton @click="openCreateModal">＋ 新規プロジェクト</BaseButton>
