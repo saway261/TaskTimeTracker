@@ -75,6 +75,10 @@ public class UserService {
     return userRepository.findById(userId);
   }
 
+  public void completeOnboarding(int userId) {
+    userRepository.updateOnboardingCompleted(userId, LocalDateTime.now(clock));
+  }
+
   public static String normalizeEmail(String email) {
     return email.trim().toLowerCase(Locale.ROOT);
   }

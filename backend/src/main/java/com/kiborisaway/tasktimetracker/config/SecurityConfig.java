@@ -64,6 +64,7 @@ public class SecurityConfig {
             .access(restrictedAccountAuthorizationManager
                 ::authorizePublicAuthenticationEndpoint)
             .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
+            .requestMatchers(HttpMethod.POST, "/auth/onboarding/complete").authenticated()
             .requestMatchers(HttpMethod.PUT, "/auth/password").authenticated()
             .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
             .requestMatchers(HttpMethod.POST, "/auth/email-verifications").permitAll()

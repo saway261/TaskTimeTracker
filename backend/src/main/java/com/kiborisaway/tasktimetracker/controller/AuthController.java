@@ -130,6 +130,13 @@ public class AuthController {
     return ResponseEntity.ok(new AuthenticatedUserResponse(user));
   }
 
+  @PostMapping("/onboarding/complete")
+  public ResponseEntity<Void> completeOnboarding(
+      @AuthenticationPrincipal AuthenticatedUser principal) {
+    userService.completeOnboarding(principal.getUserId());
+    return ResponseEntity.noContent().build();
+  }
+
   @PutMapping("/password")
   public ResponseEntity<?> changePassword(
       @AuthenticationPrincipal AuthenticatedUser user,

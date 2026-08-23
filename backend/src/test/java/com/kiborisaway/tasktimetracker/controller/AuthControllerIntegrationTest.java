@@ -279,4 +279,49 @@ class AuthControllerIntegrationTest {
     mockMvc.perform(get("/auth/me").cookie(sessionCookie))
         .andExpect(status().isUnauthorized());
   }
+
+  @Test
+  void 完了記録成功_204を返しDBが更新されmeへ反映されること() throws Exception {
+    Cookie authenticatedCookie = loginAsUserA();
+    mockMvc.perform(get("/auth/me").cookie(authenticatedCookie))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.onboardingCompleted").value(false));
+
+    mockMvc.perform(post("/auth/onboarding/complete").cookie(authenticatedCookie).with(csrf()))
+        .andExpect(status().isNoContent());
+
+    assertThat(userRepository.findById(1).getOnboardingCompleted()).isTrue();
+    mockMvc.perform(get("/auth/me").cookie(authenticatedCookie))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.onboardingCompleted").value(true));
+  }
+
+  @Test
+  void 完了記録成功_2回目の呼び出しも204を返すこと() throws Exception {
+    Cookie authenticatedCookie = loginAsUserA();
+
+    mockMvc.perform(post("/auth/onboarding/complete").cookie(authenticatedCookie).with(csrf()))
+        .andExpect(status().isNoContent());
+    mockMvc.perform(post("/auth/onboarding/complete").cookie(authenticatedCookie).with(csrf()))
+        .andExpect(status().isNoContent());
+
+    assertThat(userRepository.findById(1).getOnboardingCompleted()).isTrue();
+  }
+
+  @Test
+  void 完了記録失敗_未認証なら401を返すこと() throws Exception {
+    mockMvc.perform(post("/auth/onboarding/complete").with(csrf()))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.message").value("authentication required"));
+  }
+
+  @Test
+  void 完了記録失敗_CSRFトークンなしなら403を返すこと() throws Exception {
+    Cookie authenticatedCookie = loginAsUserA();
+
+    mockMvc.perform(post("/auth/onboarding/complete").cookie(authenticatedCookie))
+        .andExpect(status().isForbidden());
+
+    assertThat(userRepository.findById(1).getOnboardingCompleted()).isFalse();
+  }
 }

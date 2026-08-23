@@ -83,4 +83,14 @@ public interface UserRepository {
       @Param("email") String email,
       @Param("verifiedAt") LocalDateTime verifiedAt,
       @Param("updatedAt") LocalDateTime updatedAt);
+
+  @Update("""
+      UPDATE app_users
+      SET onboarding_completed = TRUE,
+          updated_at = #{updatedAt}
+      WHERE id = #{userId}
+      """)
+  int updateOnboardingCompleted(
+      @Param("userId") int userId,
+      @Param("updatedAt") LocalDateTime updatedAt);
 }
