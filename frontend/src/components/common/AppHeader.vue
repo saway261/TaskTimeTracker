@@ -137,9 +137,9 @@ onBeforeUnmount(() => {
 <template>
   <header class="app-header">
     <div class="header-start">
-      <RouterLink to="/projects" class="brand">
-        <span class="brand-full">Task Time Tracker</span>
-        <span class="brand-short">TTT</span>
+      <RouterLink to="/projects" class="brand" aria-label="Task Time Tracker ホーム">
+        <img :src="'/ttt-logo.svg'" alt="" class="brand-logo" />
+        <img :src="'/title.svg'" alt="" class="brand-title" />
       </RouterLink>
       <nav class="main-nav" aria-label="メインナビゲーション">
         <RouterLink
@@ -306,8 +306,7 @@ onBeforeUnmount(() => {
   gap: 0.3em;
 }
 
-.mobile-navigation,
-.brand-short {
+.mobile-navigation {
   display: none;
 }
 
@@ -515,10 +514,21 @@ onBeforeUnmount(() => {
 }
 
 .brand {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
   text-decoration: none;
+}
+
+.brand-logo {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.brand-title {
+  width: auto;
+  height: 1.625rem;
 }
 
 .brand:focus-visible {
@@ -540,6 +550,10 @@ onBeforeUnmount(() => {
   }
 
   .main-nav {
+    display: none;
+  }
+
+  .brand-title {
     display: none;
   }
 
@@ -565,16 +579,6 @@ onBeforeUnmount(() => {
     max-height: calc(100vh - 5rem);
     overflow-y: auto;
     z-index: 120;
-  }
-}
-
-@media (max-width: 520px) {
-  .brand-full {
-    display: none;
-  }
-
-  .brand-short {
-    display: inline;
   }
 }
 </style>

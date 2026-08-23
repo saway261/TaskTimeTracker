@@ -67,6 +67,20 @@ describe('AppHeader user menu', () => {
     wrapper.unmount()
   })
 
+  it('ブランドリンクにロゴとタイトル画像を表示する', () => {
+    const wrapper = mount(AppHeader, {
+      global: { plugins: [pinia, router] },
+    })
+
+    const brand = wrapper.get('.brand')
+    expect(brand.attributes('href')).toBe('/projects')
+    expect(brand.attributes('aria-label')).toBe('Task Time Tracker ホーム')
+    expect(brand.get('.brand-logo').attributes('src')).toBe('/ttt-logo.svg')
+    expect(brand.get('.brand-title').attributes('src')).toBe('/title.svg')
+    expect(brand.findAll('img').every((image) => image.attributes('alt') === '')).toBe(true)
+    wrapper.unmount()
+  })
+
   it('ハンバーガーメニューからタスク管理・振り返り・分析へ移動できる', async () => {
     const wrapper = mount(AppHeader, {
       global: { plugins: [pinia, router] },
