@@ -80,6 +80,24 @@ class TagServiceTest {
   }
 
   @Test
+  void プリセット作成成功_新規ユーザーに既定の3タグを登録すること() {
+    stubInsertAssignsId(10);
+    when(repository.findByUserIdAndNameNormalized(eq(USER_ID), anyString())).thenReturn(null);
+    when(repository.countActiveByUserId(USER_ID)).thenReturn(0);
+
+    sut.createPresetTags(USER_ID);
+
+    ArgumentCaptor<Tag> captor = ArgumentCaptor.forClass(Tag.class);
+    verify(repository, times(3)).insert(captor.capture());
+    assertThat(captor.getAllValues())
+        .extracting(Tag::getUserId, Tag::getName, Tag::getNameNormalized, Tag::getIsArchived)
+        .containsExactly(
+            tuple(USER_ID, "調査・計画", "調査・計画", false),
+            tuple(USER_ID, "環境構築", "環境構築", false),
+            tuple(USER_ID, "手作業", "手作業", false));
+  }
+
+  @Test
   void 新規作成成功_前後の空白をトリムして保存すること() {
     stubInsertAssignsId(10);
     when(repository.findByUserIdAndNameNormalized(eq(USER_ID), anyString())).thenReturn(null);

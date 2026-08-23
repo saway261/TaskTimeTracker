@@ -21,6 +21,7 @@ public class UserService {
   private final PasswordEncoder passwordEncoder;
   private final PasswordPolicy passwordPolicy;
   private final EmailVerificationService emailVerificationService;
+  private final TagService tagService;
   private final Clock clock;
 
   public UserService(
@@ -28,11 +29,13 @@ public class UserService {
       PasswordEncoder passwordEncoder,
       PasswordPolicy passwordPolicy,
       EmailVerificationService emailVerificationService,
+      TagService tagService,
       Clock clock) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.passwordPolicy = passwordPolicy;
     this.emailVerificationService = emailVerificationService;
+    this.tagService = tagService;
     this.clock = clock;
   }
 
@@ -62,6 +65,7 @@ public class UserService {
     } catch (DataIntegrityViolationException ex) {
       throw new EmailUnavailableException();
     }
+    tagService.createPresetTags(user.getId());
     emailVerificationService.issueForRegistration(user.getId(), email);
     return new AuthenticatedUser(user);
   }
