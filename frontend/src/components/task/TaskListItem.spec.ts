@@ -43,7 +43,11 @@ describe('TaskListItem', () => {
       global: {
         plugins: [createPinia()],
         stubs: {
-          TaskRowMenu: true,
+          TaskRowMenu: {
+            props: ['modelValue', 'detailTo'],
+            template:
+              '<div v-if="modelValue" class="task-row-menu-stub" :data-detail-to="detailTo" />',
+          },
           TaskQuickActionModal: {
             props: ['modelValue'],
             template: '<div v-if="modelValue" class="quick-action-modal-stub" />',
@@ -64,5 +68,37 @@ describe('TaskListItem', () => {
     await wrapper.get('.task-row').trigger('click')
 
     expect(wrapper.find('.quick-action-modal-stub').exists()).toBe(true)
+  })
+
+  it('ケバブボタンを押すとタスク詳細の遷移先を渡した操作メニューを開く', async () => {
+    const detailTo = `/projects/p1/tasks/${task.id}`
+    const wrapper = mount(TaskListItem, {
+      props: {
+        task,
+        to: detailTo,
+        projectId: 'p1',
+        containerKey: 'project:p1',
+        taskGroups: [],
+        canMoveUp: false,
+        canMoveDown: false,
+      },
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          TaskRowMenu: {
+            props: ['modelValue', 'detailTo'],
+            template:
+              '<div v-if="modelValue" class="task-row-menu-stub" :data-detail-to="detailTo" />',
+          },
+          TaskQuickActionModal: true,
+        },
+      },
+    })
+
+    expect(wrapper.find('.task-row-menu-stub').exists()).toBe(false)
+
+    await wrapper.get('.menu-button').trigger('click')
+
+    expect(wrapper.get('.task-row-menu-stub').attributes('data-detail-to')).toBe(detailTo)
   })
 })
