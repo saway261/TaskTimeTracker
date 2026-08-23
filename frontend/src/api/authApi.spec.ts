@@ -41,6 +41,7 @@ describe('authApi', () => {
     await authApi.login({ email: 'user@example.com', password: 'password1234' })
     await authApi.logout()
     await authApi.fetchMe()
+    await authApi.completeOnboarding()
     await authApi.changePassword({
       currentPassword: 'password1234',
       newPassword: 'new-password1234',
@@ -64,6 +65,7 @@ describe('authApi', () => {
       { method: 'post', url: '/auth/login' },
       { method: 'post', url: '/auth/logout' },
       { method: 'get', url: '/auth/me' },
+      { method: 'post', url: '/auth/onboarding/complete' },
       { method: 'put', url: '/auth/password' },
       { method: 'post', url: '/auth/password-reset-requests' },
       { method: 'post', url: '/auth/password-resets' },

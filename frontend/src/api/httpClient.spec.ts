@@ -39,6 +39,7 @@ describe('httpClient authentication interceptors', () => {
       email: 'user@example.com',
       passwordChangeRequired: false,
       emailVerified: true,
+      onboardingCompleted: false,
     }
     useAppSettingsStore().loaded = true
     await router.push('/projects')
@@ -93,6 +94,7 @@ describe('httpClient authentication interceptors', () => {
       email: 'user@example.com',
       passwordChangeRequired: false,
       emailVerified: true,
+      onboardingCompleted: false,
     }
     authStore.csrfToken = 'csrf-token'
     httpClient.defaults.adapter = async (config) => {
@@ -128,6 +130,7 @@ describe('httpClient authentication interceptors', () => {
       email: 'user@example.com',
       passwordChangeRequired: false,
       emailVerified: true,
+      onboardingCompleted: false,
     }
     authStore.csrfToken = 'csrf-token'
     httpClient.defaults.adapter = async (config) => {

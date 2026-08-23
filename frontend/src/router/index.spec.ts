@@ -15,6 +15,7 @@ const user = {
   email: 'user@example.com',
   passwordChangeRequired: false,
   emailVerified: true,
+  onboardingCompleted: false,
 }
 
 describe('authentication navigation guard', () => {

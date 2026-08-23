@@ -18,6 +18,7 @@ const user = {
   email: 'long-user-address@example.com',
   passwordChangeRequired: false,
   emailVerified: true,
+  onboardingCompleted: false,
 }
 
 describe('AppHeader user menu', () => {

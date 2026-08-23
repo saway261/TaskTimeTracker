@@ -32,6 +32,22 @@ const completedTask: TaskResponse = {
   tags: [{ id: 'tag1', name: '調査' }],
 }
 
+const unfinishedTask: TaskResponse = {
+  id: 'task11',
+  projectId: 'p1',
+  taskGroupId: null,
+  title: '未完了タスク',
+  description: null,
+  estimatedMinutes: 30,
+  createdAt: '2026-08-22T00:00:00',
+  finishedAt: null,
+  actualMinutesCached: null,
+  gapMinutesCached: null,
+  gapRateCached: null,
+  memos: [],
+  tags: [],
+}
+
 describe('TaskDetailView', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -101,5 +117,48 @@ describe('TaskDetailView', () => {
 
     expect(tasksApi.updateTags).toHaveBeenLastCalledWith('task10', { tagIds: ['tag2'] })
     expect(wrapper.find('[aria-label="調査を外す"]').exists()).toBe(false)
+  })
+
+  it('タスクを完了にするとクイック振り返りモーダルが開く', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: { template: '<div />' } }],
+    })
+    await router.push('/')
+    await router.isReady()
+    vi.mocked(tasksApi.fetchById).mockResolvedValue({ data: unfinishedTask } as never)
+    vi.mocked(tasksApi.updateFinished).mockResolvedValue({
+      data: { ...unfinishedTask, finishedAt: '2026-08-23T10:00:00', actualMinutesCached: 30 },
+    } as never)
+    vi.mocked(projectsApi.fetchById).mockResolvedValue({
+      data: { id: 'p1', title: 'プロジェクト', description: null, isFinished: false, memos: [] },
+    } as never)
+    vi.mocked(workSessionsApi.fetchAllInTask).mockResolvedValue({ data: [] } as never)
+    vi.mocked(tagsApi.fetchAll).mockResolvedValue({ data: [] } as never)
+    const wrapper = shallowMount(TaskDetailView, {
+      props: { projectId: 'p1', taskId: 'task11', taskGroupId: null },
+      global: {
+        plugins: [pinia, router],
+        stubs: {
+          BaseButton: false,
+          ErrorMessage: false,
+          FinishedCheckbox: false,
+          ReflectionModal: false,
+          // BaseModalは<Teleport to="body">で描画するため、実際にテレポートさせず
+          // その場に描画するスタブに差し替える(TaskQuickActionModal.spec.tsと同じ手法)。
+          BaseModal: false,
+          Teleport: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.get('.finished-checkbox input[type="checkbox"]').setValue(true)
+    await flushPromises()
+
+    expect(tasksApi.updateFinished).toHaveBeenCalledWith('task11', { isFinished: true })
+    expect(wrapper.text()).toContain('振り返りを入力')
   })
 })

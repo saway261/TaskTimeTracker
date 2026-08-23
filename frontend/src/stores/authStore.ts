@@ -52,6 +52,13 @@ export const useAuthStore = defineStore('auth', {
       return data
     },
 
+    async completeOnboarding() {
+      await authApi.completeOnboarding()
+      if (this.currentUser) {
+        this.currentUser.onboardingCompleted = true
+      }
+    },
+
     initialize() {
       if (this.initialized) return Promise.resolve()
       if (initializationRequest) return initializationRequest

@@ -12,6 +12,7 @@ const user = {
   email: 'user@example.com',
   passwordChangeRequired: false,
   emailVerified: true,
+  onboardingCompleted: false,
 }
 
 describe('authStore', () => {
@@ -94,5 +95,25 @@ describe('authStore', () => {
 
     expect(store.currentUser).toBeNull()
     expect(store.csrfToken).toBeNull()
+  })
+
+  it('marks the current user onboarded after completeOnboarding succeeds', async () => {
+    vi.mocked(authApi.completeOnboarding).mockResolvedValue({} as never)
+    const store = useAuthStore()
+    store.currentUser = { ...user, onboardingCompleted: false }
+
+    await store.completeOnboarding()
+
+    expect(authApi.completeOnboarding).toHaveBeenCalledTimes(1)
+    expect(store.currentUser.onboardingCompleted).toBe(true)
+  })
+
+  it('does not throw when completeOnboarding succeeds without a current user', async () => {
+    vi.mocked(authApi.completeOnboarding).mockResolvedValue({} as never)
+    const store = useAuthStore()
+
+    await expect(store.completeOnboarding()).resolves.toBeUndefined()
+
+    expect(store.currentUser).toBeNull()
   })
 })

@@ -19,6 +19,7 @@ const user = {
   email: 'user@example.com',
   passwordChangeRequired: false,
   emailVerified: false,
+  onboardingCompleted: false,
 }
 
 function error(status: number, message: string): ApiError {

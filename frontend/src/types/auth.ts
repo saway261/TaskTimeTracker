@@ -13,6 +13,7 @@ export interface AuthenticatedUserResponse {
   email: string
   passwordChangeRequired: boolean
   emailVerified: boolean
+  onboardingCompleted: boolean
 }
 
 export interface PasswordChangeRequest {
