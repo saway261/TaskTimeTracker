@@ -71,7 +71,7 @@ class PasswordResetServiceTest {
   @Test
   void 要求成功_登録済みメールならトークンを発行してイベントを発行すること() {
     AppUser user = new AppUser(
-        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW);
+        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW, false);
     when(userRepository.findByEmail("user@example.com")).thenReturn(user);
     when(tokenGenerator.generateRawToken()).thenReturn("raw-token");
     when(tokenGenerator.hash("raw-token")).thenReturn("hashed-token");
@@ -110,7 +110,7 @@ class PasswordResetServiceTest {
         new PasswordResetToken(10, 1, "hashed-token", NOW.plusMinutes(10), null, NOW);
     when(passwordResetTokenRepository.findValidForUpdate("hashed-token", NOW)).thenReturn(token);
     AppUser user = new AppUser(
-        1, "user@example.com", "{bcrypt}old", true, false, null, NOW, NOW, null);
+        1, "user@example.com", "{bcrypt}old", true, false, null, NOW, NOW, null, false);
     when(userRepository.findById(1)).thenReturn(user);
     when(passwordPolicy.isValid("new-password-123", "user@example.com")).thenReturn(true);
     when(passwordEncoder.encode("new-password-123")).thenReturn("{bcrypt}new");
@@ -132,7 +132,7 @@ class PasswordResetServiceTest {
         new PasswordResetToken(10, 1, "hashed-token", NOW.plusMinutes(10), null, NOW);
     when(passwordResetTokenRepository.findValidForUpdate("hashed-token", NOW)).thenReturn(token);
     AppUser user = new AppUser(
-        1, "user@example.com", "{bcrypt}old", true, false, null, NOW, NOW, NOW);
+        1, "user@example.com", "{bcrypt}old", true, false, null, NOW, NOW, NOW, false);
     when(userRepository.findById(1)).thenReturn(user);
     when(passwordPolicy.isValid("new-password-123", "user@example.com")).thenReturn(true);
     when(passwordEncoder.encode("new-password-123")).thenReturn("{bcrypt}new");
@@ -160,7 +160,7 @@ class PasswordResetServiceTest {
         new PasswordResetToken(10, 1, "hashed-token", NOW.plusMinutes(10), null, NOW);
     when(passwordResetTokenRepository.findValidForUpdate("hashed-token", NOW)).thenReturn(token);
     AppUser user = new AppUser(
-        1, "user@example.com", "{bcrypt}old", true, false, null, NOW, NOW, NOW);
+        1, "user@example.com", "{bcrypt}old", true, false, null, NOW, NOW, NOW, false);
     when(userRepository.findById(1)).thenReturn(user);
     when(passwordPolicy.isValid("invalid-pass", "user@example.com")).thenReturn(false);
 

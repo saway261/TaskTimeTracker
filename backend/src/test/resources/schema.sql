@@ -8,6 +8,7 @@ CREATE TABLE app_users (
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP NOT NULL,
   email_verified_at TIMESTAMP,
+  onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
   CONSTRAINT uq_app_users_email UNIQUE (email),
   CONSTRAINT chk_app_users_email_normalized
     CHECK (email = LOWER(TRIM(email))),

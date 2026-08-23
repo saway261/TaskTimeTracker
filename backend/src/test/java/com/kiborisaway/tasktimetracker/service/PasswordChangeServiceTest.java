@@ -52,7 +52,7 @@ class PasswordChangeServiceTest {
         emailChangeRequestRepository, passwordResetTokenRepository, CLOCK);
     user = new AppUser(
         1, "user@example.com", "{bcrypt}current", true, false, null,
-        LocalDateTime.now(CLOCK), LocalDateTime.now(CLOCK), LocalDateTime.now(CLOCK));
+        LocalDateTime.now(CLOCK), LocalDateTime.now(CLOCK), LocalDateTime.now(CLOCK), false);
     when(userRepository.findById(1)).thenReturn(user);
   }
 

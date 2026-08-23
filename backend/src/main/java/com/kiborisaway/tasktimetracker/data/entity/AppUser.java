@@ -31,4 +31,6 @@ public class AppUser {
   private LocalDateTime updatedAt;
 
   private LocalDateTime emailVerifiedAt;
+
+  private Boolean onboardingCompleted;
 }

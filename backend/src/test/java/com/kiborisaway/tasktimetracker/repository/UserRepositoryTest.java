@@ -31,6 +31,7 @@ class UserRepositoryTest {
     assertThat(actual.getPasswordChangeRequired()).isFalse();
     assertThat(actual.getTemporaryPasswordExpiresAt()).isNull();
     assertThat(actual.getEmailVerifiedAt()).isNotNull();
+    assertThat(actual.getOnboardingCompleted()).isFalse();
   }
 
   @Test
@@ -47,7 +48,7 @@ class UserRepositoryTest {
   void 登録成功_ユーザーを登録して採番されたIDを設定できること() {
     LocalDateTime now = LocalDateTime.of(2026, 8, 13, 12, 0);
     AppUser user = new AppUser(
-        null, "new-user@example.com", PASSWORD_HASH, true, false, null, now, now, null);
+        null, "new-user@example.com", PASSWORD_HASH, true, false, null, now, now, null, false);
 
     sut.insert(user);
 
@@ -59,7 +60,7 @@ class UserRepositoryTest {
   void 登録失敗_正規化されていないメールなら制約違反になること() {
     LocalDateTime now = LocalDateTime.of(2026, 8, 13, 12, 0);
     AppUser user = new AppUser(
-        null, "User@Example.com", PASSWORD_HASH, true, false, null, now, now, null);
+        null, "User@Example.com", PASSWORD_HASH, true, false, null, now, now, null, false);
 
     assertThatThrownBy(() -> sut.insert(user))
         .isInstanceOf(DataIntegrityViolationException.class);

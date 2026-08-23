@@ -59,7 +59,8 @@ public class UserService {
         null,
         now,
         now,
-        null);
+        null,
+        false);
     try {
       userRepository.insert(user);
     } catch (DataIntegrityViolationException ex) {
@@ -68,6 +69,10 @@ public class UserService {
     tagService.createPresetTags(user.getId());
     emailVerificationService.issueForRegistration(user.getId(), email);
     return new AuthenticatedUser(user);
+  }
+
+  public AppUser findById(int userId) {
+    return userRepository.findById(userId);
   }
 
   public static String normalizeEmail(String email) {

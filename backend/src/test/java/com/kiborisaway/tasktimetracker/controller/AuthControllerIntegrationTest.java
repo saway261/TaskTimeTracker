@@ -163,6 +163,42 @@ class AuthControllerIntegrationTest {
   }
 
   @Test
+  void me取得_同一セッション内でDBが更新されると最新値が返ること() throws Exception {
+    Cookie authenticatedCookie = loginAsUserA();
+
+    mockMvc.perform(get("/auth/me").cookie(authenticatedCookie))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.emailVerified").value(true));
+
+    // Principal（セッション内キャッシュ）ではなくDBを読み直すことの検証（要件 §5.1）。
+    // userRepositoryの更新系メソッドを経由するのは、jdbcTemplateによる素のSQL更新だと
+    // 同一トランザクション内でMyBatisのローカルキャッシュ（SqlSession単位）に阻まれ、
+    // 次のfindByIdが古い結果を返してしまうため。
+    userRepository.updateEmailVerified(1, null, java.time.LocalDateTime.now());
+
+    mockMvc.perform(get("/auth/me").cookie(authenticatedCookie))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.emailVerified").value(false));
+  }
+
+  private Cookie loginAsUserA() throws Exception {
+    MvcResult csrfResult = mockMvc.perform(get("/auth/csrf"))
+        .andExpect(status().isOk())
+        .andReturn();
+    Cookie anonymousCookie = csrfResult.getResponse().getCookie("JSESSIONID");
+    MvcResult login = mockMvc.perform(post("/auth/login")
+            .cookie(anonymousCookie)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"email":"user-a@example.com","password":"TestPasswordA123!"}
+                """))
+        .andExpect(status().isOk())
+        .andReturn();
+    return login.getResponse().getCookie("JSESSIONID");
+  }
+
+  @Test
   void ログイン失敗_誤パスワードなら共通の401本文を返すこと() throws Exception {
     mockMvc.perform(post("/auth/login")
             .with(csrf())
