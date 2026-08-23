@@ -3,9 +3,10 @@ import { tasksChapter } from './tasks'
 import { reflectionsChapter } from './reflections'
 import { analyticsChapter } from './analytics'
 import { tagsChapter } from './tags'
+import { introChapter } from './intro'
 
-// 残りの章(はじめに)はフェーズF6で追加する。
 export const chapters: TutorialChapter[] = [
+  introChapter,
   tasksChapter,
   reflectionsChapter,
   analyticsChapter,

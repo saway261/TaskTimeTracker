@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useAuthStore } from '@/stores/authStore'
+import { useNotificationStore } from '@/stores/notificationStore'
 import { useTutorialStore } from '@/stores/tutorialStore'
 import { resolveAnchor } from '@/tutorial/anchor'
 import { findChapter } from '@/tutorial/chapters'
@@ -110,9 +112,24 @@ async function goToStep(index: number, hook?: () => Promise<void> | void) {
   await focusCard()
 }
 
+// 初回ツアー(mode: 'tour')は、完走・スキップのいずれでも完了記録を行う(要件 §6.3)。
+// 章再生(mode: 'replay')では呼ばない。既にonboardingCompletedがtrueであり、
+// 状態を変える必要がないため。
 async function finish() {
   await callHook(currentStep.value?.after)
+  const isTour = store.mode === 'tour'
   store.end()
+  if (!isTour) return
+
+  // UIを閉じた後に完了記録を行う。APIが失敗してもユーザーの操作は妨げない
+  // (要件 §6.4)。フラグが立たなければ次回ログイン時に再発火するが、
+  // tourAttemptedにより同一セッション中の再発火は防がれる。
+  try {
+    await useAuthStore().completeOnboarding()
+  } catch {
+    // エラー通知は出さない(要件 §6.4)。ユーザーが取れる対処が無いため。
+  }
+  useNotificationStore().info('チュートリアルはユーザーメニューからいつでも見られます。')
 }
 
 async function handleNext() {

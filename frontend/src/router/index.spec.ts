@@ -6,6 +6,7 @@ import * as authApi from '@/api/authApi'
 import * as appSettingsApi from '@/api/appSettingsApi'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppSettingsStore } from '@/stores/appSettingsStore'
+import { useTutorialStore } from '@/stores/tutorialStore'
 import { router } from './index'
 
 vi.mock('@/api/appSettingsApi')
@@ -166,5 +167,89 @@ describe('authentication navigation guard', () => {
     expect(router.currentRoute.value.name).toBe('project-list')
     expect(useAppSettingsStore().onTimeThresholdPercent).toBe(10)
     expect(useAppSettingsStore().loaded).toBe(true)
+  })
+})
+
+describe('initial tour firing (要件 §6.1〜§6.2)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.resetAllMocks()
+    setActivePinia(createPinia())
+    useAuthStore().initialized = true
+    vi.mocked(appSettingsApi.fetchSettings).mockResolvedValue({
+      data: { onTimeThresholdPercent: 10 },
+    } as never)
+  })
+
+  it('starts the intro tour, unscoped, when an onboardingCompleted:false user reaches /projects', async () => {
+    useAuthStore().currentUser = user
+    await router.push('/tags')
+
+    await router.push('/projects')
+
+    const tutorialStore = useTutorialStore()
+    expect(tutorialStore.activeChapterId).toBe('intro')
+    expect(tutorialStore.mode).toBe('tour')
+    // スコープ指定なしで開始する。「はじめに」章のwelcome/loop/f-reflectは
+    // アンカーを持たないため、スコープ付きだと再生対象から外れてしまう。
+    expect(tutorialStore.scopeSelector).toBeNull()
+  })
+
+  it('does not fire for users who must change their password first', async () => {
+    useAuthStore().currentUser = { ...user, passwordChangeRequired: true, emailVerified: false }
+    await router.push('/tags').catch(() => {})
+
+    await router.push('/projects')
+
+    expect(router.currentRoute.value.name).toBe('password-change')
+    expect(useTutorialStore().activeChapterId).toBeNull()
+  })
+
+  it('does not fire for users who have not verified their email', async () => {
+    useAuthStore().currentUser = { ...user, emailVerified: false }
+    await router.push('/tags').catch(() => {})
+
+    await router.push('/projects')
+
+    expect(router.currentRoute.value.name).toBe('email-verification-pending')
+    expect(useTutorialStore().activeChapterId).toBeNull()
+  })
+
+  it('does not fire for users who already completed onboarding', async () => {
+    useAuthStore().currentUser = { ...user, onboardingCompleted: true }
+    await router.push('/tags')
+
+    await router.push('/projects')
+
+    expect(useTutorialStore().activeChapterId).toBeNull()
+  })
+
+  it('does not fire for unauthenticated visitors (redirected to login before reaching /projects)', async () => {
+    // 直前のテストが /projects に留まっている場合、同一ルートへのpushは
+    // ナビゲーションガードを再実行しない(vue-routerの重複ナビゲーション扱い)ため、
+    // 先に無関係のルートへ移動してから改めて /projects へ push する。
+    await router.push('/password-reset-request')
+
+    await router.push('/projects')
+
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(useTutorialStore().activeChapterId).toBeNull()
+  })
+
+  it('does not re-fire on a second visit to /projects within the same session', async () => {
+    useAuthStore().currentUser = user
+    await router.push('/tags')
+    await router.push('/projects')
+
+    const tutorialStore = useTutorialStore()
+    expect(tutorialStore.activeChapterId).toBe('intro')
+    // ユーザーがツアーを閉じた状態を模す。
+    tutorialStore.end()
+
+    await router.push('/analytics')
+    await router.push('/projects')
+
+    expect(tutorialStore.activeChapterId).toBeNull()
+    expect(tutorialStore.tourAttempted).toBe(true)
   })
 })

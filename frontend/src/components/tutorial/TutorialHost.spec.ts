@@ -3,11 +3,15 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as authApi from '@/api/authApi'
+import { useNotificationStore } from '@/stores/notificationStore'
 import { useTutorialStore } from '@/stores/tutorialStore'
 import type { TutorialChapter, TutorialStep } from '@/tutorial/types'
 import TutorialHost from './TutorialHost.vue'
 import TutorialOverlay from './TutorialOverlay.vue'
 import TutorialCard from './TutorialCard.vue'
+
+vi.mock('@/api/authApi')
 
 const { findChapterMock } = vi.hoisted(() => ({ findChapterMock: vi.fn() }))
 vi.mock('@/tutorial/chapters', () => ({ findChapter: findChapterMock }))
@@ -48,6 +52,9 @@ describe('TutorialHost', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     findChapterMock.mockReset()
+    vi.mocked(authApi.completeOnboarding)
+      .mockReset()
+      .mockResolvedValue(undefined as never)
   })
 
   afterEach(() => {
@@ -134,6 +141,71 @@ describe('TutorialHost', () => {
     await flushPromises()
 
     expect(store.activeChapterId).toBeNull()
+  })
+
+  it('records onboarding completion and notifies the user when a tour finishes (要件 §6.3)', async () => {
+    findChapterMock.mockReturnValue(makeChapter([{ id: 's1', title: 'ステップ1', body: '本文1' }]))
+    useTutorialStore().start('tasks', 'tour')
+
+    mount(TutorialHost, { attachTo: document.body })
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await flushPromises()
+
+    expect(authApi.completeOnboarding).toHaveBeenCalledTimes(1)
+    const notifications = useNotificationStore().notifications
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0]).toMatchObject({
+      kind: 'info',
+      message: 'チュートリアルはユーザーメニューからいつでも見られます。',
+    })
+  })
+
+  it('records onboarding completion when a tour is skipped via Escape (要件 §6.3)', async () => {
+    findChapterMock.mockReturnValue(makeChapter([{ id: 's1', title: 'ステップ1', body: '本文1' }]))
+    useTutorialStore().start('tasks', 'tour')
+
+    mount(TutorialHost, { attachTo: document.body })
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+
+    expect(authApi.completeOnboarding).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not record onboarding completion when a chapter replay finishes (要件 §6.3)', async () => {
+    findChapterMock.mockReturnValue(makeChapter([{ id: 's1', title: 'ステップ1', body: '本文1' }]))
+    useTutorialStore().start('tasks', 'replay')
+
+    mount(TutorialHost, { attachTo: document.body })
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await flushPromises()
+
+    expect(authApi.completeOnboarding).not.toHaveBeenCalled()
+    expect(useNotificationStore().notifications).toHaveLength(0)
+  })
+
+  it('closes the tutorial and shows no error notification when completion recording fails (要件 §6.4)', async () => {
+    vi.mocked(authApi.completeOnboarding).mockRejectedValue(new Error('network error'))
+    findChapterMock.mockReturnValue(makeChapter([{ id: 's1', title: 'ステップ1', body: '本文1' }]))
+    const store = useTutorialStore()
+    store.start('tasks', 'tour')
+
+    mount(TutorialHost, { attachTo: document.body })
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await flushPromises()
+
+    expect(store.activeChapterId).toBeNull()
+    const notifications = useNotificationStore().notifications
+    expect(notifications.some((n) => n.kind === 'error')).toBe(false)
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0].kind).toBe('info')
   })
 
   it('moves focus into the card on mount and restores it to the opener on close', async () => {
