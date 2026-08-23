@@ -13,6 +13,8 @@ export const TUTORIAL_SCOPES = {
   taskForm: '.task-form',
   reflectionList: '.reflection-view',
   reflectionDetail: '.reflection-detail-view',
+  // 振り返りモーダル（振り返り詳細画面の行から開く）
+  reflectionModal: '.reflection-modal',
   analytics: '.analytics-view',
   tags: '.tag-management-view',
 } as const
