@@ -8,6 +8,7 @@ import * as projectsApi from '@/api/projectsApi'
 import * as tagsApi from '@/api/tagsApi'
 import * as tasksApi from '@/api/tasksApi'
 import * as workSessionsApi from '@/api/workSessionsApi'
+import { useQuickReflectionStore } from '@/stores/quickReflectionStore'
 import type { TaskResponse } from '@/types/task'
 import TaskDetailView from './TaskDetailView.vue'
 
@@ -119,7 +120,9 @@ describe('TaskDetailView', () => {
     expect(wrapper.find('[aria-label="調査を外す"]').exists()).toBe(false)
   })
 
-  it('タスクを完了にするとクイック振り返りモーダルが開く', async () => {
+  // 振り返りモーダルの実体はアプリ直下（QuickReflectionHost）にあるため、
+  // この画面の中には現れない。ストアへ正しく引き渡せたかを検証する。
+  it('タスクを完了にするとクイック振り返りの対象がストアへ渡る', async () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     const router = createRouter({
@@ -145,11 +148,6 @@ describe('TaskDetailView', () => {
           BaseButton: false,
           ErrorMessage: false,
           FinishedCheckbox: false,
-          ReflectionModal: false,
-          // BaseModalは<Teleport to="body">で描画するため、実際にテレポートさせず
-          // その場に描画するスタブに差し替える(TaskQuickActionModal.spec.tsと同じ手法)。
-          BaseModal: false,
-          Teleport: true,
         },
       },
     })
@@ -159,7 +157,13 @@ describe('TaskDetailView', () => {
     await flushPromises()
 
     expect(tasksApi.updateFinished).toHaveBeenCalledWith('task11', { isFinished: true })
-    expect(wrapper.text()).toContain('振り返りを入力')
+    const quickReflection = useQuickReflectionStore()
+    expect(quickReflection.task).toMatchObject({
+      id: 'task11',
+      title: '未完了タスク',
+      actualMinutesCached: 30,
+      reflection: null,
+    })
   })
 
   it('ヘルプボタンから「タスク管理」章が画面遷移なしで再生される', async () => {

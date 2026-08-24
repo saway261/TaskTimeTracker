@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tasksApi from '@/api/tasksApi'
 import * as workSessionsApi from '@/api/workSessionsApi'
 import * as reflectionsApi from '@/api/reflectionsApi'
+import { useQuickReflectionStore } from '@/stores/quickReflectionStore'
 import type { TaskResponse } from '@/types/task'
 import type { WorkSession } from '@/types/workSession'
 import TaskQuickActionModal from './TaskQuickActionModal.vue'
@@ -115,11 +116,12 @@ describe('TaskQuickActionModal', () => {
     expect(detailLink.attributes('href')).toBe(`/projects/p1/tasks/${task.id}`)
   })
 
-  it('モーダルからタスクを完了にでき、クイック振り返りモーダルが開く', async () => {
+  // 振り返りモーダルの実体はアプリ直下（App.vue の QuickReflectionHost）にあるため、
+  // このコンポーネントの中には現れない。ここではストアへ正しく引き渡せたかを検証する。
+  it('モーダルからタスクを完了にすると、クイック振り返りの対象がストアへ渡る', async () => {
+    const finishedTask = { ...task, finishedAt: '2026-08-15T02:00:00' }
     vi.mocked(workSessionsApi.fetchAllInTask).mockResolvedValue({ data: [] } as never)
-    vi.mocked(tasksApi.updateFinished).mockResolvedValue({
-      data: { ...task, finishedAt: '2026-08-15T02:00:00' },
-    } as never)
+    vi.mocked(tasksApi.updateFinished).mockResolvedValue({ data: finishedTask } as never)
     const wrapper = mountModal()
     await flushPromises()
 
@@ -127,11 +129,13 @@ describe('TaskQuickActionModal', () => {
     await flushPromises()
 
     expect(tasksApi.updateFinished).toHaveBeenCalledWith(task.id, { isFinished: true })
-    expect(wrapper.text()).toContain('振り返りを入力')
-    expect(wrapper.text()).toContain('後で入力する場合は✖ボタンで閉じてください')
+    const quickReflection = useQuickReflectionStore()
+    expect(quickReflection.task).toMatchObject({ id: task.id, title: task.title })
+    // 完了直後は未入力なので、登録（create）扱いになる。
+    expect(quickReflection.task?.reflection).toBeNull()
   })
 
-  it('クイック振り返りモーダルを閉じるとタスクモーダルごと閉じる', async () => {
+  it('完了したらタスクモーダル自身は閉じ、元のタスク一覧へ戻す', async () => {
     vi.mocked(workSessionsApi.fetchAllInTask).mockResolvedValue({ data: [] } as never)
     vi.mocked(tasksApi.updateFinished).mockResolvedValue({
       data: { ...task, finishedAt: '2026-08-15T02:00:00' },
@@ -141,10 +145,6 @@ describe('TaskQuickActionModal', () => {
 
     await wrapper.get('.task-state input[type="checkbox"]').setValue(true)
     await flushPromises()
-
-    const closeButtons = wrapper.findAll('.close-button')
-    expect(closeButtons.length).toBe(2)
-    await closeButtons[closeButtons.length - 1].trigger('click')
 
     expect(wrapper.emitted('update:modelValue')).toContainEqual([false])
   })
@@ -222,7 +222,11 @@ describe('TaskQuickActionModal', () => {
     await flushPromises()
 
     expect(reflectionsApi.fetchOverview).toHaveBeenCalledWith('p1')
-    expect(wrapper.text()).toContain('振り返りの詳細・変更')
+    // 取得済みの振り返りをそのままストアへ渡す。reflectionが載っていることで
+    // QuickReflectionHost 側が更新（update）扱いにできる。
+    const quickReflection = useQuickReflectionStore()
+    expect(quickReflection.task?.id).toBe(task.id)
+    expect(quickReflection.task?.reflection).toMatchObject({ cause: '確認不足' })
   })
 
   it('タイトル横のヘルプボタンから「タスク管理」章を画面遷移なしで再生できる', async () => {

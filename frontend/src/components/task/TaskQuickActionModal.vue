@@ -4,16 +4,13 @@ import { RouterLink } from 'vue-router'
 import { useTaskStore } from '@/stores/taskStore'
 import { useWorkSessionStore } from '@/stores/workSessionStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useQuickReflectionStore } from '@/stores/quickReflectionStore'
 import { isFinished as isTaskFinished } from '@/utils/task'
 import { toReflectionTask } from '@/utils/reflectionTask'
 import * as reflectionsApi from '@/api/reflectionsApi'
 import type { ApiError } from '@/types/apiError'
 import type { MemoRequest } from '@/types/memo'
-import type {
-  ProjectReflectionOverviewResponse,
-  ReflectionRequest,
-  ReflectionTaskResponse,
-} from '@/types/reflection'
+import type { ProjectReflectionOverviewResponse, ReflectionTaskResponse } from '@/types/reflection'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -25,7 +22,6 @@ import EstimationSummary from '@/components/task/EstimationSummary.vue'
 import ManualWorkSessionForm from '@/components/workSession/ManualWorkSessionForm.vue'
 import WorkSessionList from '@/components/workSession/WorkSessionList.vue'
 import WorkTimer from '@/components/workSession/WorkTimer.vue'
-import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
 import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
 import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
@@ -44,6 +40,7 @@ const emit = defineEmits<{
 const taskStore = useTaskStore()
 const workSessionStore = useWorkSessionStore()
 const notification = useNotificationStore()
+const quickReflection = useQuickReflectionStore()
 
 const loading = ref(false)
 const loadError = ref<ApiError | null>(null)
@@ -121,10 +118,10 @@ async function updateFinishedState(nextFinished: boolean) {
     const updatedTask = await taskStore.updateFinished(props.taskId, { isFinished: nextFinished })
     notification.success(nextFinished ? 'タスクを完了にしました。' : '完了を解除しました。')
     if (nextFinished) {
-      reflectionError.value = null
-      reflectionTask.value = toReflectionTask(updatedTask)
-      closeTaskModalWithReflection.value = true
-      showReflectionModal.value = true
+      // タスクモーダルは閉じ、振り返りモーダルへ引き継ぐ。振り返りを閉じたときに
+      // 元のタスク一覧へ戻る挙動は、モーダルがアプリ直下にあることで自然に成立する。
+      close()
+      quickReflection.open(toReflectionTask(updatedTask))
     }
   } catch (e) {
     finishError.value = e as ApiError
@@ -146,14 +143,11 @@ function close() {
   emit('update:modelValue', false)
 }
 
-// --- クイック振り返り（完了直後に即入力できるようにする） ---
-const showReflectionModal = ref(false)
-const reflectionTask = ref<ReflectionTaskResponse | null>(null)
-const reflectionSubmitting = ref(false)
+// --- 登録済みの振り返りを開く（完了済みタスク向け） ---
+// 登録・更新そのものは QuickReflectionHost が担う。ここは対象タスクの現在の振り返りを
+// 取りに行き、ストアへ渡すところまでを受け持つ。
 const reflectionLoading = ref(false)
-const reflectionError = ref<ApiError | null>(null)
 const reflectionLoadError = ref<ApiError | null>(null)
-const closeTaskModalWithReflection = ref(false)
 
 function findReflectionTask(
   overview: ProjectReflectionOverviewResponse,
@@ -169,45 +163,13 @@ async function openReflectionModal() {
   if (!task.value || !finished.value) return
   reflectionLoading.value = true
   reflectionLoadError.value = null
-  reflectionError.value = null
   try {
     const response = await reflectionsApi.fetchOverview(props.projectId)
-    reflectionTask.value = findReflectionTask(response.data) ?? toReflectionTask(task.value)
-    closeTaskModalWithReflection.value = false
-    showReflectionModal.value = true
+    quickReflection.open(findReflectionTask(response.data) ?? toReflectionTask(task.value))
   } catch (e) {
     reflectionLoadError.value = e as ApiError
   } finally {
     reflectionLoading.value = false
-  }
-}
-
-// 振り返りモーダルを閉じる操作（✖・背景クリック・登録完了）は、そのままタスクモーダルも閉じて
-// 元のタスク一覧ページへ戻す（完了操作をタスクモーダルで行った場合の仕様）。
-function handleReflectionModalUpdate(open: boolean) {
-  showReflectionModal.value = open
-  if (!open && closeTaskModalWithReflection.value) {
-    close()
-  }
-  if (!open) closeTaskModalWithReflection.value = false
-}
-
-async function handleReflectionSubmit(payload: ReflectionRequest) {
-  reflectionSubmitting.value = true
-  reflectionError.value = null
-  try {
-    if (reflectionTask.value?.reflection) {
-      await reflectionsApi.update(props.taskId, payload)
-      notification.success('振り返りを更新しました。')
-    } else {
-      await reflectionsApi.create(props.taskId, payload)
-      notification.success('振り返りを登録しました。')
-    }
-    handleReflectionModalUpdate(false)
-  } catch (e) {
-    reflectionError.value = e as ApiError
-  } finally {
-    reflectionSubmitting.value = false
   }
 }
 </script>
@@ -310,16 +272,6 @@ async function handleReflectionSubmit(payload: ReflectionRequest) {
       confirm-label="作業中に戻す"
       danger
       @confirm="updateFinishedState(false)"
-    />
-
-    <ReflectionModal
-      :model-value="showReflectionModal"
-      :task="reflectionTask"
-      :submitting="reflectionSubmitting"
-      :error="reflectionError"
-      defer-hint
-      @update:model-value="handleReflectionModalUpdate"
-      @submit="handleReflectionSubmit"
     />
   </BaseModal>
 </template>

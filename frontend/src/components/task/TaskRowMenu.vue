@@ -4,6 +4,8 @@ import { RouterLink } from 'vue-router'
 import { useItemOrderStore } from '@/stores/itemOrderStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useQuickReflectionStore } from '@/stores/quickReflectionStore'
+import { toReflectionTask } from '@/utils/reflectionTask'
 import type { TaskGroupResponse } from '@/types/taskGroup'
 import type { ApiError } from '@/types/apiError'
 import BaseModal from '@/components/common/BaseModal.vue'
@@ -32,6 +34,7 @@ const emit = defineEmits<{
 const itemOrderStore = useItemOrderStore()
 const taskStore = useTaskStore()
 const notification = useNotificationStore()
+const quickReflection = useQuickReflectionStore()
 
 const moving = ref(false)
 const finishing = ref(false)
@@ -61,9 +64,12 @@ async function finishTask() {
   finishing.value = true
   error.value = null
   try {
-    await taskStore.updateFinished(props.taskId, { isFinished: true })
+    const updatedTask = await taskStore.updateFinished(props.taskId, { isFinished: true })
     notification.success('タスクを完了にしました。')
+    // このメニューを閉じてから振り返りへ引き継ぐ。振り返りモーダルはアプリ直下にあるため、
+    // 完了によってこの行が一覧から外れてアンマウントされても影響を受けない。
     close()
+    quickReflection.open(toReflectionTask(updatedTask))
   } catch (e) {
     error.value = e as ApiError
   } finally {

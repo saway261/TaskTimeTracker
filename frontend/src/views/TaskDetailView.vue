@@ -6,14 +6,13 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useTaskGroupStore } from '@/stores/taskGroupStore'
 import { useWorkSessionStore } from '@/stores/workSessionStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useQuickReflectionStore } from '@/stores/quickReflectionStore'
 import { isFinished as isTaskFinished } from '@/utils/task'
 import { toReflectionTask } from '@/utils/reflectionTask'
-import * as reflectionsApi from '@/api/reflectionsApi'
 import type { ApiError } from '@/types/apiError'
 import type { TaskUpdateEstimatedMinutesRequest, TaskUpdatePropertyRequest } from '@/types/task'
 import type { TagSummary } from '@/types/tag'
 import type { MemoRequest } from '@/types/memo'
-import type { ReflectionRequest } from '@/types/reflection'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -28,7 +27,6 @@ import MemoList from '@/components/memo/MemoList.vue'
 import WorkSessionList from '@/components/workSession/WorkSessionList.vue'
 import ManualWorkSessionForm from '@/components/workSession/ManualWorkSessionForm.vue'
 import WorkTimer from '@/components/workSession/WorkTimer.vue'
-import ReflectionModal from '@/components/reflection/ReflectionModal.vue'
 import TagBadgeList from '@/components/tag/TagBadgeList.vue'
 import TagSelect from '@/components/tag/TagSelect.vue'
 import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
@@ -46,6 +44,7 @@ const projectStore = useProjectStore()
 const taskGroupStore = useTaskGroupStore()
 const workSessionStore = useWorkSessionStore()
 const notification = useNotificationStore()
+const quickReflection = useQuickReflectionStore()
 
 const backLink = computed(() =>
   props.taskGroupId !== null
@@ -218,40 +217,18 @@ async function toggleFinished() {
   actionError.value = null
   const wasFinished = finished.value
   try {
-    await taskStore.updateFinished(id, { isFinished: !wasFinished })
+    const updatedTask = await taskStore.updateFinished(id, { isFinished: !wasFinished })
     notification.success(wasFinished ? '完了を解除しました。' : 'タスクを完了にしました。')
     if (!wasFinished) {
-      quickReflectionError.value = null
-      showQuickReflectionModal.value = true
+      // 振り返りの入力・登録は QuickReflectionHost（アプリ直下）が担う。
+      // この画面はアンマウントされないため元々不具合は出ていなかったが、
+      // 登録処理を1箇所へ寄せるためストア経由に揃える。
+      quickReflection.open(toReflectionTask(updatedTask))
     }
   } catch (e) {
     actionError.value = e as ApiError
   } finally {
     finishing.value = false
-  }
-}
-
-// --- クイック振り返り（完了直後に即入力できるようにする） ---
-const showQuickReflectionModal = ref(false)
-const quickReflectionSubmitting = ref(false)
-const quickReflectionError = ref<ApiError | null>(null)
-
-const quickReflectionTask = computed(() =>
-  taskStore.currentTask ? toReflectionTask(taskStore.currentTask) : null,
-)
-
-async function handleQuickReflectionSubmit(payload: ReflectionRequest) {
-  const id = props.taskId
-  quickReflectionSubmitting.value = true
-  quickReflectionError.value = null
-  try {
-    await reflectionsApi.create(id, payload)
-    notification.success('振り返りを登録しました。')
-    showQuickReflectionModal.value = false
-  } catch (e) {
-    quickReflectionError.value = e as ApiError
-  } finally {
-    quickReflectionSubmitting.value = false
   }
 }
 
@@ -474,15 +451,6 @@ function handleMemoCreate(req: MemoRequest) {
       confirm-label="作業中に戻す"
       danger
       @confirm="toggleFinished"
-    />
-
-    <ReflectionModal
-      v-model="showQuickReflectionModal"
-      :task="quickReflectionTask"
-      :submitting="quickReflectionSubmitting"
-      :error="quickReflectionError"
-      defer-hint
-      @submit="handleQuickReflectionSubmit"
     />
   </div>
 </template>
