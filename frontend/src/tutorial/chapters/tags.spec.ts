@@ -20,11 +20,10 @@ describe('tagsChapter (content)', () => {
     expect(tagsChapter.summary.length).toBeGreaterThan(0)
   })
 
-  it('defines all 8 steps from requirements §9.5, in order', () => {
+  it('defines all 7 steps, in order', () => {
     expect(tagsChapter.steps.map((s) => s.id)).toEqual([
       'purpose',
       'cross-project',
-      'preset',
       'rename',
       'create',
       'limit',
@@ -33,18 +32,8 @@ describe('tagsChapter (content)', () => {
     ])
   })
 
-  it('presents preset before rename, so the presets read as a starting point, not a fixed set', () => {
-    const presetIndex = tagsChapter.steps.findIndex((s) => s.id === 'preset')
-    const renameIndex = tagsChapter.steps.findIndex((s) => s.id === 'rename')
-    expect(presetIndex).toBeLessThan(renameIndex)
-  })
-
-  it('states the actual preset tag names and the 50-tag limit', () => {
-    const preset = tagsChapter.steps.find((s) => s.id === 'preset')
+  it('states the 50-tag limit', () => {
     const limit = tagsChapter.steps.find((s) => s.id === 'limit')
-    expect(preset?.body).toContain('調査・計画')
-    expect(preset?.body).toContain('環境構築')
-    expect(preset?.body).toContain('手作業')
     expect(limit?.body).toContain('50件')
   })
 
@@ -125,7 +114,6 @@ describe('tagsChapter (replay integration)', () => {
     // テストが気づけない。
     markVisible(document.body.querySelector('.tag-management-view h1')!, { top: 10, left: 10 })
     markVisible(document.body.querySelector('.page-header')!, { top: 20, left: 20 })
-    markVisible(document.body.querySelector('.tag-list')!, { top: 30, left: 30 })
     markVisible(document.body.querySelector('.row-actions')!, { top: 40, left: 40 })
     markVisible(document.body.querySelector('.create-section')!, { top: 50, left: 50 })
     markVisible(document.body.querySelector('.active-count')!, { top: 60, left: 60 })
@@ -140,7 +128,6 @@ describe('tagsChapter (replay integration)', () => {
     const expectations: Record<string, string> = {
       purpose: '.tag-management-view h1',
       'cross-project': '.page-header',
-      preset: '.tag-list',
       rename: '.row-actions',
       create: '.create-section',
       limit: '.active-count',
@@ -203,15 +190,7 @@ describe('tagsChapter (scoped replay from a help button)', () => {
 
     const seen = await walkAllSteps(wrapper)
     expect(seen).not.toContain('assign')
-    expect(seen).toEqual([
-      'purpose',
-      'cross-project',
-      'preset',
-      'rename',
-      'create',
-      'limit',
-      'archive',
-    ])
+    expect(seen).toEqual(['purpose', 'cross-project', 'rename', 'create', 'limit', 'archive'])
   })
 
   it('plays assign only in the unscoped, whole-chapter replay', async () => {

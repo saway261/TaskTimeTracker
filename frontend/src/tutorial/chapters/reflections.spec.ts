@@ -20,13 +20,14 @@ describe('reflectionsChapter (content)', () => {
     expect(reflectionsChapter.summary.length).toBeGreaterThan(0)
   })
 
-  it('defines all 7 steps from requirements §9.3, in order', () => {
+  it('defines all 8 steps, in order', () => {
     expect(reflectionsChapter.steps.map((s) => s.id)).toEqual([
       'why',
       'project-select',
       'target',
       'gap',
       'cause-category',
+      'cause-detail',
       'next-action',
       'reopen',
     ])
@@ -96,6 +97,7 @@ describe('reflectionsChapter (replay integration)', () => {
       <div class="reflection-modal">
         <dl class="reference-info"></dl>
         <fieldset class="cause-category-select"></fieldset>
+        <div class="cause-field"></div>
         <div class="next-action-field"></div>
       </div>
     `
@@ -106,6 +108,7 @@ describe('reflectionsChapter (replay integration)', () => {
     markVisible(document.body.querySelector('.reflection-task-row')!, { top: 30, left: 30 })
     markVisible(document.body.querySelector('.row-meta')!, { top: 40, left: 40 })
     markVisible(document.body.querySelector('.cause-category-select')!, { top: 50, left: 50 })
+    markVisible(document.body.querySelector('.cause-field')!, { top: 55, left: 55 })
     markVisible(document.body.querySelector('.next-action-field')!, { top: 60, left: 60 })
 
     const store = useTutorialStore()
@@ -120,6 +123,7 @@ describe('reflectionsChapter (replay integration)', () => {
       target: '.reflection-task-row',
       gap: '.row-meta',
       'cause-category': '.cause-category-select',
+      'cause-detail': '.cause-field',
       'next-action': '.next-action-field',
     }
 
@@ -193,6 +197,7 @@ describe('reflectionsChapter (scoped replay from a help button)', () => {
       <div class="reflection-modal">
         <dl class="reference-info"></dl>
         <fieldset class="cause-category-select"></fieldset>
+        <div class="cause-field"></div>
         <div class="next-action-field"></div>
       </div>
     `
@@ -203,7 +208,12 @@ describe('reflectionsChapter (scoped replay from a help button)', () => {
     const wrapper = mount(TutorialHost, { attachTo: document.body })
     await flushPromises()
 
-    expect(await walkAllSteps(wrapper)).toEqual(['gap', 'cause-category', 'next-action'])
+    expect(await walkAllSteps(wrapper)).toEqual([
+      'gap',
+      'cause-category',
+      'cause-detail',
+      'next-action',
+    ])
   })
 
   it('includes reopen only in the unscoped, whole-chapter replay', async () => {

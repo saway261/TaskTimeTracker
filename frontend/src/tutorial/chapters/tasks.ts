@@ -40,7 +40,7 @@ export const tasksChapter: TutorialChapter = {
     {
       id: 'add-task',
       title: 'タスクを追加する',
-      body: 'プロジェクト詳細画面から、タスクグループとタスクを追加できます。',
+      body: 'プロジェクト詳細画面とタスクグループ詳細画面で、タスクを追加できます。',
       targets: ['.task-list-section .section-header'],
     },
     {
@@ -52,7 +52,7 @@ export const tasksChapter: TutorialChapter = {
     {
       id: 'estimate-lock',
       title: '見積もりは着手すると固定される',
-      body: '見積時間は、作業を開始すると変更できなくなります。後から辻褄を合わせられないようにすることで、見積もりの精度を正しく測れます。',
+      body: '見積時間は、タスク詳細画面の「編集」ボタンで変更できます(記録モーダルからは不可)。ただし、着手すると変更できなくなります。',
       targets: ['.estimation-section', '.metrics-section'],
     },
     {
@@ -64,7 +64,7 @@ export const tasksChapter: TutorialChapter = {
     {
       id: 'quick-actions',
       title: '行を選んでその場で操作する',
-      body: 'タスクの行を選ぶと、詳細画面へ移動せずに、タイマー・見積・メモ・振り返りを操作できます。',
+      body: 'タスクの行を選ぶと、詳細画面へ移動せずに、タスク記録モーダルでタイマー・手動記録・完了・メモが使えます。',
       targets: ['.task-row'],
     },
     {
@@ -77,7 +77,7 @@ export const tasksChapter: TutorialChapter = {
     {
       id: 'timer-start',
       title: '作業セッションを記録する',
-      body: 'タスク詳細画面の作業セッションから、タイマーを開始・停止できます。開始した時点でサーバーに記録されるため、ブラウザを閉じても実績は失われません。',
+      body: 'タスク詳細画面とタスク記録モーダルの作業セッションから、タイマーを開始・停止できます。開始した時点でサーバーに記録されるため、ブラウザを閉じても実績は失われません。',
       targets: ['.work-section', '.timer-section'],
     },
     {

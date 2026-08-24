@@ -24,13 +24,13 @@ export const analyticsChapter: TutorialChapter = {
     {
       id: 'filter',
       title: '対象を絞り込む',
-      body: 'プロジェクト・期間・タグで分析の対象を絞り込めます。特定のプロジェクトや直近の傾向だけを見たいときに使います。',
+      body: 'プロジェクト・期間・タグで分析の対象を絞り込めます。特定のプロジェクトや特定の性質のタスク、直近の傾向だけを見たいときに便利です。',
       targets: ['.analytics-filter-bar'],
     },
     {
       id: 'excluded',
       title: '除外されるタスクがある',
-      body: '見積もりや実績が欠けたタスクは分析から除外されます。除外件数と理由は、絞り込みバーの数値欄で確認できます。',
+      body: '実績が欠けたタスクは分析から除外されます。除外件数と理由は、絞り込みバーの数値欄で確認できます。',
       targets: ['.analytics-filter-bar .counts'],
     },
     {

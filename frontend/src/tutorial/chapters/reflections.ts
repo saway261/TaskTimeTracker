@@ -3,8 +3,9 @@ import type { TutorialChapter } from '@/tutorial/types'
 // 要件 §9.3 の内容を、§9.8.2 の執筆規約(指示語を使わず単体で意味が通る文にする)へ
 // 適合させて書き起こしたもの。「伝えること」列の骨子をそのまま転記していない。
 //
-// ステップ5・6のアンカーは ReflectionModal の内部にある(実装計画 §0-1-1)。
+// ステップ5〜7のアンカーは ReflectionModal の内部にある(実装計画 §0-1-1)。
 //   - cause-category: `.cause-category-select`(CauseCategorySelect.vue のfieldset)
+//   - cause-detail: `.cause-field`(原因の自由記述欄。BaseTextareaを包む既存のラッパー)
 //   - next-action: `.next-action-field`(改善アクション欄には専用クラスが無かったため、
 //     BaseTextareaを<div class="next-action-field">で包んで新設した)
 // gapのアンカーは振り返り詳細画面の行(.reflection-task-row .row-meta)と、
@@ -22,32 +23,38 @@ export const reflectionsChapter: TutorialChapter = {
     {
       id: 'why',
       title: '振り返りの目的',
-      body: '振り返りは記録として残すためではなく、次の見積もりを変えるために書きます。誤差の原因と改善アクションを言葉にすることが、次回の精度につながります。',
+      body: '振り返りは次の見積もりを改善するために書きます。誤差の原因と改善アクションを言葉にすることが、次回の精度につながります。',
       targets: ['.reflection-view h1'],
     },
     {
       id: 'project-select',
       title: 'プロジェクトを選ぶ',
-      body: '振り返りはプロジェクトを選ぶところから始まります。選んだプロジェクトの中で、完了したタスクだけが振り返りの対象になります。',
+      body: '選んだプロジェクトの中で、完了したタスクだけが振り返りの対象になります。',
       targets: ['.project-cards', '.reflection-view .empty'],
     },
     {
       id: 'target',
       title: '振り返りの対象',
-      body: '一覧には完了したタスクだけが並びます。行の枠線や色で、振り返りを入力済みか未入力かを見分けられます。',
+      body: '一覧には完了したタスクだけが並びます。行の枠線が破線のものは、振り返りが未入力です。',
       targets: ['.reflection-task-row'],
     },
     {
       id: 'gap',
       title: '誤差はシステムが算出する',
-      body: '誤差と誤差率は見積もりと実績から自動で算出され、入力の必要はありません。ユーザーが入力するのは原因と改善アクションだけです。',
+      body: '誤差と誤差率は見積もりと実績から自動で算出されます。算出された数値をもとに、原因と改善アクションを考えましょう。',
       targets: ['.reflection-task-row .row-meta', '.reference-info'],
     },
     {
       id: 'cause-category',
       title: '原因をカテゴリで選ぶ',
-      body: '振り返りの原因はカテゴリから選びます。自由記述ではなくカテゴリを揃えることで、分析画面で原因別に集計できるようになります。',
+      body: '振り返りの原因はカテゴリから選びます。超過のときと短縮のときで標準で表示される選択肢が異なりますが、「全てのカテゴリを表示」で標準外のカテゴリも出すことができます。',
       targets: ['.cause-category-select'],
+    },
+    {
+      id: 'cause-detail',
+      title: '原因自由記述',
+      body: '原因カテゴリで「その他」を選んだときは、自由記述欄に具体的な内容を入力してください。何か関連した気づきがあれば、書き残しておくとよいでしょう。',
+      targets: ['.cause-field'],
     },
     {
       id: 'next-action',
