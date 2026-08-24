@@ -10,8 +10,8 @@ const aggregate: GapCauseAggregateResponse = {
   totalLinkCount: 15,
   groups: [
     {
-      direction: 'OVER',
-      label: '超過側',
+      outcome: 'LATE',
+      label: '超過',
       totalCount: 7,
       sharePercent: 70,
       items: [
@@ -25,29 +25,29 @@ const aggregate: GapCauseAggregateResponse = {
       ],
     },
     {
-      direction: 'UNDER',
-      label: '短縮側',
+      outcome: 'ON_TIME',
+      label: 'おおむね見積どおり',
       totalCount: 3,
       sharePercent: 30,
       items: [
         {
-          causeCategoryCode: 'BUFFER',
-          causeCategoryLabel: '余裕を持たせすぎた',
+          causeCategoryCode: 'UNCLEAR_GOAL',
+          causeCategoryLabel: 'ゴール・完了条件が曖昧だった',
           taskCount: 3,
           sharePercent: 30,
-          gapRateMedian: -25,
+          gapRateMedian: 5,
         },
       ],
     },
     {
-      direction: 'BOTH',
-      label: '共通',
+      outcome: 'EARLY',
+      label: '短縮',
       totalCount: 5,
       sharePercent: 50,
       items: [
         {
-          causeCategoryCode: 'FATIGUE',
-          causeCategoryLabel: '集中力・体調',
+          causeCategoryCode: 'CONDITION',
+          causeCategoryLabel: '体調・コンディション',
           taskCount: 2,
           sharePercent: 20,
           gapRateMedian: null,
@@ -79,9 +79,9 @@ describe('GapCauseChart', () => {
     const wrapper = mountChart()
 
     expect(wrapper.findAll('.cause-group')).toHaveLength(3)
-    expect(wrapper.text()).toContain('超過側')
-    expect(wrapper.text()).toContain('短縮側')
-    expect(wrapper.text()).toContain('共通')
+    expect(wrapper.text()).toContain('超過')
+    expect(wrapper.text()).toContain('おおむね見積どおり')
+    expect(wrapper.text()).toContain('短縮')
     expect(wrapper.text()).toContain('分析対象 10件 / 原因の延べ 15件')
     expect(wrapper.text()).toContain(
       '合計が分析対象件数を超えるのは、1つのタスクに複数の原因を選べるためです。',
@@ -98,7 +98,7 @@ describe('GapCauseChart', () => {
     await rows[1].trigger('keydown', { key: 'Enter' })
 
     expect(wrapper.emitted('causeCategoryChange')?.[0]).toEqual(['SCOPE_CREEP'])
-    expect(wrapper.emitted('causeCategoryChange')?.[1]).toEqual(['BUFFER'])
+    expect(wrapper.emitted('causeCategoryChange')?.[1]).toEqual(['UNCLEAR_GOAL'])
   })
 
   it('未分類は選択不可にして振り返り画面への後付け導線を表示する', async () => {

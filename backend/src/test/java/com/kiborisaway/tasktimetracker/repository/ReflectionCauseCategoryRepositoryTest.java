@@ -17,10 +17,10 @@ class ReflectionCauseCategoryRepositoryTest {
   private ReflectionCauseCategoryRepository sut;
 
   @Test
-  void 有効カテゴリ検索_表示順に18件の有効カテゴリを取得できること() {
+  void 有効カテゴリ検索_表示順に16件の有効カテゴリを取得できること() {
     List<ReflectionCauseCategory> actual = sut.findAllActive();
 
-    assertThat(actual).hasSize(18);
+    assertThat(actual).hasSize(16);
     assertThat(actual)
         .isSortedAccordingTo(Comparator.comparing(ReflectionCauseCategory::getDisplayOrder));
     assertThat(actual.get(0))
@@ -53,13 +53,20 @@ class ReflectionCauseCategoryRepositoryTest {
 
   @Test
   void コード検索成功_有効なコードを指定するとカテゴリを取得できること() {
-    ReflectionCauseCategory actual = sut.findActiveByCode("FATIGUE");
+    ReflectionCauseCategory actual = sut.findActiveByCode("CONDITION");
 
-    assertThat(actual.getLabel()).isEqualTo("疲れ・体調不良で本来の速度が出なかった");
-    assertThat(actual.getDirection()).isEqualTo(CauseDirection.OVER);
-    assertThat(actual.getNextActionHint()).isEqualTo("体調と時間帯を考慮して着手日を決める");
+    assertThat(actual.getLabel()).isEqualTo("体調・コンディション");
+    assertThat(actual.getDirection()).isEqualTo(CauseDirection.BOTH);
+    assertThat(actual.getNextActionHint()).isEqualTo("その条件が何だったかを記録して再現するか、予防する");
     assertThat(actual.getIsActive()).isTrue();
     assertThat(actual.getRequiresCause()).isFalse();
+  }
+
+  @Test
+  void コード検索成功_ゴール不明確カテゴリは超過短縮共通であること() {
+    ReflectionCauseCategory actual = sut.findActiveByCode("UNCLEAR_GOAL");
+
+    assertThat(actual.getDirection()).isEqualTo(CauseDirection.BOTH);
   }
 
   @Test

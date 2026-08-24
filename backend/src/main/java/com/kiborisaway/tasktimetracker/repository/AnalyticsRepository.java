@@ -296,49 +296,64 @@ public interface AnalyticsRepository {
       @Param("windowSize") int windowSize);
 
   /**
-   * 原因カテゴリ別（方向・コード単位）に、延べ件数と代表誤差率（中央値）を1クエリで取得します。
+   * 原因カテゴリ別（タスクの判定区分・コード単位）に、延べ件数と代表誤差率（中央値）を1クエリで取得します。
    * 原因カテゴリの中間テーブルは {@code LEFT JOIN} するため、リンクを持たない振り返り（未分類）も
-   * {@code direction} / {@code causeCategoryCode} / {@code causeCategoryLabel} がnullの行として含まれます。
+   * {@code causeCategoryCode} / {@code causeCategoryLabel} がnullの行として含まれます。
    * 1タスクが複数カテゴリを持つ場合、この結合は意図的に行を増やします（延べ件数のため。要件§4.7）。
    *
    * @param userId    認証ユーザーID
    * @param condition 絞り込み条件（projectId / from / to）
+   * @param threshold 判定区分しきい値（百分率）
    * @return カテゴリ（未分類を含む）ごとの延べ件数と代表誤差率
    */
   @Select("""
+      WITH target AS (
+        SELECT
+          CASE
+            WHEN t.gap_rate_cached >  #{threshold} THEN 'LATE'
+            WHEN t.gap_rate_cached < -#{threshold} THEN 'EARLY'
+            ELSE 'ON_TIME'
+          END AS outcome,
+          t.gap_rate_cached,
+          rcc.code          AS cause_category_code,
+          rcc.label         AS cause_category_label,
+          rcc.display_order AS display_order
+        FROM tasks t
+        LEFT JOIN task_groups tg ON tg.id = t.task_group_id
+        JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
+        JOIN reflections r ON r.task_id = t.id
+        LEFT JOIN reflection_cause_category_links rcl ON rcl.reflection_id = r.id
+        LEFT JOIN reflection_cause_categories rcc ON rcc.id = rcl.cause_category_id
+        WHERE p.user_id = #{userId}
+          AND t.finished_at IS NOT NULL
+          AND t.gap_rate_cached IS NOT NULL
+          AND t.actual_minutes_cached IS NOT NULL
+          AND t.actual_minutes_cached <> 0
+          AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
+               OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
+          AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+               OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
+          AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
+               OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
+          AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
+               OR EXISTS (SELECT 1 FROM task_tags tt
+                          WHERE tt.task_id = t.id
+                            AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
+      )
       SELECT
-        rcc.direction     AS direction,
-        rcc.code          AS cause_category_code,
-        rcc.label         AS cause_category_label,
-        rcc.display_order AS display_order,
-        COUNT(*)          AS task_count,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY t.gap_rate_cached) AS gap_rate_median
-      FROM tasks t
-      LEFT JOIN task_groups tg ON tg.id = t.task_group_id
-      JOIN projects p ON p.id = COALESCE(t.project_id, tg.project_id)
-      JOIN reflections r ON r.task_id = t.id
-      LEFT JOIN reflection_cause_category_links rcl ON rcl.reflection_id = r.id
-      LEFT JOIN reflection_cause_categories rcc ON rcc.id = rcl.cause_category_id
-      WHERE p.user_id = #{userId}
-        AND t.finished_at IS NOT NULL
-        AND t.gap_rate_cached IS NOT NULL
-        AND t.actual_minutes_cached IS NOT NULL
-        AND t.actual_minutes_cached <> 0
-        AND (#{condition.projectId, jdbcType=INTEGER} IS NULL
-             OR COALESCE(t.project_id, tg.project_id) = #{condition.projectId, jdbcType=INTEGER})
-        AND (CAST(#{condition.from, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
-             OR t.finished_at >= #{condition.from, jdbcType=TIMESTAMP})
-        AND (CAST(#{condition.to, jdbcType=TIMESTAMP} AS TIMESTAMP) IS NULL
-             OR t.finished_at <  #{condition.to, jdbcType=TIMESTAMP})
-        AND (#{condition.tagId, jdbcType=INTEGER} IS NULL
-             OR EXISTS (SELECT 1 FROM task_tags tt
-                        WHERE tt.task_id = t.id
-                          AND tt.tag_id = #{condition.tagId, jdbcType=INTEGER}))
-      GROUP BY rcc.direction, rcc.code, rcc.label, rcc.display_order
+        outcome,
+        cause_category_code,
+        cause_category_label,
+        display_order,
+        COUNT(*) AS task_count,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY gap_rate_cached) AS gap_rate_median
+      FROM target
+      GROUP BY outcome, cause_category_code, cause_category_label, display_order
       """)
   List<GapCauseRow> findGapCauses(
       @Param("userId") int userId,
-      @Param("condition") AnalyticsQueryCondition condition);
+      @Param("condition") AnalyticsQueryCondition condition,
+      @Param("threshold") double threshold);
 
   /**
    * 振り返り済みの完了タスクを完了日時降順でページング取得します。除外ルール（§2-1）は適用しません

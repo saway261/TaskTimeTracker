@@ -5,15 +5,16 @@ import java.util.List;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
-@Schema(description = "原因カテゴリの方向グループ（超過側・短縮側・共通）")
+@Schema(description = "タスクの判定区分ごとの原因カテゴリ集計")
 @Getter
 @EqualsAndHashCode
 public class GapCauseGroupResponse {
 
-  @Schema(description = "方向", example = "OVER", allowableValues = {"OVER", "UNDER", "BOTH"})
-  private final String direction;
+  @Schema(description = "タスクの判定区分", example = "LATE",
+      allowableValues = {"LATE", "ON_TIME", "EARLY"})
+  private final String outcome;
 
-  @Schema(description = "表示ラベル", example = "超過側")
+  @Schema(description = "表示ラベル", example = "超過")
   private final String label;
 
   @Schema(description = "グループの延べ件数（items の taskCount 合計）", example = "18")
@@ -26,9 +27,9 @@ public class GapCauseGroupResponse {
   private final List<GapCauseItemResponse> items;
 
   public GapCauseGroupResponse(
-      String direction, String label, int totalCount, double sharePercent,
+      String outcome, String label, int totalCount, double sharePercent,
       List<GapCauseItemResponse> items) {
-    this.direction = direction;
+    this.outcome = outcome;
     this.label = label;
     this.totalCount = totalCount;
     this.sharePercent = sharePercent;

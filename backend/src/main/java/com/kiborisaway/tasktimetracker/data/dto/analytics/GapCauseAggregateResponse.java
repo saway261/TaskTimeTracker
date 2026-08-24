@@ -17,7 +17,7 @@ public class GapCauseAggregateResponse {
       example = "41")
   private final int totalLinkCount;
 
-  @Schema(description = "超過側・短縮側・共通の3グループ")
+  @Schema(description = "タスクの判定区分（超過・おおむね見積どおり・短縮）の3グループ")
   private final List<GapCauseGroupResponse> groups;
 
   public GapCauseAggregateResponse(
