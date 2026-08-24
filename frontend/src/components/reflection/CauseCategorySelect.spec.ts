@@ -8,9 +8,9 @@ import type { CauseDirection, ReflectionCauseCategoryResponse } from '@/types/re
 import CauseCategorySelect from './CauseCategorySelect.vue'
 
 const directions: CauseDirection[] = [
-  ...Array<CauseDirection>(9).fill('OVER'),
-  ...Array<CauseDirection>(7).fill('UNDER'),
-  ...Array<CauseDirection>(2).fill('BOTH'),
+  ...Array<CauseDirection>(7).fill('OVER'),
+  ...Array<CauseDirection>(5).fill('UNDER'),
+  ...Array<CauseDirection>(4).fill('BOTH'),
 ]
 
 const categories: ReflectionCauseCategoryResponse[] = directions.map((direction, index) => ({
@@ -43,7 +43,7 @@ describe('CauseCategorySelect', () => {
     store.initialized = true
   })
 
-  it('超過では超過側と共通だけを表示し、切り替えると全18件を表示する', async () => {
+  it('超過では超過側と共通だけを表示し、切り替えると全16件を表示する', async () => {
     const wrapper = mountSelect('late')
 
     expect(optionValues(wrapper)).toHaveLength(11)
@@ -51,14 +51,14 @@ describe('CauseCategorySelect', () => {
 
     await wrapper.get('.show-all input[type="checkbox"]').setValue(true)
 
-    expect(optionValues(wrapper)).toHaveLength(18)
+    expect(optionValues(wrapper)).toHaveLength(16)
   })
 
   it('見積もりどおりでは共通カテゴリを先頭にして全件を表示する', () => {
     const wrapper = mountSelect('on-time')
 
-    expect(optionValues(wrapper)).toHaveLength(18)
-    expect(optionValues(wrapper).slice(0, 2)).toEqual(['BOTH_16', 'BOTH_17'])
+    expect(optionValues(wrapper)).toHaveLength(16)
+    expect(optionValues(wrapper).slice(0, 4)).toEqual(['BOTH_12', 'BOTH_13', 'BOTH_14', 'BOTH_15'])
   })
 
   it('絞り込み対象外でも選択済みカテゴリを残し、選択したカテゴリのヒントを表示する', async () => {

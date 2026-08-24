@@ -32,6 +32,10 @@ export function fetchMe() {
   return httpClient.get<AuthenticatedUserResponse>('/auth/me')
 }
 
+export function completeOnboarding() {
+  return httpClient.post<void>('/auth/onboarding/complete')
+}
+
 export function changePassword(req: PasswordChangeRequest) {
   return httpClient.put<void>('/auth/password', req)
 }

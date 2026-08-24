@@ -7,7 +7,6 @@ export type ReflectionOutcomeFilter = AnalyticsOutcome | 'ALL'
 export type RecentTrend = 'IMPROVED' | 'STABLE' | 'WORSENED'
 export type DiagnosisCode = 'GOOD' | 'UNSTABLE' | 'BIASED_LATE' | 'BIASED_EARLY' | 'UNSTABLE_BIASED'
 export type BiasDirection = 'LATE' | 'EARLY' | 'NONE'
-export type GapCauseDirection = 'OVER' | 'UNDER' | 'BOTH'
 
 export interface AnalyticsFilter {
   projectId: string | null
@@ -96,7 +95,7 @@ export interface GapCauseItemResponse {
 }
 
 export interface GapCauseGroupResponse {
-  direction: GapCauseDirection
+  outcome: AnalyticsOutcome
   label: string
   totalCount: number
   sharePercent: number

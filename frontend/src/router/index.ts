@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useAppSettingsStore } from '@/stores/appSettingsStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useTutorialStore } from '@/stores/tutorialStore'
 import type { ApiError } from '@/types/apiError'
 
 const routes = [
@@ -188,4 +189,22 @@ router.beforeEach(async (to) => {
   }
 
   return true
+})
+
+// 初回ツアーの発火(要件 §6.1)。beforeEachではなくafterEachに置くのは、
+// 仮パスワード変更・メール未確認によるリダイレクトが確定した「後」でなければ
+// ならないため(要件 §6.2)。afterEachはナビゲーションが確定した遷移先に対してのみ
+// 呼ばれるため、リダイレクトが起きた場合はto.nameがproject-listにならず、
+// この時点で自動的に発火しない。
+router.afterEach((to) => {
+  const authStore = useAuthStore()
+  const tutorialStore = useTutorialStore()
+  if (to.name !== 'project-list') return
+  if (!authStore.isAuthenticated) return
+  if (authStore.currentUser?.onboardingCompleted !== false) return
+  if (tutorialStore.tourAttempted) return
+  // 第3引数(scopeSelector)を渡さない。「はじめに」章のwelcome/loop/f-reflectは
+  // アンカーを持たないため、スコープ付きで開始すると再生対象から外れてしまう
+  // (実装計画 §フェーズF6)。
+  tutorialStore.start('intro', 'tour')
 })

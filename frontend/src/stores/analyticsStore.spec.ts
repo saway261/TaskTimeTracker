@@ -43,8 +43,8 @@ const gapCauses: GapCauseAggregateResponse = {
   totalLinkCount: 3,
   groups: [
     {
-      direction: 'OVER',
-      label: '超過側',
+      outcome: 'LATE',
+      label: '超過',
       totalCount: 3,
       sharePercent: 25,
       items: [

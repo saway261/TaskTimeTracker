@@ -5,6 +5,7 @@ import com.kiborisaway.tasktimetracker.data.dto.auth.CsrfTokenResponse;
 import com.kiborisaway.tasktimetracker.data.dto.auth.LoginRequest;
 import com.kiborisaway.tasktimetracker.data.dto.auth.PasswordChangeRequest;
 import com.kiborisaway.tasktimetracker.data.dto.auth.RegisterRequest;
+import com.kiborisaway.tasktimetracker.data.entity.AppUser;
 import com.kiborisaway.tasktimetracker.exception.PasswordChangeNotAllowedException;
 import com.kiborisaway.tasktimetracker.exception.PasswordPolicyViolationException;
 import com.kiborisaway.tasktimetracker.exception.handler.ErrorResponse;
@@ -120,8 +121,20 @@ public class AuthController {
   }
 
   @GetMapping("/me")
-  public AuthenticatedUserResponse me(@AuthenticationPrincipal AuthenticatedUser user) {
-    return new AuthenticatedUserResponse(user);
+  public ResponseEntity<?> me(@AuthenticationPrincipal AuthenticatedUser principal) {
+    AppUser user = userService.findById(principal.getUserId());
+    if (user == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+          new ErrorResponse(HttpStatus.UNAUTHORIZED, "authentication required", List.of()));
+    }
+    return ResponseEntity.ok(new AuthenticatedUserResponse(user));
+  }
+
+  @PostMapping("/onboarding/complete")
+  public ResponseEntity<Void> completeOnboarding(
+      @AuthenticationPrincipal AuthenticatedUser principal) {
+    userService.completeOnboarding(principal.getUserId());
+    return ResponseEntity.noContent().build();
   }
 
   @PutMapping("/password")

@@ -12,6 +12,8 @@ import type { ApiError } from '@/types/apiError'
 import { estimateOutcome, formatGap, formatGapRate, formatMinutes } from '@/utils/duration'
 import EstimateOutcomeIcon from '@/components/common/EstimateOutcomeIcon.vue'
 import { CAUSE_CATEGORY_REQUIRED_MESSAGE } from '@/utils/validationMessages'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
 const CAUSE_MAX_LENGTH = 200
 const NEXT_ACTION_MAX_LENGTH = 1000
@@ -135,7 +137,14 @@ function close() {
 
 <template>
   <BaseModal :model-value="modelValue" :title="title" @update:model-value="close">
-    <template v-if="task">
+    <template #title-extra>
+      <TutorialHelpButton
+        chapter-id="reflections"
+        chapter-title="振り返り"
+        :scope="TUTORIAL_SCOPES.reflectionModal"
+      />
+    </template>
+    <div v-if="task" class="reflection-modal">
       <h3 class="task-title">{{ task.title }}</h3>
       <p v-if="deferHint" class="defer-hint">後で入力する場合は✖ボタンで閉じてください。</p>
 
@@ -180,13 +189,15 @@ function close() {
           />
           <p v-if="causeRequiredHint" class="cause-required-hint">{{ causeRequiredHint }}</p>
         </div>
-        <BaseTextarea
-          v-model="nextAction"
-          label="改善アクション"
-          :maxlength="NEXT_ACTION_MAX_LENGTH"
-          :rows="4"
-          :error="error?.fieldErrors.nextAction"
-        />
+        <div class="next-action-field">
+          <BaseTextarea
+            v-model="nextAction"
+            label="改善アクション"
+            :maxlength="NEXT_ACTION_MAX_LENGTH"
+            :rows="4"
+            :error="error?.fieldErrors.nextAction"
+          />
+        </div>
         <div class="actions">
           <BaseButton
             v-if="!deferHint"
@@ -202,7 +213,7 @@ function close() {
           </BaseButton>
         </div>
       </form>
-    </template>
+    </div>
   </BaseModal>
 </template>
 

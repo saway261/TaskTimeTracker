@@ -19,6 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TagService {
 
+  private static final List<String> PRESET_TAG_NAMES =
+      List.of("調査・計画", "環境構築", "手作業");
+
   /**
    * アクティブなタグ（アーカイブ済みを除く）の保有上限。
    * 目的はタグ設計そのものへの歯止めであり、上限に近づくと1タグあたりの母数が確保できなくなる
@@ -68,7 +71,22 @@ public class TagService {
    */
   @Transactional
   public CreateResult create(int userId, TagCreateRequest request) {
-    String name = request.getName().trim();
+    return create(userId, request.getName());
+  }
+
+  /**
+   * 新規ユーザー向けのプリセットタグを作成します。
+   * ユーザー登録処理と同じトランザクション内で呼び出すことで、登録を原子的に完了させます。
+   *
+   * @param userId 新規登録されたユーザーのID
+   */
+  @Transactional
+  public void createPresetTags(int userId) {
+    PRESET_TAG_NAMES.forEach(name -> create(userId, name));
+  }
+
+  private CreateResult create(int userId, String requestedName) {
+    String name = requestedName.trim();
     String nameNormalized = normalize(name);
 
     Tag existing = repository.findByUserIdAndNameNormalized(userId, nameNormalized);

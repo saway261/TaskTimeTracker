@@ -27,6 +27,7 @@ public class AuthenticatedUser implements UserDetails {
   private final boolean passwordChangeRequired;
   private final LocalDateTime temporaryPasswordExpiresAt;
   private final boolean emailVerified;
+  private final boolean onboardingCompleted;
 
   public AuthenticatedUser(AppUser user) {
     this.userId = user.getId();
@@ -36,6 +37,7 @@ public class AuthenticatedUser implements UserDetails {
     this.passwordChangeRequired = Boolean.TRUE.equals(user.getPasswordChangeRequired());
     this.temporaryPasswordExpiresAt = user.getTemporaryPasswordExpiresAt();
     this.emailVerified = user.getEmailVerifiedAt() != null;
+    this.onboardingCompleted = Boolean.TRUE.equals(user.getOnboardingCompleted());
   }
 
   public int getUserId() {
@@ -56,6 +58,10 @@ public class AuthenticatedUser implements UserDetails {
 
   public boolean isEmailVerified() {
     return emailVerified;
+  }
+
+  public boolean isOnboardingCompleted() {
+    return onboardingCompleted;
   }
 
   @Override

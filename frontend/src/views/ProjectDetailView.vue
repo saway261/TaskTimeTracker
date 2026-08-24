@@ -32,6 +32,8 @@ import TaskGroupForm from '@/components/taskGroup/TaskGroupForm.vue'
 import TaskListItem from '@/components/task/TaskListItem.vue'
 import TaskForm from '@/components/task/TaskForm.vue'
 import MemoList from '@/components/memo/MemoList.vue'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
 const props = defineProps<{
   projectId: string
@@ -295,7 +297,14 @@ async function handleItemDrop() {
     <template v-else-if="projectStore.currentProject">
       <div class="header">
         <div>
-          <h1>{{ projectStore.currentProject.title }}</h1>
+          <h1>
+            {{ projectStore.currentProject.title }}
+            <TutorialHelpButton
+              chapter-id="tasks"
+              chapter-title="タスク管理"
+              :scope="TUTORIAL_SCOPES.projectDetail"
+            />
+          </h1>
           <div class="project-meta">
             <FinishedCheckbox
               :model-value="projectStore.currentProject.isFinished"
@@ -408,6 +417,13 @@ async function handleItemDrop() {
     </BaseModal>
 
     <BaseModal v-model="showCreateTaskModal" title="新規タスク">
+      <template #title-extra>
+        <TutorialHelpButton
+          chapter-id="tasks"
+          chapter-title="タスク管理"
+          :scope="TUTORIAL_SCOPES.taskForm"
+        />
+      </template>
       <TaskForm
         :submitting="creatingTask"
         :error="createTaskError"

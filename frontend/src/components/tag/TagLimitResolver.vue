@@ -26,10 +26,7 @@ const error = ref<ApiError | null>(null)
 // この2キーで順序が確定する。
 const candidates = computed(() =>
   [...tagStore.activeTags]
-    .sort(
-      (a, b) =>
-        a.assignedTaskCount - b.assignedTaskCount || a.name.localeCompare(b.name, 'ja'),
-    )
+    .sort((a, b) => a.assignedTaskCount - b.assignedTaskCount || a.name.localeCompare(b.name, 'ja'))
     .slice(0, CANDIDATE_LIMIT),
 )
 

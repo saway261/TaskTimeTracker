@@ -683,7 +683,7 @@ class AnalyticsRepositoryTest {
     insertReflection(task3, "3件目", null);
     linkCategory(reflection1, "OTHER");
     linkCategory(reflection1, "TASK_BREAKDOWN");
-    linkCategory(reflection2, "FATIGUE");
+    linkCategory(reflection2, "CONDITION");
 
     // 完了日時降順のため task3, task2 が1ページ目（size=2）に入り、task1は2ページ目になる。
     ReflectionTimelineQueryCondition page0 = timelineConditionFor(projectId);
@@ -697,7 +697,7 @@ class AnalyticsRepositoryTest {
         .extracting(
             ReflectionCauseCategoryLinkRow::getReflectionId,
             ReflectionCauseCategoryLinkRow::getCauseCategoryCode)
-        .containsExactly(tuple(reflection2, "FATIGUE"));
+        .containsExactly(tuple(reflection2, "CONDITION"));
   }
 
   @Test
@@ -852,46 +852,50 @@ class AnalyticsRepositoryTest {
   }
 
   @Test
-  void findGapCauses_方向とカテゴリごとに件数と誤差率中央値が集計され未分類はLEFTJOINで含まれること() {
+  void findGapCauses_タスク判定区分とカテゴリごとに集計されカテゴリ方向は判定に影響しないこと() {
     int projectId = insertProject(USER_ID, "原因カテゴリ集計検証");
     LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
     int taskA = insertFinishedTaskForTimeline(projectId, base, 100, 30.0);
     int taskB = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, 50.0);
     int taskC = insertFinishedTaskForTimeline(projectId, base.plusDays(2), 100, 10.0);
-    int taskD = insertFinishedTaskForTimeline(projectId, base.plusDays(3), 100, 40.0);
+    int taskD = insertFinishedTaskForTimeline(projectId, base.plusDays(3), 100, -40.0);
     int taskE = insertFinishedTaskForTimeline(projectId, base.plusDays(4), 100, 5.0);
-    int taskF = insertFinishedTaskForTimeline(projectId, base.plusDays(5), 100, 60.0);
+    int taskF = insertFinishedTaskForTimeline(projectId, base.plusDays(5), 100, -60.0);
     linkCategory(insertReflection(taskA, "原因A", null), "TASK_BREAKDOWN");
     linkCategory(insertReflection(taskB, "原因B", null), "TASK_BREAKDOWN");
     linkCategory(insertReflection(taskC, "原因C", null), "TASK_BREAKDOWN");
-    linkCategory(insertReflection(taskD, "原因D", null), "INTERRUPTION");
+    linkCategory(insertReflection(taskD, "原因D", null), "UNCLEAR_GOAL");
     insertReflection(taskE, "原因E", null); // カテゴリなし＝未分類
     int reflectionF = insertReflection(taskF, "原因F", null);
-    linkCategory(reflectionF, "TASK_BREAKDOWN"); // 1タスクが複数カテゴリ（OVER側とBOTH側）を持つケース
+    linkCategory(reflectionF, "TASK_BREAKDOWN"); // カテゴリ方向はOVERだが、タスク判定はEARLY
     linkCategory(reflectionF, "OTHER");
 
-    List<GapCauseRow> actual = sut.findGapCauses(USER_ID, conditionFor(projectId));
+    List<GapCauseRow> actual = sut.findGapCauses(USER_ID, conditionFor(projectId), 10.0);
 
-    GapCauseRow taskBreakdown = rowFor(actual, "TASK_BREAKDOWN");
-    assertThat(taskBreakdown.getDirection()).isEqualTo("OVER");
-    assertThat(taskBreakdown.getTaskCount()).isEqualTo(4); // A, B, C, F
-    assertThat(taskBreakdown.getGapRateMedian()).isCloseTo(40.0, within(1e-9)); // 10,30,50,60の中央値
+    GapCauseRow lateTaskBreakdown = rowFor(actual, "LATE", "TASK_BREAKDOWN");
+    assertThat(lateTaskBreakdown.getTaskCount()).isEqualTo(2); // A, B
+    assertThat(lateTaskBreakdown.getGapRateMedian()).isCloseTo(40.0, within(1e-9));
 
-    GapCauseRow interruption = rowFor(actual, "INTERRUPTION");
-    assertThat(interruption.getDirection()).isEqualTo("OVER");
-    assertThat(interruption.getTaskCount()).isEqualTo(1);
-    assertThat(interruption.getGapRateMedian()).isCloseTo(40.0, within(1e-9));
+    GapCauseRow onTimeTaskBreakdown = rowFor(actual, "ON_TIME", "TASK_BREAKDOWN");
+    assertThat(onTimeTaskBreakdown.getTaskCount()).isEqualTo(1); // C（境界値+10%）
+    assertThat(onTimeTaskBreakdown.getGapRateMedian()).isCloseTo(10.0, within(1e-9));
 
-    GapCauseRow other = rowFor(actual, "OTHER");
-    assertThat(other.getDirection()).isEqualTo("BOTH");
-    assertThat(other.getTaskCount()).isEqualTo(1); // F
-    assertThat(other.getGapRateMedian()).isCloseTo(60.0, within(1e-9));
+    GapCauseRow earlyTaskBreakdown = rowFor(actual, "EARLY", "TASK_BREAKDOWN");
+    assertThat(earlyTaskBreakdown.getTaskCount()).isEqualTo(1); // F
+    assertThat(earlyTaskBreakdown.getGapRateMedian()).isCloseTo(-60.0, within(1e-9));
+
+    GapCauseRow earlyUnclearGoal = rowFor(actual, "EARLY", "UNCLEAR_GOAL");
+    assertThat(earlyUnclearGoal.getTaskCount()).isEqualTo(1); // D
+    assertThat(earlyUnclearGoal.getGapRateMedian()).isCloseTo(-40.0, within(1e-9));
+
+    GapCauseRow earlyOther = rowFor(actual, "EARLY", "OTHER");
+    assertThat(earlyOther.getTaskCount()).isEqualTo(1); // F
+    assertThat(earlyOther.getGapRateMedian()).isCloseTo(-60.0, within(1e-9));
 
     GapCauseRow unclassified = actual.stream()
-        .filter(row -> row.getCauseCategoryCode() == null)
+        .filter(row -> "ON_TIME".equals(row.getOutcome()) && row.getCauseCategoryCode() == null)
         .findFirst()
         .orElseThrow();
-    assertThat(unclassified.getDirection()).isNull();
     assertThat(unclassified.getTaskCount()).isEqualTo(1); // E
     assertThat(unclassified.getGapRateMedian()).isCloseTo(5.0, within(1e-9));
 
@@ -905,7 +909,7 @@ class AnalyticsRepositoryTest {
     int projectId = insertProject(USER_ID, "原因カテゴリ振り返り未入力検証");
     insertFinishedTaskForTimeline(projectId, LocalDateTime.of(2026, 1, 1, 0, 0), 100, 10.0);
 
-    List<GapCauseRow> actual = sut.findGapCauses(USER_ID, conditionFor(projectId));
+    List<GapCauseRow> actual = sut.findGapCauses(USER_ID, conditionFor(projectId), 10.0);
 
     assertThat(actual).isEmpty();
   }
@@ -925,15 +929,17 @@ class AnalyticsRepositoryTest {
     AnalyticsQueryCondition condition = conditionFor(projectId);
     condition.setTagId(tag);
 
-    List<GapCauseRow> actual = sut.findGapCauses(USER_ID, condition);
+    List<GapCauseRow> actual = sut.findGapCauses(USER_ID, condition, 10.0);
 
     int totalTaskCount = actual.stream().mapToInt(GapCauseRow::getTaskCount).sum();
     assertThat(totalTaskCount).isEqualTo(1);
   }
 
-  private static GapCauseRow rowFor(List<GapCauseRow> rows, String causeCategoryCode) {
+  private static GapCauseRow rowFor(
+      List<GapCauseRow> rows, String outcome, String causeCategoryCode) {
     return rows.stream()
-        .filter(row -> causeCategoryCode.equals(row.getCauseCategoryCode()))
+        .filter(row -> outcome.equals(row.getOutcome())
+            && causeCategoryCode.equals(row.getCauseCategoryCode()))
         .findFirst()
         .orElseThrow();
   }

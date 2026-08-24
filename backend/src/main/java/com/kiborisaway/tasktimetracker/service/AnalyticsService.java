@@ -75,12 +75,12 @@ public class AnalyticsService {
       "M120", "61〜120分",
       "OVER120", "121分〜");
 
-  // 原因カテゴリのグループ表示順は超過側→短縮側→共通で固定する（要件§4.7）。
-  private static final List<String> GAP_CAUSE_DIRECTIONS = List.of("OVER", "UNDER", "BOTH");
-  private static final Map<String, String> GAP_CAUSE_DIRECTION_LABELS = Map.of(
-      "OVER", "超過側",
-      "UNDER", "短縮側",
-      "BOTH", "共通");
+  // 原因カテゴリのグループ表示順はタスクの判定区分に合わせて固定する（要件§4.7）。
+  private static final List<String> GAP_CAUSE_OUTCOMES = List.of("LATE", "ON_TIME", "EARLY");
+  private static final Map<String, String> GAP_CAUSE_OUTCOME_LABELS = Map.of(
+      "LATE", "超過",
+      "ON_TIME", "おおむね見積どおり",
+      "EARLY", "短縮");
   private static final String UNCLASSIFIED_LABEL = "未分類";
 
   // 「直近の傾向」は、直近10件と前10件のばらつき（MdAPE）の差がこの範囲内なら「横ばい」とする（要件§4.2）。
@@ -186,7 +186,7 @@ public class AnalyticsService {
   }
 
   /**
-   * 原因カテゴリ別の集計（超過側・短縮側・共通の3グループ）を取得します。
+   * 原因カテゴリ別の集計を、タスクの判定区分（超過・見積どおり・短縮）ごとに取得します。
    * 除外ルール（§2-1）を適用した分析対象タスクのうち、振り返り済みのものを対象とします。
    *
    * @param userId    認証ユーザーID
@@ -203,22 +203,14 @@ public class AnalyticsService {
     // analyzedTaskCountはestimation-accuracyと同じ抽出条件・同じクエリで算出し、二重に定義しない。
     int analyzedTaskCount =
         analyticsRepository.findSummary(userId, condition, threshold).getAnalyzedCount();
-    List<GapCauseRow> rows = analyticsRepository.findGapCauses(userId, condition);
+    List<GapCauseRow> rows = analyticsRepository.findGapCauses(userId, condition, threshold);
 
-    GapCauseRow unclassifiedRow = rows.stream()
-        .filter(row -> row.getDirection() == null)
-        .findFirst()
-        .orElse(null);
-    Map<String, List<GapCauseRow>> classifiedRowsByDirection = rows.stream()
-        .filter(row -> row.getDirection() != null)
-        .collect(Collectors.groupingBy(GapCauseRow::getDirection));
+    Map<String, List<GapCauseRow>> rowsByOutcome = rows.stream()
+        .collect(Collectors.groupingBy(GapCauseRow::getOutcome));
 
-    List<GapCauseGroupResponse> groups = GAP_CAUSE_DIRECTIONS.stream()
-        .map(direction -> buildGapCauseGroup(
-            direction,
-            classifiedRowsByDirection.getOrDefault(direction, List.of()),
-            "BOTH".equals(direction) ? unclassifiedRow : null,
-            analyzedTaskCount))
+    List<GapCauseGroupResponse> groups = GAP_CAUSE_OUTCOMES.stream()
+        .map(outcome -> buildGapCauseGroup(
+            outcome, rowsByOutcome.getOrDefault(outcome, List.of()), analyzedTaskCount))
         .toList();
     int totalLinkCount = groups.stream().mapToInt(GapCauseGroupResponse::getTotalCount).sum();
 
@@ -509,23 +501,25 @@ public class AnalyticsService {
   }
 
   /**
-   * 方向グループ（超過側・短縮側・共通）を組み立てます。件数降順で並べたうえで、
-   * 未分類（{@code unclassifiedRow}）は常に末尾に追加します（要件§4.7）。
+   * タスクの判定区分グループを組み立てます。カテゴリは件数降順で並べ、未分類は常に末尾に置きます。
    */
   private GapCauseGroupResponse buildGapCauseGroup(
-      String direction, List<GapCauseRow> rows, GapCauseRow unclassifiedRow, int analyzedTaskCount) {
+      String outcome, List<GapCauseRow> rows, int analyzedTaskCount) {
     List<GapCauseItemResponse> items = new ArrayList<>(rows.stream()
+        .filter(row -> row.getCauseCategoryCode() != null)
         .sorted(Comparator.comparing(GapCauseRow::getTaskCount, Comparator.reverseOrder())
             .thenComparing(GapCauseRow::getDisplayOrder))
         .map(row -> toGapCauseItem(row, analyzedTaskCount))
         .toList());
-    if (unclassifiedRow != null) {
-      items.add(toGapCauseItem(unclassifiedRow, analyzedTaskCount));
-    }
+    rows.stream()
+        .filter(row -> row.getCauseCategoryCode() == null)
+        .findFirst()
+        .map(row -> toGapCauseItem(row, analyzedTaskCount))
+        .ifPresent(items::add);
     int totalCount = items.stream().mapToInt(GapCauseItemResponse::getTaskCount).sum();
     double sharePercent = analyzedTaskCount == 0 ? 0.0 : (totalCount * 100.0) / analyzedTaskCount;
     return new GapCauseGroupResponse(
-        direction, GAP_CAUSE_DIRECTION_LABELS.get(direction), totalCount, sharePercent, items);
+        outcome, GAP_CAUSE_OUTCOME_LABELS.get(outcome), totalCount, sharePercent, items);
   }
 
   private GapCauseItemResponse toGapCauseItem(GapCauseRow row, int analyzedTaskCount) {

@@ -1,11 +1,24 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
 import ActiveTimerMenu from '@/components/common/ActiveTimerMenu.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import type { ApiError } from '@/types/apiError'
+
+// 開くまでは読み込まない(要件 §11)。章の一覧・本文を扱うため本体バンドルへ含めない。
+const TutorialChapterModal = defineAsyncComponent(
+  () => import('@/components/tutorial/TutorialChapterModal.vue'),
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +31,7 @@ const menuButton = ref<HTMLButtonElement | null>(null)
 const navMenuOpen = ref(false)
 const navMenuRoot = ref<HTMLElement | null>(null)
 const navMenuButton = ref<HTMLButtonElement | null>(null)
+const showChapterModal = ref(false)
 
 function toggleMenu() {
   menuOpen.value = !menuOpen.value
@@ -26,6 +40,11 @@ function toggleMenu() {
 
 function closeMenu() {
   menuOpen.value = false
+}
+
+function openChapterModal() {
+  showChapterModal.value = true
+  closeMenu()
 }
 
 async function closeMenuAndRestoreFocus() {
@@ -118,9 +137,9 @@ onBeforeUnmount(() => {
 <template>
   <header class="app-header">
     <div class="header-start">
-      <RouterLink to="/projects" class="brand">
-        <span class="brand-full">Task Time Tracker</span>
-        <span class="brand-short">TTT</span>
+      <RouterLink to="/projects" class="brand" aria-label="Task Time Tracker ホーム">
+        <img :src="'/ttt-logo.svg'" alt="" class="brand-logo" />
+        <img :src="'/title.svg'" alt="" class="brand-title" />
       </RouterLink>
       <nav class="main-nav" aria-label="メインナビゲーション">
         <RouterLink
@@ -179,6 +198,9 @@ onBeforeUnmount(() => {
             </span>
           </div>
           <div class="user-menu-separator" role="separator"></div>
+          <button type="button" class="user-menu-item" role="menuitem" @click="openChapterModal">
+            チュートリアル
+          </button>
           <RouterLink to="/tags" class="user-menu-item" role="menuitem" @click="closeMenu">
             タグ管理
           </RouterLink>
@@ -257,6 +279,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </header>
+  <TutorialChapterModal v-if="showChapterModal" v-model="showChapterModal" />
 </template>
 
 <style scoped>
@@ -283,8 +306,7 @@ onBeforeUnmount(() => {
   gap: 0.3em;
 }
 
-.mobile-navigation,
-.brand-short {
+.mobile-navigation {
   display: none;
 }
 
@@ -492,10 +514,21 @@ onBeforeUnmount(() => {
 }
 
 .brand {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
   text-decoration: none;
+}
+
+.brand-logo {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.brand-title {
+  width: auto;
+  height: 1.625rem;
 }
 
 .brand:focus-visible {
@@ -517,6 +550,10 @@ onBeforeUnmount(() => {
   }
 
   .main-nav {
+    display: none;
+  }
+
+  .brand-title {
     display: none;
   }
 
@@ -542,16 +579,6 @@ onBeforeUnmount(() => {
     max-height: calc(100vh - 5rem);
     overflow-y: auto;
     z-index: 120;
-  }
-}
-
-@media (max-width: 520px) {
-  .brand-full {
-    display: none;
-  }
-
-  .brand-short {
-    display: inline;
   }
 }
 </style>

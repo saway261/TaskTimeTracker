@@ -332,7 +332,7 @@ class AnalyticsIntegrationTest {
     int reflection2 = insertReflection(task2, "2件目", null);
     insertReflection(task3, "3件目", null);
     linkCategory(reflection1, "OTHER");
-    linkCategory(reflection2, "FATIGUE");
+    linkCategory(reflection2, "CONDITION");
 
     // 完了日時降順: task3, task2, task1。size=2のページ0にはtask3・task2が入る。
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
@@ -345,7 +345,7 @@ class AnalyticsIntegrationTest {
         .andExpect(jsonPath("$.items[0].taskId").value(TestPublicIds.task(task3)))
         .andExpect(jsonPath("$.items[0].causeCategories").isEmpty())
         .andExpect(jsonPath("$.items[1].taskId").value(TestPublicIds.task(task2)))
-        .andExpect(jsonPath("$.items[1].causeCategories[0].code").value("FATIGUE"))
+        .andExpect(jsonPath("$.items[1].causeCategories[0].code").value("CONDITION"))
         .andExpect(jsonPath("$.hasNext").value(true));
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/reflections")
@@ -417,7 +417,7 @@ class AnalyticsIntegrationTest {
         .andExpect(jsonPath("$.analyzedTaskCount").value(0))
         .andExpect(jsonPath("$.totalLinkCount").value(0))
         .andExpect(jsonPath("$.groups.length()").value(3))
-        .andExpect(jsonPath("$.groups[0].direction").value("OVER"))
+        .andExpect(jsonPath("$.groups[0].outcome").value("LATE"))
         .andExpect(jsonPath("$.groups[0].items").isEmpty());
 
     // projectId指定時はプロジェクト所有権確認1本＋サマリー1本＋原因カテゴリ集計1本で3本になる。
@@ -436,35 +436,39 @@ class AnalyticsIntegrationTest {
   }
 
   @Test
-  void 原因カテゴリ集計取得成功_方向ごとにグループ化され未分類は共通グループに含まれること() throws Exception {
+  void 原因カテゴリ集計取得成功_タスク判定区分ごとに方向を問わずカテゴリが集計されること() throws Exception {
     int projectId = insertProject(1, "原因カテゴリグループ化検証");
     LocalDateTime base = LocalDateTime.of(2026, 1, 1, 0, 0);
     int overTask = insertFinishedTaskForTimeline(projectId, base, 100, 30.0);
-    int underTask = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, -10.0);
-    int unclassifiedTask = insertFinishedTaskForTimeline(projectId, base.plusDays(2), 100, 5.0);
-    linkCategory(insertReflection(overTask, "作業が想定より多かった", null), "TASK_BREAKDOWN");
-    linkCategory(insertReflection(underTask, "余裕を持たせすぎた", null), "BUFFER_TOO_LARGE");
+    int underTask = insertFinishedTaskForTimeline(projectId, base.plusDays(1), 100, -30.0);
+    int onTimeTask = insertFinishedTaskForTimeline(projectId, base.plusDays(2), 100, 5.0);
+    int unclassifiedTask = insertFinishedTaskForTimeline(projectId, base.plusDays(3), 100, 0.0);
+    // カテゴリ自身の方向と逆の判定区分でも、タスクの誤差を基準にグループ化される。
+    linkCategory(insertReflection(overTask, "余裕を持たせすぎた", null), "BUFFER_TOO_LARGE");
+    linkCategory(insertReflection(underTask, "作業が想定より多かった", null), "TASK_BREAKDOWN");
+    linkCategory(insertReflection(onTimeTask, "完了条件が曖昧だった", null), "UNCLEAR_GOAL");
     insertReflection(unclassifiedTask, "特に理由なし", null);
 
     mockMvc.perform(MockMvcRequestBuilders.get("/analytics/gap-causes")
             .param("projectId", TestPublicIds.project(projectId))
             .with(authenticatedUser(1, "user-a@example.com")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.analyzedTaskCount").value(3))
-        .andExpect(jsonPath("$.totalLinkCount").value(3))
-        .andExpect(jsonPath("$.groups[0].direction").value("OVER"))
-        .andExpect(jsonPath("$.groups[0].label").value("超過側"))
-        .andExpect(jsonPath("$.groups[0].items[0].causeCategoryCode").value("TASK_BREAKDOWN"))
+        .andExpect(jsonPath("$.analyzedTaskCount").value(4))
+        .andExpect(jsonPath("$.totalLinkCount").value(4))
+        .andExpect(jsonPath("$.groups[0].outcome").value("LATE"))
+        .andExpect(jsonPath("$.groups[0].label").value("超過"))
+        .andExpect(jsonPath("$.groups[0].items[0].causeCategoryCode").value("BUFFER_TOO_LARGE"))
         .andExpect(jsonPath("$.groups[0].items[0].taskCount").value(1))
         .andExpect(jsonPath("$.groups[0].items[0].gapRateMedian").isEmpty()) // 3件未満
-        .andExpect(jsonPath("$.groups[1].direction").value("UNDER"))
-        .andExpect(jsonPath("$.groups[1].label").value("短縮側"))
-        .andExpect(jsonPath("$.groups[1].items[0].causeCategoryCode").value("BUFFER_TOO_LARGE"))
-        .andExpect(jsonPath("$.groups[2].direction").value("BOTH"))
-        .andExpect(jsonPath("$.groups[2].label").value("共通"))
-        .andExpect(jsonPath("$.groups[2].items[0].causeCategoryCode").isEmpty())
-        .andExpect(jsonPath("$.groups[2].items[0].causeCategoryLabel").value("未分類"))
-        .andExpect(jsonPath("$.groups[2].items[0].taskCount").value(1));
+        .andExpect(jsonPath("$.groups[1].outcome").value("ON_TIME"))
+        .andExpect(jsonPath("$.groups[1].label").value("おおむね見積どおり"))
+        .andExpect(jsonPath("$.groups[1].items[0].causeCategoryCode").value("UNCLEAR_GOAL"))
+        .andExpect(jsonPath("$.groups[1].items[1].causeCategoryCode").isEmpty())
+        .andExpect(jsonPath("$.groups[1].items[1].causeCategoryLabel").value("未分類"))
+        .andExpect(jsonPath("$.groups[1].items[1].taskCount").value(1))
+        .andExpect(jsonPath("$.groups[2].outcome").value("EARLY"))
+        .andExpect(jsonPath("$.groups[2].label").value("短縮"))
+        .andExpect(jsonPath("$.groups[2].items[0].causeCategoryCode").value("TASK_BREAKDOWN"));
   }
 
   @Test

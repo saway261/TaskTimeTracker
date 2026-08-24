@@ -113,6 +113,7 @@ const showQuickActions = ref(false)
     <TaskRowMenu
       v-model="showMenu"
       :task-id="task.id"
+      :detail-to="to"
       :project-id="projectId"
       :container-key="containerKey"
       :task-groups="taskGroups"

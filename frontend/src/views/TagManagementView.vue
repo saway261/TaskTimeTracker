@@ -9,6 +9,8 @@ import BaseInput from '@/components/common/BaseInput.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import TagLimitResolver from '@/components/tag/TagLimitResolver.vue'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
 const MAX_ACTIVE_TAGS = 50
 const tagStore = useTagStore()
@@ -142,7 +144,14 @@ onMounted(async () => {
   <main class="tag-management-view">
     <header class="page-header">
       <div>
-        <h1>タグ管理</h1>
+        <h1>
+          タグ管理
+          <TutorialHelpButton
+            chapter-id="tags"
+            chapter-title="タグ管理"
+            :scope="TUTORIAL_SCOPES.tags"
+          />
+        </h1>
         <p>
           タスクの分類に使うタグを管理します。タグは削除せず、使わなくなったらアーカイブできます。
         </p>

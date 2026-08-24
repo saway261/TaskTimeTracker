@@ -39,7 +39,7 @@ class ReflectionCauseCategoryLinkRepositoryTest {
   @Test
   void 登録成功_複数件のリンクを表示順で取得できること() {
     // 登録順はdisplay_order降順にしても、取得結果はdisplay_order昇順で返ることを確認する
-    sut.insert(1, categoryId("QUALITY_TRADEOFF")); // display_order=160
+    sut.insert(1, categoryId("TASK_TOO_SMALL"));  // display_order=170
     sut.insert(1, categoryId("TASK_BREAKDOWN"));    // display_order=10
     sut.insert(1, categoryId("OTHER"));             // display_order=220
 
@@ -47,7 +47,7 @@ class ReflectionCauseCategoryLinkRepositoryTest {
 
     assertThat(actual)
         .extracting(ReflectionCauseCategory::getCode)
-        .containsExactly("TASK_BREAKDOWN", "QUALITY_TRADEOFF", "OTHER");
+        .containsExactly("TASK_BREAKDOWN", "TASK_TOO_SMALL", "OTHER");
   }
 
   @Test
@@ -99,7 +99,7 @@ class ReflectionCauseCategoryLinkRepositoryTest {
   void プロジェクト内検索_直下とグループ配下のリンクをまとめて取得できること() {
     sut.insert(1, categoryId("TASK_BREAKDOWN")); // reflection id=1 -> task_id=6（直下）
     sut.insert(1, categoryId("OTHER"));
-    sut.insert(2, categoryId("FATIGUE"));         // reflection id=2 -> task_id=9（グループ配下）
+    sut.insert(2, categoryId("CONDITION"));       // reflection id=2 -> task_id=9（グループ配下）
 
     List<ReflectionCauseCategoryLinkRow> actual =
         sut.findCategoriesInProject(PROJECT_WITH_REFLECTION_FIXTURES);
@@ -111,7 +111,7 @@ class ReflectionCauseCategoryLinkRepositoryTest {
         .containsExactly(
             tuple(1, "TASK_BREAKDOWN"),
             tuple(1, "OTHER"),
-            tuple(2, "FATIGUE"));
+            tuple(2, "CONDITION"));
   }
 
   @Test

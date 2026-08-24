@@ -69,7 +69,7 @@ class EmailChangeServiceTest {
   @Test
   void 要求成功_確認済みユーザーなら確定と通知の両方のイベントを発行すること() {
     AppUser user = new AppUser(
-        1, "old@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW);
+        1, "old@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW, false);
     when(userRepository.findById(1)).thenReturn(user);
     when(passwordEncoder.matches("current-password", "{bcrypt}hash")).thenReturn(true);
     when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
@@ -91,7 +91,7 @@ class EmailChangeServiceTest {
   @Test
   void 要求成功_未確認ユーザーなら通知イベントは発行しないこと() {
     AppUser user = new AppUser(
-        1, "old@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, null);
+        1, "old@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, null, false);
     when(userRepository.findById(1)).thenReturn(user);
     when(passwordEncoder.matches("current-password", "{bcrypt}hash")).thenReturn(true);
     when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
@@ -108,7 +108,7 @@ class EmailChangeServiceTest {
   @Test
   void 要求失敗_現在パスワードが不一致なら例外を送出すること() {
     AppUser user = new AppUser(
-        1, "old@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW);
+        1, "old@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW, false);
     when(userRepository.findById(1)).thenReturn(user);
     when(passwordEncoder.matches("wrong-password", "{bcrypt}hash")).thenReturn(false);
 
@@ -122,7 +122,7 @@ class EmailChangeServiceTest {
   @Test
   void 要求失敗_現在と同じメールアドレスなら例外を送出すること() {
     AppUser user = new AppUser(
-        1, "same@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW);
+        1, "same@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW, false);
     when(userRepository.findById(1)).thenReturn(user);
     when(passwordEncoder.matches("current-password", "{bcrypt}hash")).thenReturn(true);
 
@@ -136,7 +136,7 @@ class EmailChangeServiceTest {
   @Test
   void 要求失敗_他ユーザーが使用中のメールアドレスなら例外を送出すること() {
     AppUser user = new AppUser(
-        1, "old@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW);
+        1, "old@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW, false);
     when(userRepository.findById(1)).thenReturn(user);
     when(passwordEncoder.matches("current-password", "{bcrypt}hash")).thenReturn(true);
     when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);

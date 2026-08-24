@@ -75,7 +75,7 @@ class EmailVerificationServiceTest {
   @Test
   void 再送成功_未確認ユーザーなら既存トークンを無効化して再発行すること() {
     AppUser user = new AppUser(
-        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, null);
+        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, null, false);
     when(userRepository.findById(1)).thenReturn(user);
     when(tokenGenerator.generateRawToken()).thenReturn("raw-token");
     when(tokenGenerator.hash("raw-token")).thenReturn("hashed-token");
@@ -91,7 +91,7 @@ class EmailVerificationServiceTest {
   @Test
   void 再送成功_確認済みユーザーなら何もしないこと() {
     AppUser user = new AppUser(
-        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW);
+        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW, false);
     when(userRepository.findById(1)).thenReturn(user);
 
     sut.resend(1);
@@ -108,7 +108,7 @@ class EmailVerificationServiceTest {
         new EmailVerificationToken(10, 1, "hashed-token", NOW.plusHours(1), null, NOW);
     when(tokenRepository.findByTokenHashForUpdate("hashed-token")).thenReturn(token);
     AppUser user = new AppUser(
-        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, null);
+        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, null, false);
     when(userRepository.findById(1)).thenReturn(user);
 
     sut.confirm("raw-token");
@@ -125,7 +125,7 @@ class EmailVerificationServiceTest {
         new EmailVerificationToken(10, 1, "hashed-token", NOW.plusHours(1), NOW, NOW);
     when(tokenRepository.findByTokenHashForUpdate("hashed-token")).thenReturn(token);
     AppUser user = new AppUser(
-        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW);
+        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, NOW, false);
     when(userRepository.findById(1)).thenReturn(user);
 
     sut.confirm("raw-token");
@@ -150,7 +150,7 @@ class EmailVerificationServiceTest {
         new EmailVerificationToken(10, 1, "hashed-token", NOW.minusMinutes(1), null, NOW);
     when(tokenRepository.findByTokenHashForUpdate("hashed-token")).thenReturn(token);
     AppUser user = new AppUser(
-        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, null);
+        1, "user@example.com", "{bcrypt}hash", true, false, null, NOW, NOW, null, false);
     when(userRepository.findById(1)).thenReturn(user);
 
     assertThatThrownBy(() -> sut.confirm("raw-token"))

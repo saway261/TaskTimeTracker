@@ -116,9 +116,9 @@ function selectItem(item: GapCauseItemResponse) {
     <div class="cause-groups">
       <section
         v-for="group in chart.groups"
-        :key="group.direction"
+        :key="group.outcome"
         class="cause-group"
-        :class="group.direction.toLowerCase()"
+        :class="group.outcome.toLowerCase().replace('_', '-')"
       >
         <h3>
           {{ group.label }}
@@ -281,14 +281,14 @@ function selectItem(item: GapCauseItemResponse) {
   background: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface));
 }
 
-.cause-group.under {
+.cause-group.early {
   border-left-color: var(--color-task-accent);
   background: color-mix(in srgb, var(--color-task-accent) 5%, var(--color-surface));
 }
 
-.cause-group.both {
-  border-left-color: var(--color-text-muted);
-  background: var(--color-surface);
+.cause-group.on-time {
+  border-left-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 5%, var(--color-surface));
 }
 
 h3 {
@@ -339,12 +339,12 @@ svg {
   fill: var(--color-danger);
 }
 
-.under .count-bar {
+.early .count-bar {
   fill: var(--color-task-accent);
 }
 
-.both .count-bar {
-  fill: var(--color-text-muted);
+.on-time .count-bar {
+  fill: var(--color-success);
 }
 
 .cause-row.selectable {

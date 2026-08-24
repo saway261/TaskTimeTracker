@@ -8,8 +8,7 @@ import lombok.Setter;
 
 /**
  * 原因カテゴリ別集計クエリの結果を受け取るフラット行。原因カテゴリが未設定（未分類）の場合、
- * {@code direction} / {@code causeCategoryCode} / {@code causeCategoryLabel} / {@code displayOrder}
- * はすべてnullになります。
+ * {@code causeCategoryCode} / {@code causeCategoryLabel} / {@code displayOrder} はnullになります。
  */
 @Getter
 @Setter
@@ -18,7 +17,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class GapCauseRow {
 
-  private String direction;
+  private String outcome;
 
   private String causeCategoryCode;
 

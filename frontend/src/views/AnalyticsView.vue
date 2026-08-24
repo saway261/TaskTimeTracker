@@ -18,6 +18,8 @@ import ReflectionTimeline from '@/components/analytics/ReflectionTimeline.vue'
 import LoadingIndicator from '@/components/common/LoadingIndicator.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
+import TutorialHelpButton from '@/components/tutorial/TutorialHelpButton.vue'
+import { TUTORIAL_SCOPES } from '@/tutorial/scopes'
 
 const analyticsStore = useAnalyticsStore()
 const projectStore = useProjectStore()
@@ -96,7 +98,14 @@ onMounted(load)
 
 <template>
   <main class="analytics-view">
-    <h1>分析</h1>
+    <h1>
+      分析
+      <TutorialHelpButton
+        chapter-id="analytics"
+        chapter-title="分析"
+        :scope="TUTORIAL_SCOPES.analytics"
+      />
+    </h1>
 
     <AnalyticsFilterBar
       :filter="analyticsStore.filter"

@@ -601,7 +601,8 @@ class AnalyticsServiceTest {
 
     assertThatThrownBy(() -> sut.getGapCauses(USER_ID, condition))
         .isInstanceOf(TargetNotFoundException.class);
-    verify(analyticsRepository, never()).findGapCauses(ArgumentMatchers.anyInt(), ArgumentMatchers.any());
+    verify(analyticsRepository, never()).findGapCauses(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
   }
 
   @Test
@@ -614,7 +615,8 @@ class AnalyticsServiceTest {
 
     assertThatThrownBy(() -> sut.getGapCauses(USER_ID, condition))
         .isInstanceOf(AnalyticsQueryInvalidException.class);
-    verify(analyticsRepository, never()).findGapCauses(ArgumentMatchers.anyInt(), ArgumentMatchers.any());
+    verify(analyticsRepository, never()).findGapCauses(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
   }
 
   @Test
@@ -626,7 +628,8 @@ class AnalyticsServiceTest {
 
     assertThatThrownBy(() -> sut.getGapCauses(USER_ID, condition))
         .isInstanceOf(TargetNotFoundException.class);
-    verify(analyticsRepository, never()).findGapCauses(ArgumentMatchers.anyInt(), ArgumentMatchers.any());
+    verify(analyticsRepository, never()).findGapCauses(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
   }
 
   @Test
@@ -639,37 +642,38 @@ class AnalyticsServiceTest {
 
     assertThatThrownBy(() -> sut.getGapCauses(USER_ID, condition))
         .isInstanceOf(AnalyticsQueryInvalidException.class);
-    verify(analyticsRepository, never()).findGapCauses(ArgumentMatchers.anyInt(), ArgumentMatchers.any());
+    verify(analyticsRepository, never()).findGapCauses(
+        ArgumentMatchers.anyInt(), ArgumentMatchers.any(), ArgumentMatchers.anyDouble());
   }
 
   @Test
-  void 原因カテゴリ集計_件数降順で並び未分類が共通グループの末尾に来ること() {
+  void 原因カテゴリ集計_タスク判定区分ごとに件数降順で並び未分類が末尾に来ること() {
     AnalyticsService sut = service();
     AnalyticsQueryCondition condition = condition(null, null, null);
     when(analyticsRepository.findSummary(USER_ID, condition, 10.0))
         .thenReturn(summaryRow(10, 3, 2, 5, 1.2, 1.0, 1.4, 20.0));
-    when(analyticsRepository.findGapCauses(USER_ID, condition)).thenReturn(List.of(
-        new GapCauseRow("OVER", "TASK_BREAKDOWN", "作業の洗い出しが足りなかった", 1, 3, 40.0),
-        new GapCauseRow("OVER", "INTERRUPTION", "割り込みが発生した", 2, 5, 35.0),
-        new GapCauseRow(null, null, null, null, 2, null)));
+    when(analyticsRepository.findGapCauses(USER_ID, condition, 10.0)).thenReturn(List.of(
+        new GapCauseRow("LATE", "TASK_BREAKDOWN", "作業の洗い出しが足りなかった", 1, 3, 40.0),
+        new GapCauseRow("LATE", "INTERRUPTION", "割り込みが発生した", 2, 5, 35.0),
+        new GapCauseRow("ON_TIME", null, null, null, 2, null)));
 
     GapCauseAggregateResponse actual = sut.getGapCauses(USER_ID, condition);
 
-    GapCauseGroupResponse overGroup = group(actual, "OVER");
-    assertThat(overGroup.getItems())
+    GapCauseGroupResponse lateGroup = group(actual, "LATE");
+    assertThat(lateGroup.getItems())
         .extracting(GapCauseItemResponse::getCauseCategoryCode)
         .containsExactly("INTERRUPTION", "TASK_BREAKDOWN");
-    assertThat(overGroup.getTotalCount()).isEqualTo(8);
+    assertThat(lateGroup.getTotalCount()).isEqualTo(8);
 
-    GapCauseGroupResponse bothGroup = group(actual, "BOTH");
-    assertThat(bothGroup.getItems())
+    GapCauseGroupResponse onTimeGroup = group(actual, "ON_TIME");
+    assertThat(onTimeGroup.getItems())
         .extracting(GapCauseItemResponse::getCauseCategoryLabel)
         .containsExactly("未分類");
-    assertThat(bothGroup.getTotalCount()).isEqualTo(2);
+    assertThat(onTimeGroup.getTotalCount()).isEqualTo(2);
 
-    GapCauseGroupResponse underGroup = group(actual, "UNDER");
-    assertThat(underGroup.getItems()).isEmpty();
-    assertThat(underGroup.getTotalCount()).isZero();
+    GapCauseGroupResponse earlyGroup = group(actual, "EARLY");
+    assertThat(earlyGroup.getItems()).isEmpty();
+    assertThat(earlyGroup.getTotalCount()).isZero();
   }
 
   @Test
@@ -678,12 +682,12 @@ class AnalyticsServiceTest {
     AnalyticsQueryCondition condition = condition(null, null, null);
     when(analyticsRepository.findSummary(USER_ID, condition, 10.0))
         .thenReturn(summaryRow(10, 3, 2, 5, 1.2, 1.0, 1.4, 20.0));
-    when(analyticsRepository.findGapCauses(USER_ID, condition)).thenReturn(List.of(
-        new GapCauseRow("UNDER", "OVER_ESTIMATION", "余裕を持たせすぎた", 1, 2, 15.0)));
+    when(analyticsRepository.findGapCauses(USER_ID, condition, 10.0)).thenReturn(List.of(
+        new GapCauseRow("EARLY", "OVER_ESTIMATION", "余裕を持たせすぎた", 1, 2, -15.0)));
 
     GapCauseAggregateResponse actual = sut.getGapCauses(USER_ID, condition);
 
-    GapCauseItemResponse item = group(actual, "UNDER").getItems().get(0);
+    GapCauseItemResponse item = group(actual, "EARLY").getItems().get(0);
     assertThat(item.getTaskCount()).isEqualTo(2);
     assertThat(item.getGapRateMedian()).isNull();
   }
@@ -694,20 +698,20 @@ class AnalyticsServiceTest {
     AnalyticsQueryCondition condition = condition(null, null, null);
     when(analyticsRepository.findSummary(USER_ID, condition, 10.0))
         .thenReturn(summaryRow(5, 2, 1, 2, 1.2, 1.0, 1.4, 20.0));
-    when(analyticsRepository.findGapCauses(USER_ID, condition)).thenReturn(List.of(
-        new GapCauseRow("OVER", "TASK_BREAKDOWN", "作業の洗い出しが足りなかった", 1, 4, 40.0),
-        new GapCauseRow("UNDER", "OVER_ESTIMATION", "余裕を持たせすぎた", 1, 3, 15.0)));
+    when(analyticsRepository.findGapCauses(USER_ID, condition, 10.0)).thenReturn(List.of(
+        new GapCauseRow("LATE", "TASK_BREAKDOWN", "作業の洗い出しが足りなかった", 1, 4, 40.0),
+        new GapCauseRow("EARLY", "OVER_ESTIMATION", "余裕を持たせすぎた", 1, 3, -15.0)));
 
     GapCauseAggregateResponse actual = sut.getGapCauses(USER_ID, condition);
 
     assertThat(actual.getAnalyzedTaskCount()).isEqualTo(5);
     assertThat(actual.getTotalLinkCount()).isEqualTo(7); // 4 + 3 > analyzedTaskCount(5)
-    assertThat(group(actual, "OVER").getSharePercent()).isEqualTo(80.0); // 4/5*100
+    assertThat(group(actual, "LATE").getSharePercent()).isEqualTo(80.0); // 4/5*100
   }
 
-  private static GapCauseGroupResponse group(GapCauseAggregateResponse response, String direction) {
+  private static GapCauseGroupResponse group(GapCauseAggregateResponse response, String outcome) {
     return response.getGroups().stream()
-        .filter(g -> g.getDirection().equals(direction))
+        .filter(g -> g.getOutcome().equals(outcome))
         .findFirst()
         .orElseThrow();
   }

@@ -18,6 +18,7 @@ const user = {
   email: 'long-user-address@example.com',
   passwordChangeRequired: false,
   emailVerified: true,
+  onboardingCompleted: false,
 }
 
 describe('AppHeader user menu', () => {
@@ -63,6 +64,20 @@ describe('AppHeader user menu', () => {
     })
 
     expect(wrapper.get('.main-nav a').attributes('href')).toBe('/projects')
+    wrapper.unmount()
+  })
+
+  it('ブランドリンクにロゴとタイトル画像を表示する', () => {
+    const wrapper = mount(AppHeader, {
+      global: { plugins: [pinia, router] },
+    })
+
+    const brand = wrapper.get('.brand')
+    expect(brand.attributes('href')).toBe('/projects')
+    expect(brand.attributes('aria-label')).toBe('Task Time Tracker ホーム')
+    expect(brand.get('.brand-logo').attributes('src')).toBe('/ttt-logo.svg')
+    expect(brand.get('.brand-title').attributes('src')).toBe('/title.svg')
+    expect(brand.findAll('img').every((image) => image.attributes('alt') === '')).toBe(true)
     wrapper.unmount()
   })
 
@@ -131,6 +146,32 @@ describe('AppHeader user menu', () => {
     await flushPromises()
 
     expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('チュートリアル項目はタグ管理の上にあり、選ぶと章選択モーダルを開く', async () => {
+    const wrapper = mount(AppHeader, {
+      attachTo: document.body,
+      global: { plugins: [pinia, router] },
+    })
+    await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
+
+    const items = wrapper.findAll('.user-menu-item')
+    const tutorialIndex = items.findIndex((item) => item.text() === 'チュートリアル')
+    const tagIndex = items.findIndex((item) => item.text() === 'タグ管理')
+    expect(tutorialIndex).toBeGreaterThanOrEqual(0)
+    expect(tutorialIndex).toBeLessThan(tagIndex)
+
+    await items[tutorialIndex].trigger('click')
+
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+    // defineAsyncComponentの解決はマイクロタスクのflushPromises()だけでは追いつかないため、
+    // 実タイマーでポーリングするvi.waitForを使う。
+    await vi.waitFor(() => {
+      expect(
+        document.body.querySelector('[role="dialog"][aria-label="チュートリアル"]'),
+      ).not.toBeNull()
+    })
     wrapper.unmount()
   })
 

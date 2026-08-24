@@ -50,6 +50,7 @@ describe('FE F8 password reset views', () => {
       email: 'user@example.com',
       passwordChangeRequired: false,
       emailVerified: true,
+      onboardingCompleted: false,
     }
     vi.mocked(authApi.resetPassword).mockResolvedValue({} as never)
     await router.push('/password-reset?token=password-reset-token')

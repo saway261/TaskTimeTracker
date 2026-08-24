@@ -94,6 +94,7 @@ describe('tagStore', () => {
       email: 'user1@example.com',
       passwordChangeRequired: false,
       emailVerified: true,
+      onboardingCompleted: false,
     }
     await store.fetchTags()
 
@@ -102,6 +103,7 @@ describe('tagStore', () => {
       email: 'user2@example.com',
       passwordChangeRequired: false,
       emailVerified: true,
+      onboardingCompleted: false,
     }
     const secondFetch = store.fetchTags()
 

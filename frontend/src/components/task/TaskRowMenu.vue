@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useItemOrderStore } from '@/stores/itemOrderStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useQuickReflectionStore } from '@/stores/quickReflectionStore'
+import { toReflectionTask } from '@/utils/reflectionTask'
 import type { TaskGroupResponse } from '@/types/taskGroup'
 import type { ApiError } from '@/types/apiError'
 import BaseModal from '@/components/common/BaseModal.vue'
@@ -13,6 +16,7 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 const props = defineProps<{
   modelValue: boolean
   taskId: string
+  detailTo: string
   projectId: string
   containerKey: string // 'project:{pId}' | 'taskGroup:{tgId}'
   taskGroups: TaskGroupResponse[]
@@ -30,6 +34,7 @@ const emit = defineEmits<{
 const itemOrderStore = useItemOrderStore()
 const taskStore = useTaskStore()
 const notification = useNotificationStore()
+const quickReflection = useQuickReflectionStore()
 
 const moving = ref(false)
 const finishing = ref(false)
@@ -59,9 +64,12 @@ async function finishTask() {
   finishing.value = true
   error.value = null
   try {
-    await taskStore.updateFinished(props.taskId, { isFinished: true })
+    const updatedTask = await taskStore.updateFinished(props.taskId, { isFinished: true })
     notification.success('タスクを完了にしました。')
+    // このメニューを閉じてから振り返りへ引き継ぐ。振り返りモーダルはアプリ直下にあるため、
+    // 完了によってこの行が一覧から外れてアンマウントされても影響を受けない。
     close()
+    quickReflection.open(toReflectionTask(updatedTask))
   } catch (e) {
     error.value = e as ApiError
   } finally {
@@ -113,6 +121,9 @@ async function handleMoveTo(targetKey: string) {
       <BaseButton v-if="!finished" :disabled="finishing" @click="finishTask">
         完了にする
       </BaseButton>
+      <RouterLink :to="detailTo" class="detail-link" @click="close">
+        タスクの詳細・編集・メモへ →
+      </RouterLink>
       <BaseButton v-if="canMoveUp" variant="secondary" @click="handleMoveUp">
         ↑ 上へ移動
       </BaseButton>
@@ -146,5 +157,29 @@ async function handleMoveTo(targetKey: string) {
   margin: 0.4em 0 0;
   font-size: 0.8rem;
   color: var(--color-text-muted);
+}
+
+.detail-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.5em 1.2em;
+  border-radius: 6px;
+  border: 1px solid var(--color-text-muted);
+  background-color: transparent;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.detail-link:hover {
+  background-color: var(--color-surface-muted);
+}
+
+.detail-link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 </style>
